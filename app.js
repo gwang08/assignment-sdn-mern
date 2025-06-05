@@ -6,15 +6,30 @@ var logger = require("morgan");
 var mongoose = require("mongoose");
 require("dotenv").config();
 
+// User Models
+const Student = require("./models/user/student");
+const StudentParent = require("./models/user/studentParent");
+const Parent = require("./models/user/parent");
+const MedicalStaff = require("./models/user/medicalStaff");
+
+// Health Models
+const HealthProfile = require("./models/healthProfile");
+
+// Campaign Models
+const Campaign = require("./models/campaign/campaign");
+const CampaignResult = require("./models/campaign/campaignResult");
+const CampaignConsent = require("./models/campaign/campaignConsent");
+const ConsultationSchedule = require("./models/campaign/consultationSchedule");
+
 const mongoUrl =
   process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/assigment-sdn";
 
 // Mongoose connection
 mongoose
   .connect(mongoUrl)
-  .then(() => {
+  .then((db) => {
     console.log("✅ MongoDB Connection Success");
-    console.log(`📁 Connected to database: ${mongoose.connection.name}`);
+    console.log(`📁 Connected to database: ${db.connection.name}`);
   })
   .catch((err) => {
     console.error("❌ MongoDB Connection Error:", err);
