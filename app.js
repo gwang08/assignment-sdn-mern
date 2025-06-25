@@ -4,6 +4,7 @@ var path = require("path");
 var cookieParser = require("cookie-parser");
 var logger = require("morgan");
 var mongoose = require("mongoose");
+var cors = require("cors");
 require("dotenv").config();
 
 // Import Swagger configuration
@@ -51,6 +52,29 @@ var authRouter = require("./routes/auth"); // Add the auth router for authentica
 var adminRouter = require("./routes/admin"); // Add the admin router
 
 var app = express();
+
+// CORS configuration
+const corsOptions = {
+  origin: [
+    'http://localhost:3001', // React development server
+    'http://localhost:3000', // In case frontend runs on 3000
+    'http://127.0.0.1:3001',
+    'http://127.0.0.1:3000'
+  ],
+  credentials: true,
+  optionsSuccessStatus: 200,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: [
+    'Origin',
+    'X-Requested-With', 
+    'Content-Type', 
+    'Accept',
+    'Authorization',
+    'x-auth-token'
+  ]
+};
+
+app.use(cors(corsOptions));
 
 // view engine setup
 app.set("views", path.join(__dirname, "views"));

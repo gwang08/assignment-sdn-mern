@@ -1,0 +1,100 @@
+@import '~antd/dist/reset.css';
+
+.App {
+  min-height: 100vh;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Ant Design customizations */
+.ant-layout-sider {
+  background: #fff !important;
+}
+
+.ant-menu {
+  border-right: none !important;
+}
+
+.ant-menu-item:hover {
+  background-color: #f0f9ff !important;
+  color: #1890ff !important;
+}
+
+.ant-menu-item-selected {
+  background-color: #e6f7ff !important;
+  color: #1890ff !important;
+}
+
+.ant-menu-item-selected::after {
+  border-right: 3px solid #1890ff !important;
+}
+
+/* Custom card hover effects */
+.ant-card:hover {
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+  transition: all 0.3s ease;
+}
+
+/* Table customizations */
+.ant-table-thead > tr > th {
+  background-color: #fafafa;
+  font-weight: 600;
+}
+
+.ant-table-tbody > tr:hover > td {
+  background-color: #f0f9ff !important;
+}
+
+/* Button customizations */
+.ant-btn-primary {
+  background-color: #1890ff;
+  border-color: #1890ff;
+}
+
+.ant-btn-primary:hover {
+  background-color: #40a9ff;
+  border-color: #40a9ff;
+}
+
+/* Form customizations */
+.ant-form-item {
+  margin-bottom: 16px;
+}
+
+.ant-input:focus,
+.ant-input-focused {
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+/* Custom animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
