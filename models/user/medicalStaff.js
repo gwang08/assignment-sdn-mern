@@ -5,6 +5,16 @@ const personSchema = require("../interfaces/person");
 const medicalStaffSchema = new Schema(
   {
     ...personSchema.obj,
+    username: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+    },
+    password: {
+      type: String,
+      required: true,
+    },
     phone_number: {
       type: String,
       required: true,
@@ -18,10 +28,6 @@ const medicalStaffSchema = new Schema(
       type: String,
       required: true,
       enum: ["Nurse", "Doctor", "Healthcare Assistant"],
-    },
-    is_active: {
-      type: Boolean,
-      default: true,
     },
   },
   {

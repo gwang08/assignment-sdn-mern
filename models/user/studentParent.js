@@ -25,6 +25,24 @@ const studentParentSchema = new Schema(
       type: Boolean,
       default: true,
     },
+    status: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "approved", // Default to approved for backward compatibility
+    },
+    notes: {
+      type: String, // Additional information provided by parent during request
+    },
+    admin_notes: {
+      type: String, // Notes added by admin/nurse during approval/rejection
+    },
+    processed_by: {
+      type: Schema.Types.ObjectId,
+      ref: "MedicalStaff", // Reference to staff who processed the request
+    },
+    processed_at: {
+      type: Date, // When the request was processed
+    },
   },
   {
     timestamps: true,

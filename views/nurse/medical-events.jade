@@ -1,45 +1,64 @@
 extends ../layout
 
 block content
-  .container
-    .header
-      h1 Medical Events Management
-      button#addEventBtn.btn.btn-primary Add New Event
+  .container-fluid
+    h1.title Medical Events
     
-    .filters
-      input#searchStudent(type="text" placeholder="Search student name...")
-      select#classFilter
-        option(value="") All Classes
-    
-    .events-list#eventsList
-      // Events will be loaded here via JavaScript
-    
-    // Modal for adding new event
-    #addEventModal.modal(style="display: none;")
-      .modal-content
-        .modal-header
-          h2 Add Medical Event
-          span.close &times;
-        .modal-body
-          form#addEventForm
-            .form-group
-              label(for="studentSelect") Student:
-              select#studentSelect(name="studentId" required)
-                option(value="") Select Student
-            .form-group
-              label(for="eventDescription") Event Description:
-              textarea#eventDescription(name="event" required rows="4")
+    .row
+      .col-md-8
+        .card
+          .card-header
+            h2 Current Medical Events
+          .card-body
+            #eventsList.events-list
+              p.loading Loading medical events...
+      
+      .col-md-4
+        .card
+          .card-header
+            h2 Create New Medical Event
+          .card-body
+            form#newEventForm
+              .form-group
+                label(for="studentId") Student:
+                select#studentId(name="studentId" required)
+                  option(value="") -- Select Student --
+              
+              .form-group
+                label(for="eventType") Event Type:
+                select#eventType(name="eventType" required)
+                  option(value="") -- Select Event Type --
+                  option(value="ACCIDENT") Accident
+                  option(value="FEVER") Fever
+                  option(value="INJURY") Injury
+                  option(value="EPIDEMIC") Epidemic Disease
+                  option(value="OTHER") Other
+              
+              .form-group
+                label(for="eventSeverity") Severity:
+                select#eventSeverity(name="severity" required)
+                  option(value="") -- Select Severity --
+                  option(value="LOW") Low
+                  option(value="MEDIUM") Medium
+                  option(value="HIGH") High
+                  option(value="EMERGENCY") Emergency
+              
+              .form-group
+                label(for="eventDescription") Event Description:
+                textarea#eventDescription(name="event" required rows="4")
             .form-actions
               button(type="submit").btn.btn-primary Save Event
               button(type="button").btn.btn-secondary Cancel
 
   script.
     document.addEventListener('DOMContentLoaded', function() {
-      const nurseId = new URLSearchParams(window.location.search).get('nurseId') || 'default-nurse-id';
-      
       // Load events
       function loadEvents() {
-        fetch('/nurse/medical-events?nurseId=' + nurseId)
+        fetch('/nurse/medical-events', {
+          headers: {
+            'x-auth-token': localStorage.getItem('token')
+          }
+        })
           .then(response => response.json())
           .then(events => {
             const eventsList = document.getElementById('eventsList');
@@ -49,30 +68,11 @@ block content
                   <h3>${event.student.first_name} ${event.student.last_name}</h3>
                   <span class="class-badge">${event.student.class_name}</span>
                 </div>
-                <p class="event-description">${event.event}</p>
-                <div class="event-footer">
-                  <span class="created-by">By: ${event.created_by.first_name} ${event.created_by.last_name}</span>
-                  <span class="created-date">${new Date(event.createdAt).toLocaleDateString()}</span>
-                </div>
-              </div>
-            `).join('');
-          })
-          .catch(error => console.error('Error loading events:', error));
-      }
-      
-      // Load students for dropdown
-      function loadStudents() {
-        fetch('/nurse/students?nurseId=' + nurseId)
-          .then(response => response.json())
-          .then(students => {
-            const select = document.getElementById('studentSelect');
-            select.innerHTML = '<option value="">Select Student</option>' +
-              students.map(student => 
-                `<option value="${student._id}">${student.first_name} ${student.last_name} (${student.class_name})</option>`
-              ).join('');
-          });
-      }
-      
+                <div class="event-details">
+                  <p><strong>Type:</strong> ${event.event_type}</p>
+                  <p><strong>Severity:</strong> ${event.severity}</p>
+                  <p><strong>Description:</strong> ${event.description}</p>
+                  <p><strong>Status:</strong> ${event.status}</p>
       // Modal handling
       const modal = document.getElementById('addEventModal');
       const addBtn = document.getElementById('addEventBtn');

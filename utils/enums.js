@@ -40,6 +40,28 @@ const CONSULTATION_STATUS = {
   CANCELLED: "Cancelled",
 };
 
+const EVENT_TYPE = {
+  ACCIDENT: "Accident",
+  FEVER: "Fever",
+  INJURY: "Injury",
+  EPIDEMIC: "Epidemic",
+  OTHER: "Other",
+};
+
+const EVENT_SEVERITY = {
+  LOW: "Low",
+  MEDIUM: "Medium",
+  HIGH: "High",
+  EMERGENCY: "Emergency",
+};
+
+const EVENT_STATUS = {
+  OPEN: "Open",
+  IN_PROGRESS: "In Progress",
+  RESOLVED: "Resolved",
+  REFERRED: "Referred to Hospital",
+};
+
 Object.freeze(GENDER);
 Object.freeze(ALLERGY_SEVERITY);
 Object.freeze(CHRONIC_DISEASE_STATUS);
@@ -47,6 +69,9 @@ Object.freeze(HEARING_STATUS);
 Object.freeze(CAMPAIGN_TYPE);
 Object.freeze(CAMPAIGN_CONSENT_STATUS);
 Object.freeze(CONSULTATION_STATUS);
+Object.freeze(EVENT_TYPE);
+Object.freeze(EVENT_SEVERITY);
+Object.freeze(EVENT_STATUS);
 
 module.exports = {
   GENDER,
@@ -56,4 +81,7 @@ module.exports = {
   CAMPAIGN_TYPE,
   CAMPAIGN_CONSENT_STATUS,
   CONSULTATION_STATUS,
+  EVENT_TYPE,
+  EVENT_SEVERITY,
+  EVENT_STATUS,
 };
