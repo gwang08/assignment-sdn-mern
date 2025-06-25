@@ -50,13 +50,13 @@ exports.getParentProfile = async (req, res) => {
  */
 exports.getRelatedStudents = async (req, res) => {
   try {
-    // Get the parent ID from the authenticated user
     const parentId = req.user._id;
 
-    // Find all student-parent relationships for this parent
+    // Find only approved and active relationships
     const relationships = await StudentParent.find({
       parent: parentId,
       is_active: true,
+      status: "approved",
     }).populate("student");
 
     if (!relationships.length) {
@@ -209,8 +209,8 @@ exports.getMedicineRequests = async (req, res) => {
     const parentId = req.user._id;
     const { studentId } = req.params;
 
-    // Verify relation if student ID is provided
     if (studentId) {
+      // Case 1: Specific student requests
       const isRelated = await validateParentStudent(parentId, studentId);
       if (!isRelated) {
         return res.status(403).json({
@@ -226,10 +226,11 @@ exports.getMedicineRequests = async (req, res) => {
 
       return res.status(200).json({ success: true, data: requests });
     } else {
-      // Get all medicine requests made by this parent for any related student
+      // Case 2: All related students' requests
       const relationships = await StudentParent.find({
         parent: parentId,
         is_active: true,
+        status: "approved",
       });
 
       const studentIds = relationships.map((rel) => rel.student);
@@ -284,10 +285,11 @@ exports.getCampaigns = async (req, res) => {
   try {
     const parentId = req.user._id;
 
-    // Get all related students
+    // Get all approved and active relationships
     const relationships = await StudentParent.find({
       parent: parentId,
       is_active: true,
+      status: "approved",
     });
 
     const studentIds = relationships.map((rel) => rel.student);
