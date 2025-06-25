@@ -1,0 +1,256 @@
+extends ../layout
+
+block content
+  .container
+    .header
+      h1 Medical Events Management
+      button#addEventBtn.btn.btn-primary Add New Event
+    
+    .filters
+      input#searchStudent(type="text" placeholder="Search student name...")
+      select#classFilter
+        option(value="") All Classes
+    
+    .events-list#eventsList
+      // Events will be loaded here via JavaScript
+    
+    // Modal for adding new event
+    #addEventModal.modal(style="display: none;")
+      .modal-content
+        .modal-header
+          h2 Add Medical Event
+          span.close &times;
+        .modal-body
+          form#addEventForm
+            .form-group
+              label(for="studentSelect") Student:
+              select#studentSelect(name="studentId" required)
+                option(value="") Select Student
+            .form-group
+              label(for="eventDescription") Event Description:
+              textarea#eventDescription(name="event" required rows="4")
+            .form-actions
+              button(type="submit").btn.btn-primary Save Event
+              button(type="button").btn.btn-secondary Cancel
+
+  script.
+    document.addEventListener('DOMContentLoaded', function() {
+      const nurseId = new URLSearchParams(window.location.search).get('nurseId') || 'default-nurse-id';
+      
+      // Load events
+      function loadEvents() {
+        fetch('/nurse/medical-events?nurseId=' + nurseId)
+          .then(response => response.json())
+          .then(events => {
+            const eventsList = document.getElementById('eventsList');
+            eventsList.innerHTML = events.map(event => `
+              <div class="event-card">
+                <div class="event-header">
+                  <h3>${event.student.first_name} ${event.student.last_name}</h3>
+                  <span class="class-badge">${event.student.class_name}</span>
+                </div>
+                <p class="event-description">${event.event}</p>
+                <div class="event-footer">
+                  <span class="created-by">By: ${event.created_by.first_name} ${event.created_by.last_name}</span>
+                  <span class="created-date">${new Date(event.createdAt).toLocaleDateString()}</span>
+                </div>
+              </div>
+            `).join('');
+          })
+          .catch(error => console.error('Error loading events:', error));
+      }
+      
+      // Load students for dropdown
+      function loadStudents() {
+        fetch('/nurse/students?nurseId=' + nurseId)
+          .then(response => response.json())
+          .then(students => {
+            const select = document.getElementById('studentSelect');
+            select.innerHTML = '<option value="">Select Student</option>' +
+              students.map(student => 
+                `<option value="${student._id}">${student.first_name} ${student.last_name} (${student.class_name})</option>`
+              ).join('');
+          });
+      }
+      
+      // Modal handling
+      const modal = document.getElementById('addEventModal');
+      const addBtn = document.getElementById('addEventBtn');
+      const closeBtn = document.querySelector('.close');
+      
+      addBtn.onclick = function() {
+        modal.style.display = 'block';
+        loadStudents();
+      }
+      
+      closeBtn.onclick = function() {
+        modal.style.display = 'none';
+      }
+      
+      // Form submission
+      document.getElementById('addEventForm').onsubmit = function(e) {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        
+        fetch('/nurse/medical-events?nurseId=' + nurseId, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            studentId: formData.get('studentId'),
+            event: formData.get('event')
+          })
+        })
+        .then(response => response.json())
+        .then(result => {
+          modal.style.display = 'none';
+          loadEvents();
+          e.target.reset();
+        })
+        .catch(error => console.error('Error adding event:', error));
+      }
+      
+      // Initial load
+      loadEvents();
+    });
+
+  style.
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    
+    .filters {
+      margin-bottom: 20px;
+      display: flex;
+      gap: 10px;
+    }
+    
+    .filters input, .filters select {
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    
+    .event-card {
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 10px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .event-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    
+    .class-badge {
+      background: #007bff;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+    
+    .event-description {
+      margin: 10px 0;
+      color: #333;
+    }
+    
+    .event-footer {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #666;
+    }
+    
+    .modal {
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.5);
+    }
+    
+    .modal-content {
+      background-color: white;
+      margin: 15% auto;
+      padding: 0;
+      border-radius: 8px;
+      width: 500px;
+      max-width: 90%;
+    }
+    
+    .modal-header {
+      padding: 20px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .modal-body {
+      padding: 20px;
+    }
+    
+    .form-group {
+      margin-bottom: 15px;
+    }
+    
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    
+    .form-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+    
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+    }
+    
+    .btn-primary {
+      background: #007bff;
+      color: white;
+    }
+    
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+    
+    .close {
+      font-size: 24px;
+      cursor: pointer;
+    }
