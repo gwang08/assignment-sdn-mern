@@ -26,6 +26,16 @@ const HEARING_STATUS = {
 const CAMPAIGN_TYPE = {
   VACCINATION: "Vaccination",
   CHECKUP: "Checkup",
+  HEALTH_CHECK: "Health_Check",
+  NUTRITION_PROGRAM: "Nutrition_Program",
+  MENTAL_HEALTH: "Mental_Health",
+};
+
+const CAMPAIGN_STATUS = {
+  PLANNED: "Planned",
+  ACTIVE: "Active",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
 };
 
 const CAMPAIGN_CONSENT_STATUS = {
@@ -67,6 +77,7 @@ Object.freeze(ALLERGY_SEVERITY);
 Object.freeze(CHRONIC_DISEASE_STATUS);
 Object.freeze(HEARING_STATUS);
 Object.freeze(CAMPAIGN_TYPE);
+Object.freeze(CAMPAIGN_STATUS);
 Object.freeze(CAMPAIGN_CONSENT_STATUS);
 Object.freeze(CONSULTATION_STATUS);
 Object.freeze(EVENT_TYPE);
@@ -79,6 +90,7 @@ module.exports = {
   CHRONIC_DISEASE_STATUS,
   HEARING_STATUS,
   CAMPAIGN_TYPE,
+  CAMPAIGN_STATUS,
   CAMPAIGN_CONSENT_STATUS,
   CONSULTATION_STATUS,
   EVENT_TYPE,

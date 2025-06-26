@@ -230,7 +230,6 @@ class AuthService {
       // Hash new password
       const salt = await bcrypt.genSalt(10);
       user.password = await bcrypt.hash(newPassword, salt);
-
       await user.save();
       return true;
     } catch (error) {

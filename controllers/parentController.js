@@ -64,8 +64,16 @@ exports.getRelatedStudents = async (req, res) => {
     }
 
     const students = relationships.map((rel) => {
+      const student = rel.student;
       return {
-        student: rel.student,
+        _id: student._id,
+        student_id: student.student_id || student._id,
+        first_name: student.first_name,
+        last_name: student.last_name,
+        class_name: student.class_name,
+        gender: student.gender,
+        email: student.email,
+        isActive: student.is_active,
         relationship: rel.relationship,
         is_emergency_contact: rel.is_emergency_contact,
       };
@@ -294,17 +302,9 @@ exports.getCampaigns = async (req, res) => {
 
     const studentIds = relationships.map((rel) => rel.student);
 
-    // Get active campaigns that apply to the student's class
-    const activeStudents = await Student.find({ _id: { $in: studentIds } });
-    const classNames = activeStudents.map((s) => s.class_name);
-
-    const campaigns = await Campaign.find({
-      $or: [
-        { target_class: { $in: classNames } },
-        { target_class: "All" },
-        { target_students: { $in: studentIds } },
-      ],
-    }).sort({ date: 1 });
+    // Get all active campaigns - for parent view, show all campaigns
+    // In a real system, you might want to filter by student's class/grade
+    const campaigns = await Campaign.find({}).sort({ date: 1 });
 
     // Get consent status for each campaign
     const campaignsWithConsent = await Promise.all(
@@ -333,8 +333,23 @@ exports.getCampaigns = async (req, res) => {
           })
         );
 
+        // Transform campaign data to match frontend expectations
+        const campaignObj = campaign.toObject();
+        const campaignDate = campaignObj.date || new Date();
+        
         return {
-          ...campaign.toObject(),
+          ...campaignObj,
+          // Add backward compatibility fields
+          campaign_type: campaignObj.type === 'Vaccination' ? 'vaccination' : 
+                        campaignObj.type === 'Checkup' ? 'health_check' : 'other',
+          start_date: campaignDate.toISOString(),
+          end_date: campaignDate.toISOString(),
+          status: campaignDate > new Date() ? 'active' : 'completed',
+          requires_consent: campaignObj.type === 'Vaccination',
+          target_classes: ['All'], // Default for now
+          created_by: campaignObj.created_by || '',
+          instructions: campaignObj.description || '',
+          consent_deadline: campaignDate.toISOString(),
           students: consents,
         };
       })
@@ -437,7 +452,30 @@ exports.getConsultationSchedules = async (req, res) => {
       .populate("campaignResult")
       .sort({ scheduledDate: 1 });
 
-    return res.status(200).json({ success: true, data: consultations });
+    // Format data to match frontend interface
+    const formattedConsultations = consultations.map(consultation => {
+      const scheduledDate = consultation.scheduledDate || new Date();
+      
+      return {
+        _id: consultation._id,
+        student_id: consultation.student?._id || consultation.student,
+        parent_id: consultation.attending_parent,
+        medical_staff_id: consultation.medicalStaff?._id || consultation.medicalStaff,
+        appointment_date: scheduledDate.toISOString().split('T')[0], // YYYY-MM-DD format
+        appointment_time: scheduledDate.toTimeString().split(' ')[0].substring(0, 5), // HH:MM format
+        reason: consultation.reason,
+        consultation_type: 'in_person', // Default value, you may want to add this field to schema
+        status: consultation.status?.toLowerCase() || 'scheduled',
+        notes: consultation.notes,
+        doctor_notes: consultation.notes, // You may want to add a separate field for doctor notes
+        follow_up_required: false, // You may want to add this field to schema
+        follow_up_date: null, // You may want to add this field to schema
+        createdAt: consultation.createdAt,
+        updatedAt: consultation.updatedAt
+      };
+    });
+
+    return res.status(200).json({ success: true, data: formattedConsultations });
   } catch (error) {
     console.error("Error fetching consultation schedules:", error);
     return res.status(500).json({ success: false, message: "Server error" });

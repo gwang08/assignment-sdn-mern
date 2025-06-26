@@ -30,6 +30,7 @@ import {
 import moment from 'moment';
 import apiService from '../../services/api';
 import { Student, MedicineRequest, Campaign } from '../../types';
+import { getCampaignType, getCampaignStatus, getCampaignStartDate, getCampaignRequiresConsent } from '../../utils/campaignUtils';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -78,19 +79,27 @@ const ParentDashboard: React.FC = () => {
   const handleCreateMedicineRequest = async (values: any) => {
     try {
       const requestData = {
-        ...values,
-        start_date: values.start_date.format('YYYY-MM-DD'),
-        end_date: values.end_date.format('YYYY-MM-DD'),
+        startDate: values.start_date.format('YYYY-MM-DD'),
+        endDate: values.end_date.format('YYYY-MM-DD'),
+        medicines: [{
+          name: values.medicine_name,
+          dosage: values.dosage,
+          frequency: values.frequency,
+          notes: values.instructions
+        }]
       };
 
-      const response = await apiService.createMedicineRequest(requestData);
+      const response = await apiService.createMedicineRequestForStudent(values.student_id, requestData);
       if (response.success) {
         message.success('Gửi yêu cầu thuốc thành công');
         setIsRequestModalVisible(false);
         form.resetFields();
         loadDashboardData();
+      } else {
+        message.error(response.message || 'Có lỗi xảy ra khi gửi yêu cầu thuốc');
       }
     } catch (error) {
+      console.error('Error creating medicine request:', error);
       message.error('Có lỗi xảy ra khi gửi yêu cầu thuốc');
     }
   };
@@ -118,47 +127,66 @@ const ParentDashboard: React.FC = () => {
   const requestColumns = [
     {
       title: 'Học sinh',
-      dataIndex: 'student_id',
-      key: 'student_id',
-      render: (studentId: string) => {
-        const student = students.find(s => s._id === studentId);
+      key: 'student',
+      render: (_: any, record: MedicineRequest) => {
+        if (record.student) {
+          return `${record.student.first_name} ${record.student.last_name}`;
+        }
+        const student = students.find(s => s._id === record.student_id);
         return student ? `${student.first_name} ${student.last_name}` : 'N/A';
       }
     },
     {
       title: 'Tên thuốc',
-      dataIndex: 'medicine_name',
       key: 'medicine_name',
+      render: (_: any, record: MedicineRequest) => {
+        return record.medicine_name || 
+          (record.medicines && record.medicines.length > 0 ? record.medicines[0].name : 'N/A');
+      }
     },
     {
       title: 'Liều dùng',
-      dataIndex: 'dosage',
       key: 'dosage',
+      render: (_: any, record: MedicineRequest) => {
+        return record.dosage || 
+          (record.medicines && record.medicines.length > 0 ? record.medicines[0].dosage : 'N/A');
+      }
     },
     {
       title: 'Tần suất',
-      dataIndex: 'frequency',
       key: 'frequency',
+      render: (_: any, record: MedicineRequest) => {
+        return record.frequency || 
+          (record.medicines && record.medicines.length > 0 ? record.medicines[0].frequency : 'N/A');
+      }
     },
     {
       title: 'Thời gian',
       key: 'duration',
-      render: (_: any, record: MedicineRequest) => (
-        <div>
-          <div>{moment(record.start_date).format('DD/MM/YYYY')}</div>
-          <Text style={{ fontSize: '12px', color: '#888' }}>đến {moment(record.end_date).format('DD/MM/YYYY')}</Text>
-        </div>
-      )
+      render: (_: any, record: MedicineRequest) => {
+        const startDate = record.start_date || record.startDate;
+        const endDate = record.end_date || record.endDate;
+        return (
+          <div>
+            <div>{startDate ? moment(startDate).format('DD/MM/YYYY') : 'N/A'}</div>
+            <Text style={{ fontSize: '12px', color: '#888' }}>
+              đến {endDate ? moment(endDate).format('DD/MM/YYYY') : 'N/A'}
+            </Text>
+          </div>
+        );
+      }
     },
     {
       title: 'Trạng thái',
-      dataIndex: 'status',
       key: 'status',
-      render: (status: string) => (
-        <Tag color={getStatusColor(status)}>
-          {getStatusText(status)}
-        </Tag>
-      )
+      render: (_: any, record: MedicineRequest) => {
+        const status = record.status || 'pending';
+        return (
+          <Tag color={getStatusColor(status)}>
+            {getStatusText(status)}
+          </Tag>
+        );
+      }
     }
   ];
 
@@ -204,7 +232,10 @@ const ParentDashboard: React.FC = () => {
           <Card>
             <Statistic
               title="Chiến dịch hiện tại"
-              value={campaigns.filter(c => c.status === 'active').length}
+              value={campaigns.filter(c => {
+                const status = getCampaignStatus(c);
+                return status === 'active';
+              }).length}
               valueStyle={{ color: '#722ed1' }}
               prefix={<CalendarOutlined />}
             />
@@ -214,8 +245,12 @@ const ParentDashboard: React.FC = () => {
           <Card>
             <Statistic
               title="Cần xử lý"
-              value={medicineRequests.filter(r => r.status === 'pending').length + 
-                     campaigns.filter(c => c.requires_consent && c.status === 'active').length}
+              value={medicineRequests.filter(r => !r.status || r.status === 'pending').length + 
+                     campaigns.filter(c => {
+                       const status = getCampaignStatus(c);
+                       const requiresConsent = getCampaignRequiresConsent(c);
+                       return status === 'active' && requiresConsent;
+                     }).length}
               valueStyle={{ color: '#cf1322' }}
               prefix={<ExclamationCircleOutlined />}
             />
@@ -244,7 +279,10 @@ const ParentDashboard: React.FC = () => {
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <Text>Thuốc:</Text>
-                      <Text>{medicineRequests.filter(r => r.student_id === student._id && r.status === 'approved').length}</Text>
+                      <Text>{medicineRequests.filter(r => 
+                        (r.student_id === student._id || (r.student && r.student._id === student._id)) && 
+                        r.status === 'approved'
+                      ).length}</Text>
                     </div>
                   </div>
                   <Button type="primary" block>
@@ -274,7 +312,11 @@ const ParentDashboard: React.FC = () => {
         <Col xs={24} lg={10}>
           <Card title="Chiến dịch y tế cần xử lý">
             <List
-              dataSource={campaigns.filter(c => c.requires_consent && c.status === 'active')}
+              dataSource={campaigns.filter(c => {
+                const status = getCampaignStatus(c);
+                const requiresConsent = getCampaignRequiresConsent(c);
+                return status === 'active' && requiresConsent;
+              })}
               renderItem={(campaign) => (
                 <List.Item
                   actions={[
@@ -286,20 +328,19 @@ const ParentDashboard: React.FC = () => {
                     avatar={
                       <Avatar 
                         icon={<CalendarOutlined />} 
-                        className={
-                          campaign.campaign_type === 'vaccination' ? 'bg-blue-500' :
-                          campaign.campaign_type === 'health_check' ? 'bg-green-500' : 'bg-purple-500'
-                        }
+                        style={{
+                          backgroundColor: getCampaignType(campaign) === 'Vaccination' ? '#1890ff' :
+                                          getCampaignType(campaign) === 'Checkup' ? '#52c41a' : '#722ed1'
+                        }}
                       />
                     }
                     title={campaign.title}
                     description={
                       <div>
-                        <Text type="secondary">{campaign.description}</Text>
+                        <Text type="secondary">{campaign.description || 'Không có mô tả'}</Text>
                         <br />
                         <Text style={{ fontSize: '14px' }}>
-                          Hạn đồng ý: {campaign.consent_deadline ? 
-                            moment(campaign.consent_deadline).format('DD/MM/YYYY') : 'N/A'}
+                          Ngày: {moment(getCampaignStartDate(campaign)).format('DD/MM/YYYY')}
                         </Text>
                       </div>
                     }

@@ -13,6 +13,11 @@ import HealthProfilesPage from './pages/nurse/HealthProfiles';
 import CampaignsPage from './pages/nurse/Campaigns';
 import MedicineRequestsPage from './pages/nurse/MedicineRequests';
 import ParentDashboard from './pages/parent/Dashboard';
+import ParentStudents from './pages/parent/Students';
+import ParentHealthProfiles from './pages/parent/HealthProfiles';
+import ParentMedicineRequests from './pages/parent/MedicineRequests';
+import ParentCampaigns from './pages/parent/Campaigns';
+import ParentConsultations from './pages/parent/Consultations';
 import AdminDashboard from './pages/admin/Dashboard';
 import StudentDashboard from './pages/student/Dashboard';
 import StudentHealthProfile from './pages/student/HealthProfile';
@@ -41,6 +46,19 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: strin
 // App Content Component
 const AppContent: React.FC = () => {
   const { isAuthenticated, user } = useAuth();
+
+  // Console log để debug thông tin user và token
+  React.useEffect(() => {
+    console.log('🔍 Current User Info:', {
+      user: user,
+      role: user?.role,
+      isAuthenticated: isAuthenticated,
+      token: localStorage.getItem('token'),
+      userId: user?._id,
+      username: user?.username,
+      email: user?.email
+    });
+  }, [user, isAuthenticated]);
 
   if (!isAuthenticated) {
     return (
@@ -139,6 +157,46 @@ const AppContent: React.FC = () => {
           element={
             <ProtectedRoute allowedRoles={['parent']}>
               <ParentDashboard />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/parent/students" 
+          element={
+            <ProtectedRoute allowedRoles={['parent']}>
+              <ParentStudents />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/parent/health-profiles" 
+          element={
+            <ProtectedRoute allowedRoles={['parent']}>
+              <ParentHealthProfiles />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/parent/medicine-requests" 
+          element={
+            <ProtectedRoute allowedRoles={['parent']}>
+              <ParentMedicineRequests />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/parent/campaigns" 
+          element={
+            <ProtectedRoute allowedRoles={['parent']}>
+              <ParentCampaigns />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/parent/consultations" 
+          element={
+            <ProtectedRoute allowedRoles={['parent']}>
+              <ParentConsultations />
             </ProtectedRoute>
           } 
         />

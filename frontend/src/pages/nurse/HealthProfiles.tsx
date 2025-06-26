@@ -91,10 +91,10 @@ const HealthProfilesPage: React.FC = () => {
     
     if (healthProfile) {
       form.setFieldsValue({
-        allergies: healthProfile.allergies.join(', '),
-        chronic_conditions: healthProfile.chronic_conditions.join(', '),
-        medications: healthProfile.medications.join(', '),
-        medical_history: healthProfile.medical_history.join(', '),
+        allergies: healthProfile.allergies ? healthProfile.allergies.join(', ') : '',
+        chronic_conditions: healthProfile.chronic_conditions ? healthProfile.chronic_conditions.join(', ') : '',
+        medications: healthProfile.medications ? healthProfile.medications.join(', ') : '',
+        medical_history: healthProfile.medical_history ? healthProfile.medical_history.join(', ') : '',
         vision_status: healthProfile.vision_status,
         hearing_status: healthProfile.hearing_status,
       });
@@ -132,9 +132,9 @@ const HealthProfilesPage: React.FC = () => {
   const getHealthStatus = (profile: HealthProfile | null) => {
     if (!profile) return { status: 'unknown', color: 'default', text: 'Chưa có hồ sơ' };
     
-    const hasAllergies = profile.allergies.length > 0;
-    const hasChronicConditions = profile.chronic_conditions.length > 0;
-    const hasMedications = profile.medications.length > 0;
+    const hasAllergies = profile.allergies && profile.allergies.length > 0;
+    const hasChronicConditions = profile.chronic_conditions && profile.chronic_conditions.length > 0;
+    const hasMedications = profile.medications && profile.medications.length > 0;
     
     if (hasChronicConditions || hasMedications) {
       return { status: 'needs-attention', color: 'orange', text: 'Cần chú ý' };
@@ -396,7 +396,7 @@ const HealthProfilesPage: React.FC = () => {
                 <TabPane tab="Dị ứng & Bệnh mãn tính" key="medical">
                   <div className="space-y-4">
                     <Card title="Dị ứng" size="small">
-                      {healthProfile.allergies.length > 0 ? (
+                      {healthProfile.allergies && healthProfile.allergies.length > 0 ? (
                         <Space wrap>
                           {healthProfile.allergies.map((allergy, index) => (
                             <Tag key={index} color="red" icon={<AlertOutlined />}>
@@ -410,7 +410,7 @@ const HealthProfilesPage: React.FC = () => {
                     </Card>
 
                     <Card title="Bệnh mãn tính" size="small">
-                      {healthProfile.chronic_conditions.length > 0 ? (
+                      {healthProfile.chronic_conditions && healthProfile.chronic_conditions.length > 0 ? (
                         <Space wrap>
                           {healthProfile.chronic_conditions.map((condition, index) => (
                             <Tag key={index} color="orange">
@@ -428,7 +428,7 @@ const HealthProfilesPage: React.FC = () => {
                 <TabPane tab="Thuốc & Tiền sử" key="medication">
                   <div className="space-y-4">
                     <Card title="Thuốc đang sử dụng" size="small">
-                      {healthProfile.medications.length > 0 ? (
+                      {healthProfile.medications && healthProfile.medications.length > 0 ? (
                         <Space wrap>
                           {healthProfile.medications.map((medication, index) => (
                             <Tag key={index} color="blue" icon={<MedicineBoxOutlined />}>
@@ -442,7 +442,7 @@ const HealthProfilesPage: React.FC = () => {
                     </Card>
 
                     <Card title="Tiền sử bệnh" size="small">
-                      {healthProfile.medical_history.length > 0 ? (
+                      {healthProfile.medical_history && healthProfile.medical_history.length > 0 ? (
                         <List
                           dataSource={healthProfile.medical_history}
                           renderItem={(item, index) => (
@@ -460,7 +460,7 @@ const HealthProfilesPage: React.FC = () => {
 
                 <TabPane tab="Tiêm chủng" key="vaccination">
                   <Card title="Lịch sử tiêm chủng">
-                    {healthProfile.vaccination_records.length > 0 ? (
+                    {healthProfile.vaccination_records && healthProfile.vaccination_records.length > 0 ? (
                       <List
                         dataSource={healthProfile.vaccination_records}
                         renderItem={(record: VaccinationRecord) => (

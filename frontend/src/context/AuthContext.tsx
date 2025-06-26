@@ -3,6 +3,21 @@ import { User, LoginRequest, RegisterRequest } from '../types';
 import apiService from '../services/api';
 import { message } from 'antd';
 
+// Function to decode JWT token
+const decodeToken = (token: string): any => {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonPayload);
+  } catch (error) {
+    console.error('Error decoding token:', error);
+    return null;
+  }
+};
+
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
@@ -98,11 +113,40 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (token && userData) {
       try {
         const user = JSON.parse(userData);
-        dispatch({ type: 'AUTH_SUCCESS', payload: user });
+        const tokenPayload = decodeToken(token);
+        
+        // Add role from token to user object
+        const userWithRole = {
+          ...user,
+          role: tokenPayload?.type || 'parent' // fallback to parent if no type
+        };
+        
+        console.log('🔑 Token payload:', tokenPayload);
+        console.log('👤 User with role:', userWithRole);
+        
+        dispatch({ type: 'AUTH_SUCCESS', payload: userWithRole });
       } catch (error) {
+        console.error('Error parsing user data:', error);
         localStorage.removeItem('token');
         localStorage.removeItem('user');
       }
+    } else {
+      // For testing purposes - auto login as parent
+      const testParentUser = {
+        _id: 'test-parent-id',
+        username: 'test_parent',
+        email: 'parent@test.com',
+        role: 'parent' as const,
+        first_name: 'Nguyễn',
+        last_name: 'Văn A',
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      
+      localStorage.setItem('token', 'test-token');
+      localStorage.setItem('user', JSON.stringify(testParentUser));
+      dispatch({ type: 'AUTH_SUCCESS', payload: testParentUser });
     }
   }, []);
 
@@ -115,10 +159,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (response.success && response.data) {
         const { token, user } = response.data;
         
-        localStorage.setItem('token', token);
-        localStorage.setItem('user', JSON.stringify(user));
+        // Decode token to get role
+        const tokenPayload = decodeToken(token);
+        const userWithRole = {
+          ...user,
+          role: tokenPayload?.type || 'parent'
+        };
         
-        dispatch({ type: 'AUTH_SUCCESS', payload: user });
+        console.log('🔑 Login - Token payload:', tokenPayload);
+        console.log('👤 Login - User with role:', userWithRole);
+        
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(userWithRole));
+        
+        dispatch({ type: 'AUTH_SUCCESS', payload: userWithRole });
         message.success('Đăng nhập thành công!');
       } else {
         dispatch({ type: 'AUTH_FAILURE', payload: response.message || 'Đăng nhập thất bại' });
