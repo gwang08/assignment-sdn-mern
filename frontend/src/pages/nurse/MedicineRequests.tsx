@@ -28,7 +28,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import moment from 'moment';
 import apiService from '../../services/api';
-import { MedicineRequest } from '../../types';
+import { MedicineRequest, Medicine } from '../../types';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -101,16 +101,16 @@ const MedicineRequestsPage: React.FC = () => {
     }
   };
 
-  const getStatusTag = (status: string) => {
+  const getStatusTag = (status?: string) => {
     const statusConfig = {
       pending: { color: 'orange', text: 'Chờ duyệt', icon: <ClockCircleOutlined /> },
       approved: { color: 'green', text: 'Đã duyệt', icon: <CheckCircleOutlined /> },
       rejected: { color: 'red', text: 'Từ chối', icon: <CloseCircleOutlined /> },
       completed: { color: 'blue', text: 'Hoàn thành', icon: <CheckCircleOutlined /> }
     };
-    const config = statusConfig[status as keyof typeof statusConfig] || { 
+    const config = statusConfig[(status || 'pending') as keyof typeof statusConfig] || { 
       color: 'default', 
-      text: status, 
+      text: status || 'Không xác định', 
       icon: <ExclamationCircleOutlined /> 
     };
     return (
@@ -120,7 +120,8 @@ const MedicineRequestsPage: React.FC = () => {
     );
   };
 
-  const getUrgencyColor = (endDate: string) => {
+  const getUrgencyColor = (endDate?: string) => {
+    if (!endDate) return 'default';
     const daysLeft = moment(endDate).diff(moment(), 'days');
     if (daysLeft < 0) return 'red';
     if (daysLeft <= 3) return 'orange';
@@ -137,49 +138,69 @@ const MedicineRequestsPage: React.FC = () => {
     },
     {
       title: 'Tên thuốc',
-      dataIndex: 'medicine_name',
       key: 'medicine_name',
-      render: (text: string, record: MedicineRequest) => (
-        <div>
-          <strong>{text}</strong>
-          <div style={{ fontSize: '12px', color: '#666' }}>
-            {record.dosage} - {record.frequency}
+      render: (_, record: MedicineRequest) => {
+        const medicineName = record.medicine_name || 
+          (record.medicines && record.medicines.length > 0 ? record.medicines[0].name : 'N/A');
+        const dosage = record.dosage || 
+          (record.medicines && record.medicines.length > 0 ? record.medicines[0].dosage : 'N/A');
+        const frequency = record.frequency || 
+          (record.medicines && record.medicines.length > 0 ? record.medicines[0].frequency : 'N/A');
+        
+        return (
+          <div>
+            <strong>{medicineName}</strong>
+            <div style={{ fontSize: '12px', color: '#666' }}>
+              {dosage} - {frequency}
+            </div>
           </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       title: 'Học sinh',
-      dataIndex: 'student_id',
-      key: 'student_id',
-      render: (studentId: string) => (
-        <div>
-          <div>ID: {studentId.slice(-6).toUpperCase()}</div>
-        </div>
-      ),
+      key: 'student',
+      render: (_, record: MedicineRequest) => {
+        if (record.student) {
+          return (
+            <div>
+              <div>{record.student.first_name} {record.student.last_name}</div>
+              <div style={{ fontSize: '12px', color: '#666' }}>{record.student.class_name}</div>
+            </div>
+          );
+        }
+        return (
+          <div>
+            <div>ID: {record.student_id ? record.student_id.slice(-6).toUpperCase() : 'N/A'}</div>
+          </div>
+        );
+      },
     },
     {
       title: 'Phụ huynh',
-      dataIndex: 'parent_id',
-      key: 'parent_id',
-      render: (parentId: string) => (
+      key: 'parent',
+      render: (_, record: MedicineRequest) => (
         <div>
-          <div>ID: {parentId.slice(-6).toUpperCase()}</div>
+          <div>ID: {record.parent_id ? record.parent_id.slice(-6).toUpperCase() : 'N/A'}</div>
         </div>
       ),
     },
     {
       title: 'Thời gian sử dụng',
       key: 'duration',
-      render: (_, record: MedicineRequest) => (
-        <div>
-          <div>{moment(record.start_date).format('DD/MM/YYYY')}</div>
-          <div>{moment(record.end_date).format('DD/MM/YYYY')}</div>
-          <Tag color={getUrgencyColor(record.end_date)}>
-            {record.duration}
-          </Tag>
-        </div>
-      ),
+      render: (_, record: MedicineRequest) => {
+        const startDate = record.start_date || record.startDate;
+        const endDate = record.end_date || record.endDate;
+        return (
+          <div>
+            <div>{startDate ? moment(startDate).format('DD/MM/YYYY') : 'N/A'}</div>
+            <div>{endDate ? moment(endDate).format('DD/MM/YYYY') : 'N/A'}</div>
+            <Tag color={getUrgencyColor(endDate)}>
+              {record.duration || 'N/A'}
+            </Tag>
+          </div>
+        );
+      },
     },
     {
       title: 'Trạng thái',
@@ -203,7 +224,7 @@ const MedicineRequestsPage: React.FC = () => {
             onClick={() => handleViewRequest(record)}
             title="Xem chi tiết"
           />
-          {record.status === 'pending' && (
+          {(!record.status || record.status === 'pending') && (
             <Button
               type="primary"
               onClick={() => handleProcessRequest(record)}
@@ -217,7 +238,7 @@ const MedicineRequestsPage: React.FC = () => {
     },
   ];
 
-  const pendingCount = requests.filter(r => r.status === 'pending').length;
+  const pendingCount = requests.filter(r => !r.status || r.status === 'pending').length;
   const approvedCount = requests.filter(r => r.status === 'approved').length;
   const rejectedCount = requests.filter(r => r.status === 'rejected').length;
 
@@ -303,37 +324,83 @@ const MedicineRequestsPage: React.FC = () => {
               <Descriptions.Item label="Mã yêu cầu">
                 {selectedRequest._id.slice(-8).toUpperCase()}
               </Descriptions.Item>
-              <Descriptions.Item label="Tên thuốc">
-                <div>
-                  <strong>{selectedRequest.medicine_name}</strong>
-                </div>
-              </Descriptions.Item>
-              <Descriptions.Item label="Liều lượng">
-                {selectedRequest.dosage}
-              </Descriptions.Item>
-              <Descriptions.Item label="Tần suất">
-                {selectedRequest.frequency}
-              </Descriptions.Item>
-              <Descriptions.Item label="Thời gian">
-                {selectedRequest.duration}
-              </Descriptions.Item>
+              
+              {/* Student Information */}
+              {selectedRequest.student ? (
+                <>
+                  <Descriptions.Item label="Học sinh">
+                    {selectedRequest.student.first_name} {selectedRequest.student.last_name}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Lớp">
+                    {selectedRequest.student.class_name}
+                  </Descriptions.Item>
+                </>
+              ) : (
+                <Descriptions.Item label="ID học sinh">
+                  {selectedRequest.student_id ? selectedRequest.student_id.slice(-6).toUpperCase() : 'N/A'}
+                </Descriptions.Item>
+              )}
+
+              {/* Medicine Information */}
+              {selectedRequest.medicines && selectedRequest.medicines.length > 0 ? (
+                <>
+                  <Descriptions.Item label="Tên thuốc">
+                    <strong>{selectedRequest.medicines[0].name}</strong>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Liều lượng">
+                    {selectedRequest.medicines[0].dosage}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Tần suất">
+                    {selectedRequest.medicines[0].frequency}
+                  </Descriptions.Item>
+                  {selectedRequest.medicines[0].notes && (
+                    <Descriptions.Item label="Ghi chú thuốc">
+                      {selectedRequest.medicines[0].notes}
+                    </Descriptions.Item>
+                  )}
+                </>
+              ) : (
+                <>
+                  <Descriptions.Item label="Tên thuốc">
+                    <strong>{selectedRequest.medicine_name || 'N/A'}</strong>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Liều lượng">
+                    {selectedRequest.dosage || 'N/A'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Tần suất">
+                    {selectedRequest.frequency || 'N/A'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Thời gian">
+                    {selectedRequest.duration || 'N/A'}
+                  </Descriptions.Item>
+                </>
+              )}
+              
               <Descriptions.Item label="Ngày bắt đầu">
-                {moment(selectedRequest.start_date).format('DD/MM/YYYY')}
+                {selectedRequest.start_date || selectedRequest.startDate ? 
+                  moment(selectedRequest.start_date || selectedRequest.startDate).format('DD/MM/YYYY') : 'N/A'}
               </Descriptions.Item>
               <Descriptions.Item label="Ngày kết thúc">
-                {moment(selectedRequest.end_date).format('DD/MM/YYYY')}
+                {selectedRequest.end_date || selectedRequest.endDate ? 
+                  moment(selectedRequest.end_date || selectedRequest.endDate).format('DD/MM/YYYY') : 'N/A'}
               </Descriptions.Item>
-              <Descriptions.Item label="Hướng dẫn sử dụng">
-                {selectedRequest.instructions}
-              </Descriptions.Item>
+              
+              {selectedRequest.instructions && (
+                <Descriptions.Item label="Hướng dẫn sử dụng">
+                  {selectedRequest.instructions}
+                </Descriptions.Item>
+              )}
+              
               <Descriptions.Item label="Trạng thái">
                 {getStatusTag(selectedRequest.status)}
               </Descriptions.Item>
+              
               {selectedRequest.notes && (
                 <Descriptions.Item label="Ghi chú">
                   {selectedRequest.notes}
                 </Descriptions.Item>
               )}
+              
               <Descriptions.Item label="Ngày tạo">
                 {moment(selectedRequest.createdAt).format('DD/MM/YYYY HH:mm')}
               </Descriptions.Item>
@@ -387,8 +454,8 @@ const MedicineRequestsPage: React.FC = () => {
         {processingRequest && (
           <div>
             <Alert
-              message={`Yêu cầu: ${processingRequest.medicine_name}`}
-              description={`Học sinh ID: ${processingRequest.student_id.slice(-6).toUpperCase()}`}
+              message={`Yêu cầu: ${processingRequest.medicine_name || 'N/A'}`}
+              description={`Học sinh ID: ${processingRequest.student_id ? processingRequest.student_id.slice(-6).toUpperCase() : 'N/A'}`}
               type="info"
               className="mb-4"
             />

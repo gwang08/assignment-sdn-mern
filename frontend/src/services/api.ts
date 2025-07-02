@@ -96,6 +96,11 @@ class ApiService {
     return response.data;
   }
 
+  async getMedicalStaff(): Promise<ApiResponse<MedicalStaff[]>> {
+    const response: AxiosResponse<ApiResponse<MedicalStaff[]>> = await this.api.get('/admin/medical-staff');
+    return response.data;
+  }
+
   // Health Profile
   async getHealthProfile(studentId: string): Promise<ApiResponse<HealthProfile>> {
     const response: AxiosResponse<ApiResponse<HealthProfile>> = await this.api.get(`/nurse/health-profile/${studentId}`);
@@ -195,8 +200,28 @@ class ApiService {
   }
 
   // Parent specific endpoints
+  async getParentProfile(): Promise<ApiResponse<User>> {
+    const response: AxiosResponse<ApiResponse<User>> = await this.api.get('/parent/profile');
+    return response.data;
+  }
+
   async getParentStudents(): Promise<ApiResponse<Student[]>> {
     const response: AxiosResponse<ApiResponse<Student[]>> = await this.api.get('/parent/students');
+    return response.data;
+  }
+
+  async getStudentHealthProfile(studentId: string): Promise<ApiResponse<HealthProfile>> {
+    const response: AxiosResponse<ApiResponse<HealthProfile>> = await this.api.get(`/parent/students/${studentId}/health-profile`);
+    return response.data;
+  }
+
+  async updateStudentHealthProfile(studentId: string, profileData: Partial<HealthProfile>): Promise<ApiResponse<HealthProfile>> {
+    const response: AxiosResponse<ApiResponse<HealthProfile>> = await this.api.put(`/parent/students/${studentId}/health-profile`, profileData);
+    return response.data;
+  }
+
+  async createMedicineRequestForStudent(studentId: string, requestData: any): Promise<ApiResponse<MedicineRequest>> {
+    const response: AxiosResponse<ApiResponse<MedicineRequest>> = await this.api.post(`/parent/students/${studentId}/medicine-requests`, requestData);
     return response.data;
   }
 
@@ -205,9 +230,78 @@ class ApiService {
     return response.data;
   }
 
+  async getStudentMedicineRequests(studentId: string): Promise<ApiResponse<MedicineRequest[]>> {
+    const response: AxiosResponse<ApiResponse<MedicineRequest[]>> = await this.api.get(`/parent/students/${studentId}/medicine-requests`);
+    return response.data;
+  }
+
+  async getStudentMedicalEvents(studentId: string): Promise<ApiResponse<MedicalEvent[]>> {
+    const response: AxiosResponse<ApiResponse<MedicalEvent[]>> = await this.api.get(`/parent/students/${studentId}/medical-events`);
+    return response.data;
+  }
+
   async getParentCampaigns(): Promise<ApiResponse<Campaign[]>> {
     const response: AxiosResponse<ApiResponse<Campaign[]>> = await this.api.get('/parent/campaigns');
     return response.data;
+  }
+
+  async updateCampaignConsent(studentId: string, campaignId: string, consentData: { status: string; notes?: string }): Promise<ApiResponse<CampaignConsent>> {
+    const response: AxiosResponse<ApiResponse<CampaignConsent>> = await this.api.put(`/parent/students/${studentId}/campaigns/${campaignId}/consent`, consentData);
+    return response.data;
+  }
+
+  async getStudentCampaignResults(studentId: string): Promise<ApiResponse<CampaignResult[]>> {
+    const response: AxiosResponse<ApiResponse<CampaignResult[]>> = await this.api.get(`/parent/students/${studentId}/campaign-results`);
+    return response.data;
+  }
+
+  async getParentConsultationSchedules(): Promise<ApiResponse<ConsultationSchedule[]>> {
+    const response: AxiosResponse<ApiResponse<ConsultationSchedule[]>> = await this.api.get('/parent/consultation-schedules');
+    return response.data;
+  }
+
+  async createConsultationRequest(requestData: Partial<ConsultationSchedule>): Promise<ApiResponse<ConsultationSchedule>> {
+    const response: AxiosResponse<ApiResponse<ConsultationSchedule>> = await this.api.post('/parent/consultation-requests', requestData);
+    return response.data;
+  }
+
+  async requestStudentLink(linkData: { studentId: string; relationship: string; is_emergency_contact?: boolean; notes?: string }): Promise<ApiResponse<any>> {
+    const response: AxiosResponse<ApiResponse<any>> = await this.api.post('/parent/student-link/request', linkData);
+    return response.data;
+  }
+
+  async getLinkRequests(): Promise<ApiResponse<any[]>> {
+    const response: AxiosResponse<ApiResponse<any[]>> = await this.api.get('/parent/student-link/requests');
+    return response.data;
+  }
+
+  async getParentHealthProfiles(): Promise<ApiResponse<HealthProfile[]>> {
+    try {
+      // First get all students
+      const studentsResponse = await this.getParentStudents();
+      if (!studentsResponse.success || !studentsResponse.data) {
+        return { success: false, message: 'Failed to fetch students' };
+      }
+
+      // Then get health profile for each student
+      const profiles: HealthProfile[] = [];
+      for (const student of studentsResponse.data) {
+        try {
+          const profileResponse = await this.getStudentHealthProfile(student._id);
+          if (profileResponse.success && profileResponse.data) {
+            profiles.push(profileResponse.data);
+          }
+        } catch (error) {
+          // Skip if student doesn't have a health profile yet
+          console.warn(`No health profile found for student ${student._id}`);
+        }
+      }
+
+      return { success: true, data: profiles };
+    } catch (error) {
+      console.error('Error fetching health profiles:', error);
+      return { success: false, message: 'Failed to fetch health profiles' };
+    }
   }
 }
 

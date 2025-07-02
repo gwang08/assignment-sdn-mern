@@ -288,10 +288,11 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                   icon={<UserOutlined />} 
                   style={{ backgroundColor: '#1890ff' }}
                 />
-                <Space direction="vertical" size={0}>
+                <Space direction="horizontal" size={14}>
                   <Text strong style={{ fontSize: '14px' }}>
-                    {user?.first_name} {user?.last_name}
+                   {user?.last_name} {user?.first_name} 
                   </Text>
+                  
                   <Text style={{ fontSize: '12px', color: '#6b7280' }}>
                     {user?.role === 'super_admin' && 'Quản trị viên'}
                     {user?.role === 'student_manager' && 'Quản lý học sinh'}

@@ -23,20 +23,33 @@ export interface Parent extends User {
 
 export interface MedicalStaff extends User {
   phone_number: string;
+  phone?: string; // For backward compatibility
   department?: string;
   specialization?: string;
 }
 
 export interface HealthProfile {
   _id: string;
-  student_id: string;
-  allergies: string[];
-  chronic_conditions: string[];
-  medications: string[];
-  medical_history: string[];
-  vision_status: string;
-  hearing_status: string;
-  vaccination_records: VaccinationRecord[];
+  student_id?: string;
+  student?: string;
+  allergies?: any[];
+  chronic_conditions?: any[];
+  chronicDiseases?: any[];
+  medications?: any[];
+  medical_history?: any[];
+  treatmentHistory?: any[];
+  vaccinations?: any[];
+  vaccination_records?: VaccinationRecord[];
+  vision_status?: string;
+  vision?: {
+    leftEye?: number;
+    rightEye?: number;
+  };
+  hearing_status?: string;
+  hearing?: {
+    leftEar?: string;
+    rightEar?: string;
+  };
   createdAt: string;
   updatedAt: string;
 }
@@ -74,27 +87,47 @@ export interface MedicalEvent {
 
 export interface MedicineRequest {
   _id: string;
-  student_id: string;
-  parent_id: string;
-  medicine_name: string;
-  dosage: string;
-  frequency: string;
-  duration: string;
-  instructions: string;
-  status: 'pending' | 'approved' | 'rejected' | 'completed';
+  student_id?: string;
+  student?: Student;
+  parent_id?: string;
+  medicine_name?: string;
+  medicines?: Medicine[];
+  dosage?: string;
+  frequency?: string;
+  duration?: string;
+  instructions?: string;
+  status?: 'pending' | 'approved' | 'rejected' | 'completed';
   approved_by?: string;
   approved_at?: string;
-  start_date: string;
-  end_date: string;
+  start_date?: string;
+  startDate?: string;
+  end_date?: string;
+  endDate?: string;
   notes?: string;
+  created_by?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface Medicine {
+  name: string;
+  dosage: string;
+  frequency: string;
+  notes?: string;
 }
 
 export interface Campaign {
   _id: string;
   title: string;
-  description: string;
+  description?: string;
+  type: 'Vaccination' | 'Checkup' | 'Health_Check' | 'Nutrition_Program' | 'Mental_Health';
+  date: string;
+  vaccineDetails?: {
+    brand: string;
+    batchNumber: string;
+    dosage: string;
+  };
+  // Backward compatibility - always provide default values
   campaign_type: 'vaccination' | 'health_check' | 'screening' | 'other';
   target_classes: string[];
   start_date: string;
@@ -145,8 +178,12 @@ export interface ConsultationSchedule {
   appointment_date: string;
   appointment_time: string;
   reason: string;
-  status: 'scheduled' | 'completed' | 'cancelled' | 'rescheduled';
+  consultation_type: 'in_person' | 'phone' | 'video';
+  status: 'requested' | 'scheduled' | 'completed' | 'cancelled' | 'rescheduled';
   notes?: string;
+  doctor_notes?: string;
+  follow_up_required?: boolean;
+  follow_up_date?: string;
   createdAt: string;
   updatedAt: string;
 }
