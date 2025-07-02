@@ -74,12 +74,9 @@ const AppContent: React.FC = () => {
     if (!user) return '/home';
     
     switch (user.role) {
-      case 'super_admin':
-      case 'student_manager':
+      case 'admin':
         return '/admin/dashboard';
-      case 'Nurse':
-      case 'Doctor':
-      case 'Healthcare Assistant':
+      case 'medicalStaff':
         return '/nurse/dashboard';
       case 'parent':
         return '/parent/dashboard';
@@ -103,7 +100,7 @@ const AppContent: React.FC = () => {
         <Route 
           path="/admin/dashboard" 
           element={
-            <ProtectedRoute allowedRoles={['super_admin', 'student_manager']}>
+            <ProtectedRoute allowedRoles={['admin']}>
               <AdminDashboard />
             </ProtectedRoute>
           } 
@@ -113,7 +110,7 @@ const AppContent: React.FC = () => {
         <Route 
           path="/nurse/dashboard" 
           element={
-            <ProtectedRoute allowedRoles={['Nurse', 'Doctor', 'Healthcare Assistant']}>
+            <ProtectedRoute allowedRoles={['medicalStaff']}>
               <NurseDashboard />
             </ProtectedRoute>
           } 
@@ -121,7 +118,7 @@ const AppContent: React.FC = () => {
         <Route 
           path="/nurse/medical-events" 
           element={
-            <ProtectedRoute allowedRoles={['Nurse', 'Doctor', 'Healthcare Assistant']}>
+            <ProtectedRoute allowedRoles={['medicalStaff']}>
               <MedicalEventsPage />
             </ProtectedRoute>
           } 
@@ -129,7 +126,7 @@ const AppContent: React.FC = () => {
         <Route 
           path="/nurse/health-profiles" 
           element={
-            <ProtectedRoute allowedRoles={['Nurse', 'Doctor', 'Healthcare Assistant']}>
+            <ProtectedRoute allowedRoles={['medicalStaff']}>
               <HealthProfilesPage />
             </ProtectedRoute>
           } 
@@ -137,7 +134,7 @@ const AppContent: React.FC = () => {
         <Route 
           path="/nurse/campaigns" 
           element={
-            <ProtectedRoute allowedRoles={['Nurse', 'Doctor', 'Healthcare Assistant']}>
+            <ProtectedRoute allowedRoles={['medicalStaff']}>
               <CampaignsPage />
             </ProtectedRoute>
           } 
@@ -145,7 +142,7 @@ const AppContent: React.FC = () => {
         <Route 
           path="/nurse/medicine-requests" 
           element={
-            <ProtectedRoute allowedRoles={['Nurse', 'Doctor', 'Healthcare Assistant']}>
+            <ProtectedRoute allowedRoles={['medicalStaff']}>
               <MedicineRequestsPage />
             </ProtectedRoute>
           } 

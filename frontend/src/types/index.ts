@@ -1,31 +1,54 @@
 export interface User {
   _id: string;
   username: string;
-  email: string;
+  email?: string;
   first_name: string;
   last_name: string;
-  role: 'super_admin' | 'student_manager' | 'Nurse' | 'Doctor' | 'Healthcare Assistant' | 'parent' | 'student';
-  isActive: boolean;
+  gender: 'male' | 'female' | 'other';
+  dateOfBirth?: string;
+  address?: {
+    street?: string;
+    city?: string;
+    state?: string;
+    postal_code?: string;
+    country?: string;
+  };
+  phone_number?: string;
+  role: 'parent' | 'student' | 'medicalStaff' | 'admin';
+  is_active: boolean;
+  last_login?: string;
   createdAt: string;
   updatedAt: string;
+  
+  // Student specific fields
+  class_name?: string;
+  
+  // Medical staff specific fields
+  staff_role?: 'Nurse' | 'Doctor' | 'Healthcare Assistant';
 }
 
 export interface Student extends User {
+  role: 'student';
   class_name: string;
-  gender: 'male' | 'female' | 'other';
-  date_of_birth?: string;
-  student_id?: string;
 }
 
 export interface Parent extends User {
+  role: 'parent';
+  email: string;
+  phone_number: string;
+}
+
+export interface Admin extends User {
+  role: 'admin';
+  email: string;
   phone_number: string;
 }
 
 export interface MedicalStaff extends User {
+  role: 'medicalStaff';
+  email: string;
   phone_number: string;
-  phone?: string; // For backward compatibility
-  department?: string;
-  specialization?: string;
+  staff_role: 'Nurse' | 'Doctor' | 'Healthcare Assistant';
 }
 
 export interface HealthProfile {
@@ -175,15 +198,23 @@ export interface ConsultationSchedule {
   student_id: string;
   parent_id: string;
   medical_staff_id: string;
-  appointment_date: string;
-  appointment_time: string;
+  appointment_date?: string;
+  appointment_time?: string;
+  scheduledDate?: string; // Alternative field name from API
+  duration?: number;
   reason: string;
-  consultation_type: 'in_person' | 'phone' | 'video';
-  status: 'requested' | 'scheduled' | 'completed' | 'cancelled' | 'rescheduled';
+  consultation_type?: 'in_person' | 'phone' | 'video';
+  status: 'requested' | 'scheduled' | 'completed' | 'cancelled' | 'rescheduled' | 'SCHEDULED' | 'COMPLETED' | 'CANCELLED';
   notes?: string;
   doctor_notes?: string;
   follow_up_required?: boolean;
   follow_up_date?: string;
+  attending_parent?: string;
+  notificationsSent?: boolean;
+  // Populated fields from API
+  student?: Student;
+  medicalStaff?: MedicalStaff;
+  campaignResult?: CampaignResult;
   createdAt: string;
   updatedAt: string;
 }
@@ -201,7 +232,6 @@ export interface ApiResponse<T> {
 export interface LoginRequest {
   username: string;
   password: string;
-  userType: 'parent' | 'medicalStaff' | 'student' | 'admin';
 }
 
 export interface LoginResponse {
@@ -219,7 +249,7 @@ export interface RegisterRequest {
     phone_number: string;
     gender: 'male' | 'female' | 'other';
   };
-  userType: 'parent' | 'medicalStaff' | 'student';
+  userType: 'parent';
 }
 
 export interface DashboardStats {

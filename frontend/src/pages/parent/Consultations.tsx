@@ -55,15 +55,25 @@ const ParentConsultations: React.FC = () => {
 
       if (consultationsResponse.success && consultationsResponse.data) {
         setConsultations(consultationsResponse.data);
+        
+        // Extract medical staff from consultation data since they're included
+        const staffFromConsultations = consultationsResponse.data
+          .filter((consultation: any) => consultation.medicalStaff)
+          .map((consultation: any) => consultation.medicalStaff);
+        
+        // Remove duplicates
+        const uniqueStaff = staffFromConsultations.filter((staff: any, index: number, self: any[]) => 
+          index === self.findIndex((s: any) => s._id === staff._id)
+        );
+        
+        setMedicalStaff(uniqueStaff);
       }
 
       if (studentsResponse.success && studentsResponse.data) {
-        setStudents(studentsResponse.data);
+        // API trả về mảng các object với format: { student: {...}, relationship: "...", is_emergency_contact: ... }
+        const studentData = studentsResponse.data.map((item: any) => item.student);
+        setStudents(studentData);
       }
-
-      // Note: Parent doesn't have access to medical staff list
-      // Medical staff info should be included in consultation data from backend
-      setMedicalStaff([]);
     } catch (error) {
       console.error('Error loading data:', error);
       message.error('Có lỗi xảy ra khi tải dữ liệu');
@@ -114,25 +124,9 @@ const ParentConsultations: React.FC = () => {
     return typeText[type as keyof typeof typeText] || type;
   };
 
-  const getStudentName = (studentId: string) => {
-    const student = students.find(s => s._id === studentId);
-    return student ? `${student.first_name} ${student.last_name}` : 'N/A';
-  };
 
-  const getMedicalStaffName = (staffId: string) => {
-    // Try to find from the loaded medical staff list first
-    const staff = medicalStaff.find(s => s._id === staffId);
-    if (staff) {
-      const roleText = staff.role === 'Doctor' ? 'Bác sĩ' : 
-                       staff.role === 'Nurse' ? 'Y tá' : 
-                       staff.role === 'Healthcare Assistant' ? 'Trợ lý y tế' : staff.role;
-      return `${roleText} ${staff.first_name} ${staff.last_name}`;
-    }
-    
-    // If not found, try to get from consultation data itself
-    // (Backend should include medical staff info in consultation response)
-    return 'Bác sĩ/Y tá';
-  };
+
+
 
   const handleViewDetail = (consultation: ConsultationSchedule) => {
     setSelectedConsultation(consultation);
@@ -145,7 +139,8 @@ const ParentConsultations: React.FC = () => {
       key: 'student',
       width: 180,
       render: (_: any, record: ConsultationSchedule) => {
-        const student = students.find(s => s._id === record.student_id);
+        // Dữ liệu student được include trực tiếp trong consultation object
+        const student = record.student || students.find(s => s._id === record.student_id);
         return (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Avatar size="small" icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} />
@@ -164,10 +159,11 @@ const ParentConsultations: React.FC = () => {
       key: 'medical_staff',
       width: 160,
       render: (_: any, record: ConsultationSchedule) => {
-        const staff = medicalStaff.find(s => s._id === record.medical_staff_id);
+        // Dữ liệu medicalStaff được include trực tiếp trong consultation object
+        const staff = record.medicalStaff || medicalStaff.find(s => s._id === record.medical_staff_id);
         return (
           <div style={{ fontSize: '13px' }}>
-            {staff ? `${staff.role} ${staff.first_name} ${staff.last_name}` : 'N/A'}
+            {staff ? `${staff.staff_role || 'Bác sĩ'} ${staff.first_name} ${staff.last_name}` : 'N/A'}
           </div>
         );
       }
@@ -189,10 +185,14 @@ const ParentConsultations: React.FC = () => {
       width: 130,
       render: (_: any, record: ConsultationSchedule) => (
         <div style={{ fontSize: '13px' }}>
-          {record.appointment_date ? (
+          {record.appointment_date || record.scheduledDate ? (
             <>
-              <div style={{ fontWeight: 500 }}>{moment(record.appointment_date).format('DD/MM/YYYY')}</div>
-              <Text type="secondary" style={{ fontSize: '12px' }}>{record.appointment_time}</Text>
+              <div style={{ fontWeight: 500 }}>
+                {moment(record.appointment_date || record.scheduledDate).format('DD/MM/YYYY')}
+              </div>
+              <Text type="secondary" style={{ fontSize: '12px' }}>
+                {record.appointment_time || moment(record.scheduledDate).format('HH:mm')}
+              </Text>
             </>
           ) : (
             <Text type="secondary" style={{ fontSize: '12px' }}>Chưa xác định</Text>
@@ -206,11 +206,11 @@ const ParentConsultations: React.FC = () => {
       width: 110,
       render: (_: any, record: ConsultationSchedule) => (
         <Tag 
-          icon={getConsultationTypeIcon(record.consultation_type)} 
+          icon={getConsultationTypeIcon(record.consultation_type || 'in_person')} 
           color="blue"
           style={{ fontSize: '11px', padding: '0 4px' }}
         >
-          {getConsultationTypeText(record.consultation_type)}
+          {getConsultationTypeText(record.consultation_type || 'in_person')}
         </Tag>
       )
     },
@@ -249,8 +249,8 @@ const ParentConsultations: React.FC = () => {
   const renderConsultationDetail = () => {
     if (!selectedConsultation) return null;
 
-    const student = students.find(s => s._id === selectedConsultation.student_id);
-    const staff = medicalStaff.find(s => s._id === selectedConsultation.medical_staff_id);
+    const student = selectedConsultation.student || students.find(s => s._id === selectedConsultation.student_id);
+    const staff = selectedConsultation.medicalStaff || medicalStaff.find(s => s._id === selectedConsultation.medical_staff_id);
 
     return (
       <Modal
@@ -283,23 +283,27 @@ const ParentConsultations: React.FC = () => {
               {student ? `${student.first_name} ${student.last_name} - ${student.class_name}` : 'N/A'}
             </Descriptions.Item>
             <Descriptions.Item label="Bác sĩ/Y tá">
-              {staff ? `${staff.role} ${staff.first_name} ${staff.last_name}` : 'N/A'}
+              {staff ? `${staff.staff_role || 'Bác sĩ'} ${staff.first_name} ${staff.last_name}` : 'N/A'}
             </Descriptions.Item>
             <Descriptions.Item label="Chuyên khoa">
-              {staff?.specialization || 'N/A'}
+              {staff?.staff_role || 'N/A'}
             </Descriptions.Item>
             <Descriptions.Item label="Ngày tư vấn">
-              {selectedConsultation.appointment_date ? 
-                moment(selectedConsultation.appointment_date).format('DD/MM/YYYY') : 
+              {selectedConsultation.appointment_date || selectedConsultation.scheduledDate ? 
+                moment(selectedConsultation.appointment_date || selectedConsultation.scheduledDate).format('DD/MM/YYYY') : 
                 'Chưa xác định'
               }
             </Descriptions.Item>
             <Descriptions.Item label="Giờ tư vấn">
-              {selectedConsultation.appointment_time || 'Chưa xác định'}
+              {selectedConsultation.appointment_time || 
+               (selectedConsultation.scheduledDate ? moment(selectedConsultation.scheduledDate).format('HH:mm') : 'Chưa xác định')}
+            </Descriptions.Item>
+            <Descriptions.Item label="Thời lượng">
+              {selectedConsultation.duration ? `${selectedConsultation.duration} phút` : 'N/A'}
             </Descriptions.Item>
             <Descriptions.Item label="Hình thức">
-              <Tag icon={getConsultationTypeIcon(selectedConsultation.consultation_type)} color="blue">
-                {getConsultationTypeText(selectedConsultation.consultation_type)}
+              <Tag icon={getConsultationTypeIcon(selectedConsultation.consultation_type || 'in_person')} color="blue">
+                {getConsultationTypeText(selectedConsultation.consultation_type || 'in_person')}
               </Tag>
             </Descriptions.Item>
             <Descriptions.Item label="Lý do tư vấn">
@@ -345,7 +349,7 @@ const ParentConsultations: React.FC = () => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div><Text strong>Email:</Text> {staff.email}</div>
                 <div><Text strong>Điện thoại:</Text> {staff.phone_number}</div>
-                <div><Text strong>Khoa:</Text> {staff.department}</div>
+                <div><Text strong>Chức vụ:</Text> {staff.staff_role}</div>
               </div>
             </Card>
           )}
@@ -463,12 +467,12 @@ const ParentConsultations: React.FC = () => {
               <List
                 dataSource={consultations.filter(c => 
                   c.status.toLowerCase() === 'scheduled' && 
-                  c.appointment_date &&
-                  moment(c.appointment_date).isAfter(moment())
+                  (c.appointment_date || c.scheduledDate) &&
+                  moment(c.appointment_date || c.scheduledDate).isAfter(moment())
                 ).slice(0, 5)}
                 renderItem={(consultation) => {
-                  const student = students.find(s => s._id === consultation.student_id);
-                  const staff = medicalStaff.find(s => s._id === consultation.medical_staff_id);
+                  const student = consultation.student || students.find(s => s._id === consultation.student_id);
+                  const staff = consultation.medicalStaff || medicalStaff.find(s => s._id === consultation.medical_staff_id);
                   return (
                     <List.Item
                       actions={[
@@ -480,7 +484,7 @@ const ParentConsultations: React.FC = () => {
                       <List.Item.Meta
                         avatar={
                           <Avatar 
-                            icon={getConsultationTypeIcon(consultation.consultation_type)} 
+                            icon={getConsultationTypeIcon(consultation.consultation_type || 'in_person')} 
                             style={{ backgroundColor: '#1890ff' }}
                           />
                         }
@@ -489,8 +493,10 @@ const ParentConsultations: React.FC = () => {
                           <div>
                             <div><strong>Học sinh:</strong> {student ? `${student.first_name} ${student.last_name}` : 'N/A'}</div>
                             <div><strong>Bác sĩ:</strong> {staff ? `${staff.first_name} ${staff.last_name}` : 'Chờ phân công'}</div>
-                            <div><strong>Thời gian:</strong> {consultation.appointment_date ? 
-                              `${moment(consultation.appointment_date).format('DD/MM')} lúc ${consultation.appointment_time}` : 
+                            <div><strong>Thời gian:</strong> {consultation.appointment_date || consultation.scheduledDate ? 
+                              `${moment(consultation.appointment_date || consultation.scheduledDate).format('DD/MM')} lúc ${
+                                consultation.appointment_time || moment(consultation.scheduledDate).format('HH:mm')
+                              }` : 
                               'Chưa xác định'
                             }</div>
                           </div>

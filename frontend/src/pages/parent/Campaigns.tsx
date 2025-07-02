@@ -78,7 +78,9 @@ const ParentCampaigns: React.FC = () => {
       }
 
       if (studentsResponse.success && studentsResponse.data) {
-        setStudents(studentsResponse.data);
+        // API trả về mảng các object với format: { student: {...}, relationship: "...", is_emergency_contact: ... }
+        const studentData = studentsResponse.data.map((item: any) => item.student);
+        setStudents(studentData);
       }
     } catch (error) {
       console.error('Error loading data:', error);

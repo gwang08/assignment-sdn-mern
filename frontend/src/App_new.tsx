@@ -51,12 +51,9 @@ const AppContent: React.FC = () => {
     if (!user) return '/home';
     
     switch (user.role) {
-      case 'super_admin':
-      case 'student_manager':
+      case 'admin':
         return '/admin/dashboard';
-      case 'Nurse':
-      case 'Doctor':
-      case 'Healthcare Assistant':
+      case 'medicalStaff':
         return '/nurse/dashboard';
       case 'parent':
         return '/parent/dashboard';
