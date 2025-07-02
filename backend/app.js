@@ -71,9 +71,6 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
 
-// Enable CORS
-app.use(cors());
-
 // Setup Swagger
 app.use("/api-docs", swagger.serve, swagger.setup);
 

@@ -13,7 +13,7 @@ export interface User {
 export interface Student extends User {
   class_name: string;
   gender: 'male' | 'female' | 'other';
-  date_of_birth?: string;
+  dateOfBirth?: string;
   student_id?: string;
 }
 
@@ -26,6 +26,7 @@ export interface MedicalStaff extends User {
   phone?: string; // For backward compatibility
   department?: string;
   specialization?: string;
+  dateOfBirth?: string; // For backward compatibility
 }
 
 export interface HealthProfile {
@@ -229,4 +230,15 @@ export interface DashboardStats {
   pending_medicine_requests: number;
   recent_events: MedicalEvent[];
   upcoming_campaigns: Campaign[];
+}
+
+export interface StudentParentRelation {
+  _id: string;
+  student: Student;
+  parent: Parent;
+  relationship: string;
+  is_emergency_contact: boolean;
+  status: "pending" | "approved" | "rejected";
+  createdAt: string;
+  updatedAt: string;
 }

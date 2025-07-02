@@ -373,7 +373,7 @@ const HealthProfilesPage: React.FC = () => {
                   {selectedStudent.gender === 'male' ? 'Nam' : selectedStudent.gender === 'female' ? 'Nữ' : 'Khác'}
                 </Descriptions.Item>
                 <Descriptions.Item label="Ngày sinh">
-                  {selectedStudent.date_of_birth ? new Date(selectedStudent.date_of_birth).toLocaleDateString('vi-VN') : 'N/A'}
+                  {selectedStudent.dateOfBirth ? new Date(selectedStudent.dateOfBirth).toLocaleDateString('vi-VN') : 'N/A'}
                 </Descriptions.Item>
               </Descriptions>
             </Card>

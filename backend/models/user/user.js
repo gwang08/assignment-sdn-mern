@@ -44,6 +44,15 @@ const userSchema = new Schema(
       },
     },
 
+    student_id: {
+      type: String,
+      unique: true,
+      sparse: true, // chỉ áp dụng cho học sinh
+      required: function () {
+        return this.role === "student";
+      },
+    },
+
     // Medical staff-specific fields
     staff_role: {
       type: String,
