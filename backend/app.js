@@ -56,7 +56,7 @@ app.use(
   cors({
     origin: "http://localhost:3001", // Allow requests from frontend
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // Allowed methods
-    allowedHeaders: ["Content-Type", "Authorization"], // Allowed headers
+    allowedHeaders: ["Content-Type", "Authorization", "x-auth-token"], // Allowed headers
     credentials: true, // Allow cookies and credentials
   })
 );
@@ -70,9 +70,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
-
-// Enable CORS
-app.use(cors());
 
 // Setup Swagger
 app.use("/api-docs", swagger.serve, swagger.setup);

@@ -86,7 +86,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       },
     ];
 
-    if (user?.role === 'super_admin' || user?.role === 'student_manager') {
+    if (user?.role === 'admin') {
       return [
         ...commonItems,
         {
@@ -97,7 +97,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       ];
     }
 
-    if (user?.role === 'Nurse' || user?.role === 'Doctor' || user?.role === 'Healthcare Assistant') {
+    if (user?.role === 'medicalStaff') {
       return [
         ...commonItems,
         {
@@ -294,11 +294,13 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                   </Text>
                   
                   <Text style={{ fontSize: '12px', color: '#6b7280' }}>
-                    {user?.role === 'super_admin' && 'Quản trị viên'}
-                    {user?.role === 'student_manager' && 'Quản lý học sinh'}
-                    {user?.role === 'Nurse' && 'Y tá'}
-                    {user?.role === 'Doctor' && 'Bác sĩ'}
-                    {user?.role === 'Healthcare Assistant' && 'Trợ lý y tế'}
+                    {user?.role === 'admin' && 'Quản trị viên'}
+                    {user?.role === 'medicalStaff' && (
+                      user.staff_role === 'Nurse' ? 'Y tá' :
+                      user.staff_role === 'Doctor' ? 'Bác sĩ' :
+                      user.staff_role === 'Healthcare Assistant' ? 'Trợ lý y tế' :
+                      'Nhân viên y tế'
+                    )}
                     {user?.role === 'parent' && 'Phụ huynh'}
                     {user?.role === 'student' && 'Học sinh'}
                   </Text>

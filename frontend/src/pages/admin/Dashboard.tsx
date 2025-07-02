@@ -38,10 +38,8 @@ const AdminDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<User[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
-  const [, setIsUserModalVisible] = useState(false);
   const [isStudentModalVisible, setIsStudentModalVisible] = useState(false);
   const [isMedicalStaffModalVisible, setIsMedicalStaffModalVisible] = useState(false);
-  const [, setEditingUser] = useState<User | null>(null);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [activeTab, setActiveTab] = useState('users');
   const [studentForm] = Form.useForm();
@@ -83,7 +81,7 @@ const AdminDashboard: React.FC = () => {
     setEditingStudent(student);
     studentForm.setFieldsValue({
       ...student,
-      date_of_birth: student.date_of_birth ? moment(student.date_of_birth) : null
+      date_of_birth: student.dateOfBirth ? moment(student.dateOfBirth) : null
     });
     setIsStudentModalVisible(true);
   };
