@@ -538,4 +538,6 @@ router.put(
   adminController.respondToLinkRequest
 );
 
+router.get("/parents", adminController.getParents);
+
 module.exports = router;

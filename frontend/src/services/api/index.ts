@@ -24,7 +24,15 @@ class ApiService {
   getStudents = adminService.getStudents.bind(adminService);
   createMedicalStaff = adminService.createMedicalStaff.bind(adminService);
   getMedicalStaff = adminService.getMedicalStaff.bind(adminService);
-
+  updateStudent = adminService.updateStudent.bind(adminService);
+  deactivateStudent = adminService.deactivateStudent.bind(adminService);
+  updateMedicalStaff = adminService.updateMedicalStaff.bind(adminService);
+  deactivateMedicalStaff = adminService.deactivateMedicalStaff.bind(adminService);
+  createStudentParentRelation = adminService.createStudentParentRelation.bind(adminService);
+  getStudentParentRelations = adminService.getStudentParentRelations.bind(adminService);
+  getPendingLinkRequests = adminService.getPendingLinkRequests.bind(adminService);
+  respondToLinkRequest = adminService.respondToLinkRequest.bind(adminService);
+  getParents = adminService.getParents.bind(adminService);
   // Nurse methods
   getHealthProfile = nurseService.getHealthProfile.bind(nurseService);
   updateHealthProfile = nurseService.updateHealthProfile.bind(nurseService);

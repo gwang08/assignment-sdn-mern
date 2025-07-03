@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Row,
   Col,
@@ -15,20 +15,22 @@ import {
   Typography,
   Tabs,
   Tag,
-  DatePicker
-} from 'antd';
+  DatePicker,
+} from "antd";
 import {
   UserOutlined,
   TeamOutlined,
   MedicineBoxOutlined,
   PlusOutlined,
   EditOutlined,
-
-} from '@ant-design/icons';
-import type { ColumnsType } from 'antd/es/table';
-import moment from 'moment';
-import apiService from '../../services/api';
-import { User, Student } from '../../types';
+  StopOutlined,
+} from "@ant-design/icons";
+import type { ColumnsType } from "antd/es/table";
+import moment from "moment";
+import apiService from "../../services/api/adminService";
+import { User, Student, MedicalStaff } from "../../types";
+import StudentParentRelations from "./StudentParentRelations";
+import PendingLinkRequests from "./PendingLinkRequests";
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -38,12 +40,27 @@ const AdminDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<User[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
+  const [, setIsUserModalVisible] = useState(false);
   const [isStudentModalVisible, setIsStudentModalVisible] = useState(false);
-  const [isMedicalStaffModalVisible, setIsMedicalStaffModalVisible] = useState(false);
+  const [isMedicalStaffModalVisible, setIsMedicalStaffModalVisible] =
+    useState(false);
+  const [, setEditingUser] = useState<User | null>(null);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
-  const [activeTab, setActiveTab] = useState('users');
+  const [activeTab, setActiveTab] = useState("users");
   const [studentForm] = Form.useForm();
   const [medicalStaffForm] = Form.useForm();
+  const [medicalStaff, setMedicalStaff] = useState<MedicalStaff[]>([]);
+  const [deactivateModalVisible, setDeactivateModalVisible] = useState(false);
+  const [studentToDeactivate, setStudentToDeactivate] =
+    useState<Student | null>(null);
+  const [editingMedicalStaff, setEditingMedicalStaff] =
+    useState<MedicalStaff | null>(null);
+  const [medicalStaffToDeactivate, setMedicalStaffToDeactivate] =
+    useState<MedicalStaff | null>(null);
+  const [
+    deactivateMedicalStaffModalVisible,
+    setDeactivateMedicalStaffModalVisible,
+  ] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -52,25 +69,48 @@ const AdminDashboard: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [usersResponse, studentsResponse] = await Promise.all([
-        apiService.getUsers(),
-        apiService.getStudents()
-      ]);
+
+      const [usersResponse, studentsResponse, medicalStaffResponse] =
+        await Promise.all([
+          apiService.getUsers(),
+          apiService.getStudents(),
+          apiService.getMedicalStaff(),
+        ]);
 
       if (usersResponse.success && usersResponse.data) {
         setUsers(usersResponse.data);
       }
+
       if (studentsResponse.success && studentsResponse.data) {
         setStudents(studentsResponse.data);
       }
+
+      if (medicalStaffResponse.success && medicalStaffResponse.data) {
+        setMedicalStaff(medicalStaffResponse.data);
+      }
+      const normalizedStudents = (studentsResponse.data as any[]).map((s) => ({
+        ...s,
+        isActive: s.is_active,
+      }));
+      setStudents(normalizedStudents);
+      if (medicalStaffResponse.success && medicalStaffResponse.data) {
+        const normalizedMedicalStaff = (medicalStaffResponse.data as any[]).map(
+          (staff) => ({
+            ...staff,
+            isActive: staff.is_active,
+          })
+        );
+        setMedicalStaff(normalizedMedicalStaff);
+      }
     } catch (error) {
-      console.error('Error loading data:', error);
-      message.error('Có lỗi xảy ra khi tải dữ liệu');
+      console.error("Error loading data:", error);
+      message.error("Có lỗi xảy ra khi tải dữ liệu");
     } finally {
       setLoading(false);
     }
   };
 
+  // Student management functions
   const handleCreateStudent = () => {
     setEditingStudent(null);
     studentForm.resetFields();
@@ -81,157 +121,238 @@ const AdminDashboard: React.FC = () => {
     setEditingStudent(student);
     studentForm.setFieldsValue({
       ...student,
-      date_of_birth: student.dateOfBirth ? moment(student.dateOfBirth) : null
+      dateOfBirth: student.dateOfBirth ? moment(student.dateOfBirth) : null,
     });
     setIsStudentModalVisible(true);
   };
-
-  const handleCreateMedicalStaff = () => {
-    medicalStaffForm.resetFields();
-    setIsMedicalStaffModalVisible(true);
-  };
-
   const handleSubmitStudent = async (values: any) => {
     try {
+      const { username, password, student_id, ...restValues } = values;
+
       const studentData = {
-        ...values,
-        date_of_birth: values.date_of_birth?.toDate(),
+        ...restValues,
+        dateOfBirth: values.dateOfBirth?.toDate(),
       };
 
       let response;
-      if (editingStudent) {
-        // Update logic would go here if API supports it
-        message.info('Cập nhật học sinh chưa được hỗ trợ');
-        return;
+      const isEditing = !!editingStudent;
+
+      if (isEditing) {
+        response = await apiService.updateStudent(
+          editingStudent._id,
+          studentData
+        );
       } else {
         response = await apiService.createStudent(studentData);
       }
 
       if (response.success) {
-        message.success('Tạo học sinh thành công');
+        message.success(
+          isEditing ? "Cập nhật học sinh thành công" : "Tạo học sinh thành công"
+        );
         setIsStudentModalVisible(false);
         studentForm.resetFields();
+        setEditingStudent(null);
         loadData();
       } else {
-        message.error(response.message || 'Có lỗi xảy ra');
+        message.error(response.message || "Có lỗi xảy ra");
       }
     } catch (error) {
-      console.error('Error submitting student:', error);
-      message.error('Có lỗi xảy ra khi lưu thông tin học sinh');
+      console.error("Error submitting student:", error);
+      message.error("Có lỗi xảy ra khi lưu thông tin học sinh");
     }
+  };
+  const handleDeactivateStudent = async (studentId: string) => {
+    try {
+      const response = await apiService.deactivateStudent(studentId);
+      if (response.success) {
+        message.success("Đã vô hiệu hóa học sinh");
+        loadData();
+      } else {
+        message.error(response.message || "Thao tác thất bại");
+      }
+    } catch (error) {
+      console.error("Error deactivating student:", error);
+      message.error("Lỗi khi vô hiệu hóa học sinh");
+    }
+  };
+  // Medical staff management functions
+  const handleCreateMedicalStaff = () => {
+    medicalStaffForm.resetFields();
+    setIsMedicalStaffModalVisible(true);
+  };
+
+  const handleEditMedicalStaff = (staff: MedicalStaff) => {
+    setEditingMedicalStaff(staff);
+    medicalStaffForm.setFieldsValue({
+      ...staff,
+      dateOfBirth: staff.dateOfBirth ? moment(staff.dateOfBirth) : null,
+    });
+    setIsMedicalStaffModalVisible(true);
   };
 
   const handleSubmitMedicalStaff = async (values: any) => {
     try {
-      const response = await apiService.createMedicalStaff(values);
-      
+      const staffData = {
+        ...values,
+        role: "medicalStaff",
+        dateOfBirth: values.dateOfBirth?.toDate(),
+      };
+
+      let response;
+      const isEditing = !!editingMedicalStaff;
+
+      if (isEditing) {
+        response = await apiService.updateMedicalStaff(
+          editingMedicalStaff._id,
+          staffData
+        );
+      } else {
+        response = await apiService.createMedicalStaff(staffData);
+      }
+
       if (response.success) {
-        message.success('Tạo nhân viên y tế thành công');
+        message.success(
+          isEditing
+            ? "Cập nhật nhân viên thành công"
+            : "Tạo nhân viên thành công"
+        );
         setIsMedicalStaffModalVisible(false);
         medicalStaffForm.resetFields();
+        setEditingMedicalStaff(null);
         loadData();
       } else {
-        message.error(response.message || 'Có lỗi xảy ra');
+        message.error(response.message || "Có lỗi xảy ra");
       }
     } catch (error) {
-      console.error('Error submitting medical staff:', error);
-      message.error('Có lỗi xảy ra khi lưu thông tin nhân viên y tế');
+      console.error("Error submitting medical staff:", error);
+      message.error("Có lỗi xảy ra khi lưu thông tin nhân viên y tế");
+    }
+  };
+
+  const handleDeactivateMedicalStaff = async (staffId: string) => {
+    try {
+      const response = await apiService.deactivateMedicalStaff(staffId);
+      if (response.success) {
+        message.success("Đã vô hiệu hóa nhân viên y tế");
+        loadData();
+      } else {
+        message.error(response.message || "Thao tác thất bại");
+      }
+    } catch (error) {
+      console.error("Error deactivating staff:", error);
+      message.error("Lỗi khi vô hiệu hóa nhân viên y tế");
     }
   };
 
   const getRoleTag = (role: string) => {
     const roleConfig = {
-      super_admin: { color: 'red', text: 'Super Admin' },
-      student_manager: { color: 'orange', text: 'Quản lý học sinh' },
-      nurse: { color: 'green', text: 'Y tá' },
-      doctor: { color: 'blue', text: 'Bác sĩ' },
-      healthcare_assistant: { color: 'cyan', text: 'Trợ lý y tế' },
-      parent: { color: 'purple', text: 'Phụ huynh' },
-      student: { color: 'geekblue', text: 'Học sinh' }
+      super_admin: { color: "red", text: "Super Admin" },
+      student_manager: { color: "orange", text: "Quản lý học sinh" },
+      nurse: { color: "green", text: "Y tá" },
+      doctor: { color: "blue", text: "Bác sĩ" },
+      healthcare_assistant: { color: "cyan", text: "Trợ lý y tế" },
+      parent: { color: "purple", text: "Phụ huynh" },
+      student: { color: "geekblue", text: "Học sinh" },
     };
-    const config = roleConfig[role as keyof typeof roleConfig] || { color: 'default', text: role };
+    const config = roleConfig[role as keyof typeof roleConfig] || {
+      color: "default",
+      text: role,
+    };
     return <Tag color={config.color}>{config.text}</Tag>;
   };
 
   const userColumns: ColumnsType<User> = [
     {
-      title: 'Username',
-      dataIndex: 'username',
-      key: 'username',
+      title: "Username",
+      dataIndex: "username",
+      key: "username",
     },
     {
-      title: 'Họ và tên',
-      key: 'fullname',
+      title: "Họ và tên",
+      key: "fullname",
       render: (_, record: User) => `${record.first_name} ${record.last_name}`,
     },
     {
-      title: 'Email',
-      dataIndex: 'email',
-      key: 'email',
+      title: "Email",
+      dataIndex: "email",
+      key: "email",
     },
     {
-      title: 'Vai trò',
-      dataIndex: 'role',
-      key: 'role',
+      title: "Vai trò",
+      dataIndex: "role",
+      key: "role",
       render: (role: string) => getRoleTag(role),
     },
     {
-      title: 'Trạng thái',
-      dataIndex: 'isActive',
-      key: 'isActive',
+      title: "Trạng thái",
+      dataIndex: "is_active",
+      key: "is_active",
       render: (isActive: boolean) => (
-        <Tag color={isActive ? 'green' : 'red'}>
-          {isActive ? 'Hoạt động' : 'Vô hiệu hóa'}
+        <Tag color={isActive ? "green" : "red"}>
+          {isActive ? "Hoạt động" : "Vô hiệu hóa"}
         </Tag>
       ),
     },
     {
-      title: 'Ngày tạo',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      render: (date: string) => moment(date).format('DD/MM/YYYY'),
+      title: "Ngày tạo",
+      dataIndex: "createdAt",
+      key: "createdAt",
+      render: (date: string) => moment(date).format("DD/MM/YYYY"),
     },
   ];
 
   const studentColumns: ColumnsType<Student> = [
     {
-      title: 'Mã học sinh',
-      dataIndex: 'student_id',
-      key: 'student_id',
+      title: "Mã học sinh",
+      dataIndex: "student_id",
+      key: "student_id",
     },
     {
-      title: 'Username',
-      dataIndex: 'username',
-      key: 'username',
+      title: "Username",
+      dataIndex: "username",
+      key: "username",
     },
     {
-      title: 'Họ và tên',
-      key: 'fullname',
-      render: (_, record: Student) => `${record.first_name} ${record.last_name}`,
+      title: "Họ và tên",
+      key: "fullname",
+      render: (_, record: Student) =>
+        `${record.first_name} ${record.last_name}`,
     },
     {
-      title: 'Lớp',
-      dataIndex: 'class_name',
-      key: 'class_name',
+      title: "Lớp",
+      dataIndex: "class_name",
+      key: "class_name",
     },
     {
-      title: 'Giới tính',
-      dataIndex: 'gender',
-      key: 'gender',
+      title: "Giới tính",
+      dataIndex: "gender",
+      key: "gender",
       render: (gender: string) => {
-        const genderMap = { male: 'Nam', female: 'Nữ', other: 'Khác' };
+        const genderMap = { male: "Nam", female: "Nữ", other: "Khác" };
         return genderMap[gender as keyof typeof genderMap] || gender;
       },
     },
     {
-      title: 'Ngày sinh',
-      dataIndex: 'date_of_birth',
-      key: 'date_of_birth',
-      render: (date: string) => date ? moment(date).format('DD/MM/YYYY') : '-',
+      title: "Ngày sinh",
+      dataIndex: "dateOfBirth",
+      key: "dateOfBirth",
+      render: (date: string) =>
+        date ? moment(date).format("DD/MM/YYYY") : "-",
     },
     {
-      title: 'Thao tác',
-      key: 'actions',
+      title: "Trạng thái",
+      dataIndex: "isActive",
+      key: "isActive",
+      render: (isActive: boolean) => (
+        <Tag color={isActive ? "green" : "red"}>
+          {isActive ? "Hoạt động" : "Vô hiệu hóa"}
+        </Tag>
+      ),
+    },
+    {
+      title: "Thao tác",
+      key: "actions",
       render: (_, record: Student) => (
         <Space>
           <Button
@@ -239,6 +360,103 @@ const AdminDashboard: React.FC = () => {
             onClick={() => handleEditStudent(record)}
             title="Chỉnh sửa"
           />
+          {record.is_active && (
+            <Button
+              icon={<StopOutlined />}
+              danger
+              title="Vô hiệu hóa"
+              onClick={() => {
+                setStudentToDeactivate(record);
+                setDeactivateModalVisible(true);
+              }}
+            />
+          )}
+        </Space>
+      ),
+    },
+  ];
+  const medicalStaffColumns: ColumnsType<MedicalStaff> = [
+    {
+      title: "Username",
+      dataIndex: "username",
+      key: "username",
+    },
+    {
+      title: "Họ và tên",
+      key: "fullname",
+      render: (_, record: MedicalStaff) =>
+        `${record.first_name} ${record.last_name}`,
+    },
+    {
+      title: "Email",
+      dataIndex: "email",
+      key: "email",
+    },
+    {
+      title: "SĐT",
+      dataIndex: "phone_number",
+      key: "phone_number",
+    },
+    {
+      title: "Giới tính",
+      dataIndex: "gender",
+      key: "gender",
+      render: (gender: string) => {
+        const genderMap = { male: "Nam", female: "Nữ", other: "Khác" };
+        return genderMap[gender as keyof typeof genderMap] || gender;
+      },
+    },
+    {
+      title: "Ngày sinh",
+      dataIndex: "dateOfBirth",
+      key: "dateOfBirth",
+      render: (date: string) =>
+        date ? moment(date).format("DD/MM/YYYY") : "-",
+    },
+    {
+      title: "Vai trò",
+      dataIndex: "staff_role",
+      key: "staff_role",
+      render: (staffRole: string) => {
+        const roleMap: Record<string, string> = {
+          Nurse: "Y tá",
+          Doctor: "Bác sĩ",
+          "Healthcare Assistant": "Trợ lý y tế",
+        };
+        return <Tag color="blue">{roleMap[staffRole] || staffRole}</Tag>;
+      },
+    },
+    {
+      title: "Trạng thái",
+      dataIndex: "is_active",
+      key: "is_active",
+      render: (isActive: boolean) => (
+        <Tag color={isActive ? "green" : "red"}>
+          {isActive ? "Hoạt động" : "Vô hiệu hóa"}
+        </Tag>
+      ),
+    },
+    {
+      title: "Thao tác",
+      key: "actions",
+      render: (_, record: MedicalStaff) => (
+        <Space>
+          <Button
+            icon={<EditOutlined />}
+            onClick={() => handleEditMedicalStaff(record)}
+            title="Chỉnh sửa"
+          />
+          {record.is_active && (
+            <Button
+              icon={<StopOutlined />}
+              danger
+              title="Vô hiệu hóa"
+              onClick={() => {
+                setMedicalStaffToDeactivate(record);
+                setDeactivateMedicalStaffModalVisible(true);
+              }}
+            />
+          )}
         </Space>
       ),
     },
@@ -276,7 +494,11 @@ const AdminDashboard: React.FC = () => {
           <Card>
             <Statistic
               title="Nhân viên y tế"
-              value={users.filter(u => ['nurse', 'doctor', 'healthcare_assistant'].includes(u.role)).length}
+              value={
+                users.filter((u) =>
+                  ["nurse", "doctor", "healthcare_assistant"].includes(u.role)
+                ).length
+              }
               prefix={<MedicineBoxOutlined />}
             />
           </Card>
@@ -285,7 +507,7 @@ const AdminDashboard: React.FC = () => {
           <Card>
             <Statistic
               title="Phụ huynh"
-              value={users.filter(u => u.role === 'parent').length}
+              value={users.filter((u) => u.role === "parent").length}
               prefix={<TeamOutlined />}
             />
           </Card>
@@ -303,8 +525,8 @@ const AdminDashboard: React.FC = () => {
               pagination={{ pageSize: 10 }}
             />
           </TabPane>
-          
-          <TabPane 
+
+          <TabPane
             tab={
               <span>
                 Học sinh
@@ -329,8 +551,8 @@ const AdminDashboard: React.FC = () => {
               pagination={{ pageSize: 10 }}
             />
           </TabPane>
-          
-          <TabPane 
+
+          <TabPane
             tab={
               <span>
                 Nhân viên y tế
@@ -348,19 +570,25 @@ const AdminDashboard: React.FC = () => {
             key="medical-staff"
           >
             <Table
-              columns={userColumns}
-              dataSource={users.filter(u => ['nurse', 'doctor', 'healthcare_assistant'].includes(u.role))}
+              columns={medicalStaffColumns}
+              dataSource={medicalStaff}
               rowKey="_id"
               loading={loading}
               pagination={{ pageSize: 10 }}
             />
+          </TabPane>
+          <TabPane tab="Quan hệ PH-HS" key="relations">
+            <StudentParentRelations />
+          </TabPane>
+          <TabPane tab="Yêu cầu liên kết" key="pending-links">
+            <PendingLinkRequests />
           </TabPane>
         </Tabs>
       </Card>
 
       {/* Student Modal */}
       <Modal
-        title={editingStudent ? 'Chỉnh sửa học sinh' : 'Tạo học sinh mới'}
+        title={editingStudent ? "Chỉnh sửa học sinh" : "Tạo học sinh mới"}
         open={isStudentModalVisible}
         onCancel={() => setIsStudentModalVisible(false)}
         footer={null}
@@ -374,63 +602,9 @@ const AdminDashboard: React.FC = () => {
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item
-                name="username"
-                label="Username"
-                rules={[{ required: true, message: 'Vui lòng nhập username' }]}
-              >
-                <Input placeholder="Nhập username" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="student_id"
-                label="Mã học sinh"
-                rules={[{ required: true, message: 'Vui lòng nhập mã học sinh' }]}
-              >
-                <Input placeholder="Nhập mã học sinh" />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="first_name"
-                label="Họ"
-                rules={[{ required: true, message: 'Vui lòng nhập họ' }]}
-              >
-                <Input placeholder="Nhập họ" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="last_name"
-                label="Tên"
-                rules={[{ required: true, message: 'Vui lòng nhập tên' }]}
-              >
-                <Input placeholder="Nhập tên" />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="email"
-                label="Email"
-                rules={[
-                  { required: true, message: 'Vui lòng nhập email' },
-                  { type: 'email', message: 'Email không hợp lệ' }
-                ]}
-              >
-                <Input placeholder="Nhập email" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
                 name="class_name"
                 label="Lớp"
-                rules={[{ required: true, message: 'Vui lòng nhập lớp' }]}
+                rules={[{ required: true, message: "Vui lòng nhập lớp" }]}
               >
                 <Input placeholder="Nhập lớp" />
               </Form.Item>
@@ -440,9 +614,30 @@ const AdminDashboard: React.FC = () => {
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item
+                name="first_name"
+                label="Họ"
+                rules={[{ required: true, message: "Vui lòng nhập họ" }]}
+              >
+                <Input placeholder="Nhập họ" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="last_name"
+                label="Tên"
+                rules={[{ required: true, message: "Vui lòng nhập tên" }]}
+              >
+                <Input placeholder="Nhập tên" />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
                 name="gender"
                 label="Giới tính"
-                rules={[{ required: true, message: 'Vui lòng chọn giới tính' }]}
+                rules={[{ required: true, message: "Vui lòng chọn giới tính" }]}
               >
                 <Select placeholder="Chọn giới tính">
                   <Option value="male">Nam</Option>
@@ -453,28 +648,22 @@ const AdminDashboard: React.FC = () => {
             </Col>
             <Col span={12}>
               <Form.Item
-                name="date_of_birth"
+                name="dateOfBirth"
                 label="Ngày sinh"
+                rules={[{ required: true, message: "Vui lòng chọn ngày sinh" }]}
               >
-                <DatePicker style={{ width: '100%' }} placeholder="Chọn ngày sinh" />
+                <DatePicker
+                  style={{ width: "100%" }}
+                  placeholder="Chọn ngày sinh"
+                />
               </Form.Item>
             </Col>
           </Row>
 
-          {!editingStudent && (
-            <Form.Item
-              name="password"
-              label="Mật khẩu"
-              rules={[{ required: true, message: 'Vui lòng nhập mật khẩu' }]}
-            >
-              <Input.Password placeholder="Nhập mật khẩu" />
-            </Form.Item>
-          )}
-
           <Form.Item>
             <Space>
               <Button type="primary" htmlType="submit">
-                {editingStudent ? 'Cập nhật' : 'Tạo học sinh'}
+                {editingStudent ? "Cập nhật" : "Tạo học sinh"}
               </Button>
               <Button onClick={() => setIsStudentModalVisible(false)}>
                 Hủy
@@ -482,6 +671,29 @@ const AdminDashboard: React.FC = () => {
             </Space>
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title="Xác nhận vô hiệu hóa"
+        open={deactivateModalVisible}
+        onCancel={() => setDeactivateModalVisible(false)}
+        onOk={async () => {
+          if (studentToDeactivate) {
+            await handleDeactivateStudent(studentToDeactivate._id);
+            setDeactivateModalVisible(false);
+          }
+        }}
+        okText="Vô hiệu hóa"
+        cancelText="Hủy"
+        okButtonProps={{ danger: true }}
+      >
+        <p>
+          Bạn có chắc chắn muốn vô hiệu hóa học sinh{" "}
+          <strong>
+            {studentToDeactivate?.first_name} {studentToDeactivate?.last_name}
+          </strong>
+          ?
+        </p>
       </Modal>
 
       {/* Medical Staff Modal */}
@@ -502,21 +714,21 @@ const AdminDashboard: React.FC = () => {
               <Form.Item
                 name="username"
                 label="Username"
-                rules={[{ required: true, message: 'Vui lòng nhập username' }]}
+                rules={[{ required: true, message: "Vui lòng nhập username" }]}
               >
                 <Input placeholder="Nhập username" />
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item
-                name="role"
+                name="staff_role"
                 label="Vai trò"
-                rules={[{ required: true, message: 'Vui lòng chọn vai trò' }]}
+                rules={[{ required: true, message: "Vui lòng chọn vai trò" }]}
               >
                 <Select placeholder="Chọn vai trò">
-                  <Option value="nurse">Y tá</Option>
-                  <Option value="doctor">Bác sĩ</Option>
-                  <Option value="healthcare_assistant">Trợ lý y tế</Option>
+                  <Option value="Nurse">Y tá</Option>
+                  <Option value="Doctor">Bác sĩ</Option>
+                  <Option value="Healthcare Assistant">Trợ lý y tế</Option>
                 </Select>
               </Form.Item>
             </Col>
@@ -527,7 +739,7 @@ const AdminDashboard: React.FC = () => {
               <Form.Item
                 name="first_name"
                 label="Họ"
-                rules={[{ required: true, message: 'Vui lòng nhập họ' }]}
+                rules={[{ required: true, message: "Vui lòng nhập họ" }]}
               >
                 <Input placeholder="Nhập họ" />
               </Form.Item>
@@ -536,7 +748,7 @@ const AdminDashboard: React.FC = () => {
               <Form.Item
                 name="last_name"
                 label="Tên"
-                rules={[{ required: true, message: 'Vui lòng nhập tên' }]}
+                rules={[{ required: true, message: "Vui lòng nhập tên" }]}
               >
                 <Input placeholder="Nhập tên" />
               </Form.Item>
@@ -549,8 +761,8 @@ const AdminDashboard: React.FC = () => {
                 name="email"
                 label="Email"
                 rules={[
-                  { required: true, message: 'Vui lòng nhập email' },
-                  { type: 'email', message: 'Email không hợp lệ' }
+                  { required: true, message: "Vui lòng nhập email" },
+                  { type: "email", message: "Email không hợp lệ" },
                 ]}
               >
                 <Input placeholder="Nhập email" />
@@ -560,7 +772,9 @@ const AdminDashboard: React.FC = () => {
               <Form.Item
                 name="phone_number"
                 label="Số điện thoại"
-                rules={[{ required: true, message: 'Vui lòng nhập số điện thoại' }]}
+                rules={[
+                  { required: true, message: "Vui lòng nhập số điện thoại" },
+                ]}
               >
                 <Input placeholder="Nhập số điện thoại" />
               </Form.Item>
@@ -570,29 +784,40 @@ const AdminDashboard: React.FC = () => {
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item
-                name="department"
-                label="Khoa"
+                name="gender"
+                label="Giới tính"
+                rules={[{ required: true, message: "Vui lòng chọn giới tính" }]}
               >
-                <Input placeholder="Nhập khoa" />
+                <Select placeholder="Chọn giới tính">
+                  <Option value="male">Nam</Option>
+                  <Option value="female">Nữ</Option>
+                  <Option value="other">Khác</Option>
+                </Select>
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item
-                name="specialization"
-                label="Chuyên môn"
+                name="dateOfBirth"
+                label="Ngày sinh"
+                rules={[{ required: true, message: "Vui lòng chọn ngày sinh" }]}
               >
-                <Input placeholder="Nhập chuyên môn" />
+                <DatePicker
+                  style={{ width: "100%" }}
+                  placeholder="Chọn ngày sinh"
+                />
               </Form.Item>
             </Col>
           </Row>
 
-          <Form.Item
-            name="password"
-            label="Mật khẩu"
-            rules={[{ required: true, message: 'Vui lòng nhập mật khẩu' }]}
-          >
-            <Input.Password placeholder="Nhập mật khẩu" />
-          </Form.Item>
+          {!editingMedicalStaff && (
+            <Form.Item
+              name="password"
+              label="Mật khẩu"
+              rules={[{ required: true, message: "Vui lòng nhập mật khẩu" }]}
+            >
+              <Input.Password placeholder="Nhập mật khẩu" />
+            </Form.Item>
+          )}
 
           <Form.Item>
             <Space>
@@ -605,6 +830,29 @@ const AdminDashboard: React.FC = () => {
             </Space>
           </Form.Item>
         </Form>
+      </Modal>
+      <Modal
+        title="Xác nhận vô hiệu hóa"
+        open={deactivateMedicalStaffModalVisible}
+        onCancel={() => setDeactivateMedicalStaffModalVisible(false)}
+        onOk={async () => {
+          if (medicalStaffToDeactivate) {
+            await handleDeactivateMedicalStaff(medicalStaffToDeactivate._id);
+            setDeactivateMedicalStaffModalVisible(false);
+          }
+        }}
+        okText="Vô hiệu hóa"
+        cancelText="Hủy"
+        okButtonProps={{ danger: true }}
+      >
+        <p>
+          Bạn có chắc chắn muốn vô hiệu hóa nhân viên{" "}
+          <strong>
+            {medicalStaffToDeactivate?.first_name}{" "}
+            {medicalStaffToDeactivate?.last_name}
+          </strong>
+          ?
+        </p>
       </Modal>
     </div>
   );

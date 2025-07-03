@@ -4,7 +4,7 @@ export interface User {
   email?: string;
   first_name: string;
   last_name: string;
-  gender: 'male' | 'female' | 'other';
+  gender: "male" | "female" | "other";
   dateOfBirth?: string;
   address?: {
     street?: string;
@@ -14,41 +14,42 @@ export interface User {
     country?: string;
   };
   phone_number?: string;
-  role: 'parent' | 'student' | 'medicalStaff' | 'admin';
+  role: "parent" | "student" | "medicalStaff" | "admin";
   is_active: boolean;
   last_login?: string;
   createdAt: string;
   updatedAt: string;
-  
+
   // Student specific fields
   class_name?: string;
-  
+
   // Medical staff specific fields
-  staff_role?: 'Nurse' | 'Doctor' | 'Healthcare Assistant';
+  staff_role?: "Nurse" | "Doctor" | "Healthcare Assistant";
 }
 
 export interface Student extends User {
-  role: 'student';
+  role: "student";
   class_name: string;
 }
 
 export interface Parent extends User {
-  role: 'parent';
+  role: "parent";
   email: string;
   phone_number: string;
 }
 
 export interface Admin extends User {
-  role: 'admin';
+  role: "admin";
   email: string;
   phone_number: string;
 }
 
 export interface MedicalStaff extends User {
-  role: 'medicalStaff';
+  role: "medicalStaff";
   email: string;
   phone_number: string;
-  staff_role: 'Nurse' | 'Doctor' | 'Healthcare Assistant';
+  staff_role: "Nurse" | "Doctor" | "Healthcare Assistant";
+  dateOfBirth?: string; // For backward compatibility
 }
 
 export interface HealthProfile {
@@ -90,14 +91,14 @@ export interface VaccinationRecord {
 export interface MedicalEvent {
   _id: string;
   student_id: string;
-  event_type: 'accident' | 'illness' | 'injury' | 'emergency' | 'other';
+  event_type: "accident" | "illness" | "injury" | "emergency" | "other";
   title: string;
   description: string;
-  severity: 'low' | 'medium' | 'high' | 'critical';
+  severity: "low" | "medium" | "high" | "critical";
   symptoms: string[];
   treatment_provided: string;
   medications_given: string[];
-  status: 'open' | 'in_progress' | 'resolved' | 'referred';
+  status: "open" | "in_progress" | "resolved" | "referred";
   created_by: string;
   follow_up_required: boolean;
   follow_up_date?: string;
@@ -119,7 +120,7 @@ export interface MedicineRequest {
   frequency?: string;
   duration?: string;
   instructions?: string;
-  status?: 'pending' | 'approved' | 'rejected' | 'completed';
+  status?: "pending" | "approved" | "rejected" | "completed";
   approved_by?: string;
   approved_at?: string;
   start_date?: string;
@@ -143,7 +144,12 @@ export interface Campaign {
   _id: string;
   title: string;
   description?: string;
-  type: 'Vaccination' | 'Checkup' | 'Health_Check' | 'Nutrition_Program' | 'Mental_Health';
+  type:
+    | "Vaccination"
+    | "Checkup"
+    | "Health_Check"
+    | "Nutrition_Program"
+    | "Mental_Health";
   date: string;
   vaccineDetails?: {
     brand: string;
@@ -151,12 +157,12 @@ export interface Campaign {
     dosage: string;
   };
   // Backward compatibility - always provide default values
-  campaign_type: 'vaccination' | 'health_check' | 'screening' | 'other';
+  campaign_type: "vaccination" | "health_check" | "screening" | "other";
   target_classes: string[];
   start_date: string;
   end_date: string;
   created_by: string;
-  status: 'draft' | 'active' | 'completed' | 'cancelled';
+  status: "draft" | "active" | "completed" | "cancelled";
   requires_consent: boolean;
   consent_deadline?: string;
   instructions: string;
@@ -203,8 +209,16 @@ export interface ConsultationSchedule {
   scheduledDate?: string; // Alternative field name from API
   duration?: number;
   reason: string;
-  consultation_type?: 'in_person' | 'phone' | 'video';
-  status: 'requested' | 'scheduled' | 'completed' | 'cancelled' | 'rescheduled' | 'SCHEDULED' | 'COMPLETED' | 'CANCELLED';
+  consultation_type?: "in_person" | "phone" | "video";
+  status:
+    | "requested"
+    | "scheduled"
+    | "completed"
+    | "cancelled"
+    | "rescheduled"
+    | "SCHEDULED"
+    | "COMPLETED"
+    | "CANCELLED";
   notes?: string;
   doctor_notes?: string;
   follow_up_required?: boolean;
@@ -247,9 +261,9 @@ export interface RegisterRequest {
     last_name: string;
     email: string;
     phone_number: string;
-    gender: 'male' | 'female' | 'other';
+    gender: "male" | "female" | "other";
   };
-  userType: 'parent';
+  userType: "parent";
 }
 
 export interface DashboardStats {
@@ -259,4 +273,15 @@ export interface DashboardStats {
   pending_medicine_requests: number;
   recent_events: MedicalEvent[];
   upcoming_campaigns: Campaign[];
+}
+
+export interface StudentParentRelation {
+  _id: string;
+  student: Student;
+  parent: Parent;
+  relationship: string;
+  is_emergency_contact: boolean;
+  status: "pending" | "approved" | "rejected";
+  createdAt: string;
+  updatedAt: string;
 }

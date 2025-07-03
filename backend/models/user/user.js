@@ -43,6 +43,11 @@ const userSchema = new Schema(
         return this.role === "student";
       },
     },
+    student_id: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
 
     // Medical staff-specific fields
     staff_role: {
