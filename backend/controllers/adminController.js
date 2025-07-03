@@ -52,7 +52,7 @@ class AdminController {
    */
   async createStudent(req, res) {
     try {
-      const { studentData } = req.body;
+      const studentData = req.body;
 
       // Validate required fields
       const requiredFields = [
@@ -73,6 +73,22 @@ class AdminController {
         });
       }
 
+      const lastStudent = await User.findOne({
+        student_id: { $regex: /^SE17\d+$/ },
+      })
+        .sort({ student_id: -1 })
+        .collation({ locale: "en", numericOrdering: true });
+
+      let nextId = "SE1701";
+      if (lastStudent && lastStudent.student_id) {
+        const lastNumber = parseInt(
+          lastStudent.student_id.replace("SE17", ""),
+          10
+        );
+        const newNumber = lastNumber + 1;
+        nextId = `SE17${String(newNumber).padStart(2, "0")}`;
+      }
+      studentData.student_id = nextId;
       // Generate unique username
       const username = await AdminController.generateUniqueUsername(
         studentData.first_name,
@@ -124,9 +140,8 @@ class AdminController {
    */
   async createMedicalStaff(req, res) {
     try {
-      const { staffData } = req.body;
+      const staffData = req.body;
 
-      // Validate required fields
       const requiredFields = [
         "first_name",
         "last_name",
@@ -134,7 +149,7 @@ class AdminController {
         "password",
         "email",
         "phone_number",
-        "role",
+        "staff_role", // ✅ đảm bảo staff_role có trong body
         "gender",
         "dateOfBirth",
       ];
@@ -147,18 +162,14 @@ class AdminController {
         });
       }
 
-      // Create new medical staff using unified User model
       const staffData_unified = {
         ...staffData,
         role: "medicalStaff",
-        staff_role: staffData.role, // Map the old 'role' field to 'staff_role'
       };
-      delete staffData_unified.role; // Remove the old role field as it's now staff_role
 
       const staff = new User(staffData_unified);
       await staff.save();
 
-      // Remove password from response
       const staffResponse = staff.toObject();
       delete staffResponse.password;
 
@@ -240,6 +251,25 @@ class AdminController {
       });
     } catch (error) {
       console.error("Create student-parent relation error:", error);
+      res
+        .status(500)
+        .json({ success: false, message: error.message || "Server error" });
+    }
+  }
+
+  /**
+   * Get all parents
+   */
+  async getParents(req, res) {
+    try {
+      const parents = await User.find({ role: "parent" });
+
+      res.status(200).json({
+        success: true,
+        data: parents,
+      });
+    } catch (error) {
+      console.error("Get parents error:", error);
       res
         .status(500)
         .json({ success: false, message: error.message || "Server error" });
