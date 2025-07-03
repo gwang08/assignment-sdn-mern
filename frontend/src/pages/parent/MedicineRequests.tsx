@@ -16,7 +16,7 @@ import {
   DatePicker,
   Statistic,
   Space,
-
+  Tabs,
   List,
   Popconfirm
 } from 'antd';
@@ -32,7 +32,7 @@ import {
   UserOutlined
 } from '@ant-design/icons';
 import moment from 'moment';
-import { Student, MedicineRequest } from '../../types';
+import { Student, MedicineRequest, Medicine } from '../../types';
 import apiService from '../../services/api';
 
 const { Title, Text } = Typography;
@@ -67,9 +67,7 @@ const ParentMedicineRequests: React.FC = () => {
       }
 
       if (studentsResponse.success && studentsResponse.data) {
-        // API trả về mảng các object với format: { student: {...}, relationship: "...", is_emergency_contact: ... }
-        const studentData = studentsResponse.data.map((item: any) => item.student);
-        setStudents(studentData);
+        setStudents(studentsResponse.data);
       }
     } catch (error) {
       console.error('Error loading data:', error);

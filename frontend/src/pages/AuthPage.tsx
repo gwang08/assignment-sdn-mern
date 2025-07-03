@@ -11,9 +11,6 @@ const { Option } = Select;
 
 const AuthPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('login');
-  const [loginForm] = Form.useForm();
-  const [registerForm] = Form.useForm();
   const { login, register, error, clearError } = useAuth();
   const navigate = useNavigate();
 
@@ -24,23 +21,16 @@ const AuthPage: React.FC = () => {
     try {
       const loginData: LoginRequest = {
         username: values.username,
-        password: values.password
+        password: values.password,
+        userType: values.userType || 'parent'
       };
       
       await login(loginData);
       navigate('/');
     } catch (err) {
       // Error handled in AuthContext
-      // Keep form values intact
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Clear error when user starts typing
-  const handleFormChange = () => {
-    if (error) {
-      clearError();
     }
   };
 
@@ -63,48 +53,23 @@ const AuthPage: React.FC = () => {
       };
       
       await register(registerData);
-      // After successful registration, switch to login tab and reset form
-      registerForm.resetFields();
-      setActiveTab('login');
-      clearError();
+      // After successful registration, user can login
     } catch (err) {
       // Error handled in AuthContext
-      // Keep form values intact for user to fix
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <>
-      <style>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        
-        .ant-form {
-          transition: all 0.3s ease;
-        }
-        
-        .ant-alert {
-          transition: all 0.3s ease;
-        }
-      `}</style>
-      <div style={{ 
-        minHeight: '100vh', 
-        background: 'linear-gradient(135deg, #e0f2fe 0%, #e8eaf6 100%)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '16px'
-      }}>
+    <div style={{ 
+      minHeight: '100vh', 
+      background: 'linear-gradient(135deg, #e0f2fe 0%, #e8eaf6 100%)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '16px'
+    }}>
       <div style={{ width: '100%', maxWidth: '448px' }}>
         <Card style={{ 
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
@@ -138,24 +103,17 @@ const AuthPage: React.FC = () => {
               type="error"
               closable
               onClose={clearError}
-              style={{ 
-                marginBottom: '16px',
-                borderRadius: '8px',
-                animation: 'fadeIn 0.3s ease-in-out'
-              }}
+              className="mb-4"
             />
           )}
 
-          <Tabs defaultActiveKey="login" activeKey={activeTab} onChange={setActiveTab} centered>
+          <Tabs defaultActiveKey="login" centered>
             <TabPane tab="Đăng nhập" key="login">
               <Form
-                form={loginForm}
                 name="login"
                 onFinish={onFinishLogin}
-                onValuesChange={handleFormChange}
                 layout="vertical"
                 size="large"
-                preserve={false}
               >
                 <Form.Item
                   name="username"
@@ -168,6 +126,22 @@ const AuthPage: React.FC = () => {
                     prefix={<UserOutlined />}
                     placeholder="Nhập tên đăng nhập"
                   />
+                </Form.Item>
+
+                <Form.Item
+                  name="userType"
+                  label="Loại tài khoản"
+                  rules={[
+                    { required: true, message: 'Vui lòng chọn loại tài khoản!' }
+                  ]}
+                  initialValue="parent"
+                >
+                  <Select placeholder="Chọn loại tài khoản">
+                    <Option value="parent">Phụ huynh</Option>
+                    <Option value="student">Học sinh</Option>
+                    <Option value="medicalStaff">Nhân viên y tế</Option>
+                    <Option value="admin">Quản trị viên</Option>
+                  </Select>
                 </Form.Item>
 
                 <Form.Item
@@ -200,13 +174,10 @@ const AuthPage: React.FC = () => {
 
             <TabPane tab="Đăng ký (Phụ huynh)" key="register">
               <Form
-                form={registerForm}
                 name="register"
                 onFinish={onFinishRegister}
-                onValuesChange={handleFormChange}
                 layout="vertical"
                 size="large"
-                preserve={false}
               >
                 <Row gutter={12}>
                   <Col span={12}>
@@ -348,8 +319,7 @@ const AuthPage: React.FC = () => {
           </div>
         </Card>
       </div>
-      </div>
-    </>
+    </div>
   );
 };
 

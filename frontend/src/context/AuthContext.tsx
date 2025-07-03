@@ -115,23 +115,38 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const user = JSON.parse(userData);
         const tokenPayload = decodeToken(token);
         
-        // Validate token is not expired
-        if (tokenPayload && tokenPayload.exp && tokenPayload.exp > Date.now() / 1000) {
-          // User object from backend already has role field
-          console.log('🔑 Token payload:', tokenPayload);
-          console.log('👤 User from localStorage:', user);
-          
-          dispatch({ type: 'AUTH_SUCCESS', payload: user });
-        } else {
-          // Token expired, remove from storage
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-        }
+        // Add role from token to user object
+        const userWithRole = {
+          ...user,
+          role: tokenPayload?.type || 'parent' // fallback to parent if no type
+        };
+        
+        console.log('🔑 Token payload:', tokenPayload);
+        console.log('👤 User with role:', userWithRole);
+        
+        dispatch({ type: 'AUTH_SUCCESS', payload: userWithRole });
       } catch (error) {
         console.error('Error parsing user data:', error);
         localStorage.removeItem('token');
         localStorage.removeItem('user');
       }
+    } else {
+      // For testing purposes - auto login as parent
+      const testParentUser = {
+        _id: 'test-parent-id',
+        username: 'test_parent',
+        email: 'parent@test.com',
+        role: 'parent' as const,
+        first_name: 'Nguyễn',
+        last_name: 'Văn A',
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      
+      localStorage.setItem('token', 'test-token');
+      localStorage.setItem('user', JSON.stringify(testParentUser));
+      dispatch({ type: 'AUTH_SUCCESS', payload: testParentUser });
     }
   }, []);
 
@@ -144,23 +159,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (response.success && response.data) {
         const { token, user } = response.data;
         
-        // Backend already returns user with correct role field
-        console.log('🔑 Login - Token payload:', decodeToken(token));
-        console.log('👤 Login - User from backend:', user);
+        // Decode token to get role
+        const tokenPayload = decodeToken(token);
+        const userWithRole = {
+          ...user,
+          role: tokenPayload?.type || 'parent'
+        };
+        
+        console.log('🔑 Login - Token payload:', tokenPayload);
+        console.log('👤 Login - User with role:', userWithRole);
         
         localStorage.setItem('token', token);
-        localStorage.setItem('user', JSON.stringify(user));
+        localStorage.setItem('user', JSON.stringify(userWithRole));
         
-        dispatch({ type: 'AUTH_SUCCESS', payload: user });
-        // Remove message.success to avoid duplicate notifications
+        dispatch({ type: 'AUTH_SUCCESS', payload: userWithRole });
+        message.success('Đăng nhập thành công!');
       } else {
         dispatch({ type: 'AUTH_FAILURE', payload: response.message || 'Đăng nhập thất bại' });
-        // Remove message.error to use only Alert component
+        message.error(response.message || 'Đăng nhập thất bại');
       }
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || 'Có lỗi xảy ra khi đăng nhập';
       dispatch({ type: 'AUTH_FAILURE', payload: errorMessage });
-      // Remove message.error to use only Alert component
+      message.error(errorMessage);
     }
   };
 
@@ -172,16 +193,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       if (response.success) {
         message.success('Đăng ký thành công! Vui lòng đăng nhập.');
-        // Don't set user as authenticated for registration
-        dispatch({ type: 'CLEAR_ERROR' });
+        dispatch({ type: 'AUTH_SUCCESS', payload: response.data! });
       } else {
         dispatch({ type: 'AUTH_FAILURE', payload: response.message || 'Đăng ký thất bại' });
-        // Remove message.error to use only Alert component
+        message.error(response.message || 'Đăng ký thất bại');
       }
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || 'Có lỗi xảy ra khi đăng ký';
       dispatch({ type: 'AUTH_FAILURE', payload: errorMessage });
-      // Remove message.error to use only Alert component
+      message.error(errorMessage);
     }
   };
 

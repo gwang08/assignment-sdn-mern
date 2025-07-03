@@ -59,9 +59,7 @@ const ParentDashboard: React.FC = () => {
       ]);
 
       if (studentsResponse.success && studentsResponse.data) {
-        // API trả về mảng các object với format: { student: {...}, relationship: "...", is_emergency_contact: ... }
-        const studentData = studentsResponse.data.map((item: any) => item.student);
-        setStudents(studentData);
+        setStudents(studentsResponse.data);
       }
 
       if (requestsResponse.success && requestsResponse.data) {

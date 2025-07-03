@@ -15,6 +15,7 @@ import {
   Drawer,
   Descriptions,
   List,
+  Divider,
   Alert,
   message,
   Tabs
@@ -23,6 +24,8 @@ import {
   HeartOutlined,
   EditOutlined,
   EyeOutlined,
+  PlusOutlined,
+  UserOutlined,
   MedicineBoxOutlined,
   SafetyOutlined,
   AlertOutlined

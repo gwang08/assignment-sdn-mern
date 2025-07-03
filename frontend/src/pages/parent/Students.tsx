@@ -23,10 +23,7 @@ const ParentStudents: React.FC = () => {
       const response = await apiService.getParentStudents();
       
       if (response.success && response.data) {
-        // API trả về mảng các object với format: { student: {...}, relationship: "...", is_emergency_contact: ... }
-        // Chúng ta cần extract ra các student objects
-        const studentData = response.data.map((item: any) => item.student);
-        setStudents(studentData);
+        setStudents(response.data);
       }
     } catch (error) {
       console.error('Error loading students:', error);
@@ -51,9 +48,8 @@ const ParentStudents: React.FC = () => {
     },
     {
       title: 'Mã học sinh',
-      dataIndex: '_id',
-      key: '_id',
-      render: (id: string) => id.slice(-8) // Hiển thị 8 ký tự cuối của ID
+      dataIndex: 'student_id',
+      key: 'student_id',
     },
     {
       title: 'Họ tên',
@@ -135,7 +131,7 @@ const ParentStudents: React.FC = () => {
         {selectedStudent && (
           <Descriptions column={2} bordered>
             <Descriptions.Item label="Mã học sinh" span={2}>
-              {selectedStudent._id}
+              {selectedStudent.student_id}
             </Descriptions.Item>
             <Descriptions.Item label="Họ và tên">
               {`${selectedStudent.first_name} ${selectedStudent.last_name}`}
@@ -149,11 +145,11 @@ const ParentStudents: React.FC = () => {
               {selectedStudent.class_name}
             </Descriptions.Item>
             <Descriptions.Item label="Email">
-              {selectedStudent.email || 'Chưa có email'}
+              {selectedStudent.email}
             </Descriptions.Item>
             <Descriptions.Item label="Trạng thái" span={2}>
-              <Tag color={selectedStudent.is_active ? 'green' : 'red'}>
-                {selectedStudent.is_active ? 'Đang học' : 'Tạm nghỉ'}
+              <Tag color={selectedStudent.isActive ? 'green' : 'red'}>
+                {selectedStudent.isActive ? 'Đang học' : 'Tạm nghỉ'}
               </Tag>
             </Descriptions.Item>
           </Descriptions>

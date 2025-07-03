@@ -338,19 +338,12 @@ exports.getCampaigns = async (req, res) => {
     });
     const classNames = activeStudents.map((s) => s.class_name);
 
-    // Find campaigns that target these classes or students specifically
     const campaigns = await Campaign.find({
-      $and: [
-        { status: { $in: ['active', 'draft'] } }, // Show active and draft campaigns
-        {
-          $or: [
-            { target_classes: { $in: classNames } },
-            { target_classes: "All" },
-            { target_students: { $in: studentIds } },
-            { target_classes: { $size: 0 } }, // Empty array means all classes
-          ]
-        }
-      ]
+      $or: [
+        { target_class: { $in: classNames } },
+        { target_class: "All" },
+        { target_students: { $in: studentIds } },
+      ],
     }).sort({ date: 1 });
 
     // Get consent status for each campaign
@@ -370,7 +363,7 @@ exports.getCampaigns = async (req, res) => {
                   date: consent.updatedAt,
                 }
               : {
-                  student: await User.findById(
+                  student: await Student.findById(
                     studentId,
                     "first_name last_name class_name"
                   ),

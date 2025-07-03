@@ -66,9 +66,7 @@ const ParentHealthProfiles: React.FC = () => {
       ]);
 
       if (studentsResponse.success && studentsResponse.data) {
-        // API trả về mảng các object với format: { student: {...}, relationship: "...", is_emergency_contact: ... }
-        const studentData = studentsResponse.data.map((item: any) => item.student);
-        setStudents(studentData);
+        setStudents(studentsResponse.data);
       }
 
       if (profilesResponse.success && profilesResponse.data) {
@@ -99,9 +97,16 @@ const ParentHealthProfiles: React.FC = () => {
     return student ? `${student.first_name} ${student.last_name}` : 'N/A';
   };
 
+  const getStudentInfo = (profile: HealthProfile) => {
+    // Support both old format (student_id) and new format (student)
+    const studentId = profile.student_id || (profile as any).student;
+    return students.find(s => s._id === studentId);
+  };
 
-
-  
+  const getStudentClass = (studentId: string) => {
+    const student = students.find(s => s._id === studentId);
+    return student ? student.class_name : 'N/A';
+  };
 
   const getHealthStatusColor = (status: string) => {
     switch (status) {
