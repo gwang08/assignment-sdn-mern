@@ -18,6 +18,7 @@ import ParentHealthProfiles from './pages/parent/HealthProfiles';
 import ParentMedicineRequests from './pages/parent/MedicineRequests';
 import ParentCampaigns from './pages/parent/Campaigns';
 import ParentConsultations from './pages/parent/Consultations';
+import StudentLinkRequests from './pages/parent/StudentLinkRequests';
 import AdminDashboard from './pages/admin/Dashboard';
 import StudentDashboard from './pages/student/Dashboard';
 import StudentHealthProfile from './pages/student/HealthProfile';
@@ -194,6 +195,14 @@ const AppContent: React.FC = () => {
           element={
             <ProtectedRoute allowedRoles={['parent']}>
               <ParentConsultations />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/parent/student-link-requests" 
+          element={
+            <ProtectedRoute allowedRoles={['parent']}>
+              <StudentLinkRequests />
             </ProtectedRoute>
           } 
         />
