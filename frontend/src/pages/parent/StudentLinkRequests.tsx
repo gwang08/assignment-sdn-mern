@@ -85,7 +85,7 @@ const StudentLinkRequests: React.FC = () => {
   const handleCreateRequest = async (values: any) => {
     try {
       const requestData = {
-        studentId: values.studentId,
+        studentId: values.studentId, // This should be student_id (e.g., SE1701), not MongoDB ObjectId
         relationship: values.relationship,
         is_emergency_contact: values.is_emergency_contact || false,
         notes: values.notes || ''
@@ -488,7 +488,7 @@ const StudentLinkRequests: React.FC = () => {
         >
           <Form.Item
             name="studentId"
-            label="Mã số học sinh"
+            label="Mã số học sinh (MSHS)"
             rules={[{ required: true, message: 'Vui lòng nhập mã số học sinh' }]}
           >
             <Input 
