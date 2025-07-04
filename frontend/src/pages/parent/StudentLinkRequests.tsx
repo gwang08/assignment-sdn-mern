@@ -13,7 +13,6 @@ import {
   Input,
   Select,
   Switch,
-  Space,
   Statistic,
   List,
   Avatar,
@@ -28,7 +27,6 @@ import {
   CloseCircleOutlined,
   UserOutlined,
   PhoneOutlined,
-  HeartOutlined,
 } from '@ant-design/icons';
 import moment from 'moment';
 import { Student } from '../../types';
@@ -53,7 +51,6 @@ interface StudentLinkRequest {
 const StudentLinkRequests: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [linkRequests, setLinkRequests] = useState<StudentLinkRequest[]>([]);
-  const [allStudents, setAllStudents] = useState<Student[]>([]);
   const [isRequestModalVisible, setIsRequestModalVisible] = useState(false);
   const [isDetailModalVisible, setIsDetailModalVisible] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<StudentLinkRequest | null>(null);
