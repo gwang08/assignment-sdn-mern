@@ -533,13 +533,13 @@ exports.requestStudentLink = async (req, res) => {
       });
     }
 
-    // Find student by ID
-    const student = await User.findOne({ _id: studentId, role: "student" });
+    // Find student by student_id
+    const student = await User.findOne({ student_id: studentId, role: "student" });
 
     if (!student) {
       return res.status(404).json({
         success: false,
-        message: "Student not found",
+        message: "Student not found with this student ID",
       });
     }
 

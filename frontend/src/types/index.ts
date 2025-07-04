@@ -30,6 +30,7 @@ export interface User {
 export interface Student extends User {
   role: "student";
   class_name: string;
+  student_id?: string;
 }
 
 export interface Parent extends User {
