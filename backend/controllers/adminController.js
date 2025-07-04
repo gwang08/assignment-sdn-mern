@@ -162,8 +162,12 @@ class AdminController {
         });
       }
 
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(staffData.password, salt);
+
       const staffData_unified = {
         ...staffData,
+        password: hashedPassword,
         role: "medicalStaff",
       };
 

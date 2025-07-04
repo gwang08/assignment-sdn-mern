@@ -3,7 +3,6 @@ import {
   Row,
   Col,
   Card,
-  Statistic,
   Table,
   Button,
   Space,
@@ -17,18 +16,11 @@ import {
   Tag,
   DatePicker,
 } from "antd";
-import {
-  UserOutlined,
-  TeamOutlined,
-  MedicineBoxOutlined,
-  PlusOutlined,
-  EditOutlined,
-  StopOutlined,
-} from "@ant-design/icons";
+import { PlusOutlined, EditOutlined, StopOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import moment from "moment";
 import apiService from "../../services/api/adminService";
-import { User, Student, MedicalStaff } from "../../types";
+import { Student, MedicalStaff } from "../../types";
 import StudentParentRelations from "./StudentParentRelations";
 import PendingLinkRequests from "./PendingLinkRequests";
 
@@ -38,29 +30,26 @@ const { TabPane } = Tabs;
 
 const AdminDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
-  const [users, setUsers] = useState<User[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
-  const [, setIsUserModalVisible] = useState(false);
+  const [medicalStaff, setMedicalStaff] = useState<MedicalStaff[]>([]);
   const [isStudentModalVisible, setIsStudentModalVisible] = useState(false);
   const [isMedicalStaffModalVisible, setIsMedicalStaffModalVisible] =
     useState(false);
-  const [, setEditingUser] = useState<User | null>(null);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
-  const [activeTab, setActiveTab] = useState("users");
-  const [studentForm] = Form.useForm();
-  const [medicalStaffForm] = Form.useForm();
-  const [medicalStaff, setMedicalStaff] = useState<MedicalStaff[]>([]);
-  const [deactivateModalVisible, setDeactivateModalVisible] = useState(false);
-  const [studentToDeactivate, setStudentToDeactivate] =
-    useState<Student | null>(null);
   const [editingMedicalStaff, setEditingMedicalStaff] =
     useState<MedicalStaff | null>(null);
+  const [activeTab, setActiveTab] = useState("students");
+  const [studentToDeactivate, setStudentToDeactivate] =
+    useState<Student | null>(null);
   const [medicalStaffToDeactivate, setMedicalStaffToDeactivate] =
     useState<MedicalStaff | null>(null);
+  const [deactivateModalVisible, setDeactivateModalVisible] = useState(false);
   const [
     deactivateMedicalStaffModalVisible,
     setDeactivateMedicalStaffModalVisible,
   ] = useState(false);
+  const [studentForm] = Form.useForm();
+  const [medicalStaffForm] = Form.useForm();
 
   useEffect(() => {
     loadData();
@@ -70,29 +59,21 @@ const AdminDashboard: React.FC = () => {
     try {
       setLoading(true);
 
-      const [usersResponse, studentsResponse, medicalStaffResponse] =
-        await Promise.all([
-          apiService.getUsers(),
-          apiService.getStudents(),
-          apiService.getMedicalStaff(),
-        ]);
-
-      if (usersResponse.success && usersResponse.data) {
-        setUsers(usersResponse.data);
-      }
+      const [studentsResponse, medicalStaffResponse] = await Promise.all([
+        apiService.getStudents(),
+        apiService.getMedicalStaff(),
+      ]);
 
       if (studentsResponse.success && studentsResponse.data) {
-        setStudents(studentsResponse.data);
+        const normalizedStudents = (studentsResponse.data as any[]).map(
+          (s) => ({
+            ...s,
+            isActive: s.is_active,
+          })
+        );
+        setStudents(normalizedStudents);
       }
 
-      if (medicalStaffResponse.success && medicalStaffResponse.data) {
-        setMedicalStaff(medicalStaffResponse.data);
-      }
-      const normalizedStudents = (studentsResponse.data as any[]).map((s) => ({
-        ...s,
-        isActive: s.is_active,
-      }));
-      setStudents(normalizedStudents);
       if (medicalStaffResponse.success && medicalStaffResponse.data) {
         const normalizedMedicalStaff = (medicalStaffResponse.data as any[]).map(
           (staff) => ({
@@ -245,62 +226,51 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  const getRoleTag = (role: string) => {
-    const roleConfig = {
-      super_admin: { color: "red", text: "Super Admin" },
-      student_manager: { color: "orange", text: "Quản lý học sinh" },
-      nurse: { color: "green", text: "Y tá" },
-      doctor: { color: "blue", text: "Bác sĩ" },
-      healthcare_assistant: { color: "cyan", text: "Trợ lý y tế" },
-      parent: { color: "purple", text: "Phụ huynh" },
-      student: { color: "geekblue", text: "Học sinh" },
-    };
-    const config = roleConfig[role as keyof typeof roleConfig] || {
-      color: "default",
-      text: role,
-    };
-    return <Tag color={config.color}>{config.text}</Tag>;
-  };
+  const validateBirthDate = (minAge: number) => {
+  return (_: any, value: moment.Moment) => {
+    if (!value) return Promise.resolve();
 
-  const userColumns: ColumnsType<User> = [
-    {
-      title: "Username",
-      dataIndex: "username",
-      key: "username",
-    },
-    {
-      title: "Họ và tên",
-      key: "fullname",
-      render: (_, record: User) => `${record.first_name} ${record.last_name}`,
-    },
-    {
-      title: "Email",
-      dataIndex: "email",
-      key: "email",
-    },
-    {
-      title: "Vai trò",
-      dataIndex: "role",
-      key: "role",
-      render: (role: string) => getRoleTag(role),
-    },
-    {
-      title: "Trạng thái",
-      dataIndex: "is_active",
-      key: "is_active",
-      render: (isActive: boolean) => (
-        <Tag color={isActive ? "green" : "red"}>
-          {isActive ? "Hoạt động" : "Vô hiệu hóa"}
-        </Tag>
-      ),
-    },
-    {
-      title: "Ngày tạo",
-      dataIndex: "createdAt",
-      key: "createdAt",
-      render: (date: string) => moment(date).format("DD/MM/YYYY"),
-    },
-  ];
+    const today = moment();
+    const birthDate = value.clone();
+
+    // Tính tuổi thật dựa trên ngày tháng năm
+    let age = today.year() - birthDate.year();
+    if (
+      today.month() < birthDate.month() ||
+      (today.month() === birthDate.month() && today.date() < birthDate.date())
+    ) {
+      age--;
+    }
+
+    if (birthDate.isAfter(today)) {
+      return Promise.reject("Ngày sinh không được vượt quá ngày hiện tại");
+    }
+
+    if (age < minAge) {
+      return Promise.reject(`Tuổi phải từ ${minAge} trở lên`);
+    }
+
+    return Promise.resolve();
+  };
+};
+
+
+  // const getRoleTag = (role: string) => {
+  //   const roleConfig = {
+  //     super_admin: { color: "red", text: "Super Admin" },
+  //     student_manager: { color: "orange", text: "Quản lý học sinh" },
+  //     nurse: { color: "green", text: "Y tá" },
+  //     doctor: { color: "blue", text: "Bác sĩ" },
+  //     healthcare_assistant: { color: "cyan", text: "Trợ lý y tế" },
+  //     parent: { color: "purple", text: "Phụ huynh" },
+  //     student: { color: "geekblue", text: "Học sinh" },
+  //   };
+  //   const config = roleConfig[role as keyof typeof roleConfig] || {
+  //     color: "default",
+  //     text: role,
+  //   };
+  //   return <Tag color={config.color}>{config.text}</Tag>;
+  // };
 
   const studentColumns: ColumnsType<Student> = [
     {
@@ -470,62 +440,8 @@ const AdminDashboard: React.FC = () => {
         </Col>
       </Row>
 
-      {/* Statistics */}
-      <Row gutter={16} className="mb-6">
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title="Tổng người dùng"
-              value={users.length}
-              prefix={<UserOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title="Học sinh"
-              value={students.length}
-              prefix={<TeamOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title="Nhân viên y tế"
-              value={
-                users.filter((u) =>
-                  ["nurse", "doctor", "healthcare_assistant"].includes(u.role)
-                ).length
-              }
-              prefix={<MedicineBoxOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title="Phụ huynh"
-              value={users.filter((u) => u.role === "parent").length}
-              prefix={<TeamOutlined />}
-            />
-          </Card>
-        </Col>
-      </Row>
-
       <Card>
         <Tabs activeKey={activeTab} onChange={setActiveTab}>
-          <TabPane tab="Người dùng" key="users">
-            <Table
-              columns={userColumns}
-              dataSource={users}
-              rowKey="_id"
-              loading={loading}
-              pagination={{ pageSize: 10 }}
-            />
-          </TabPane>
-
           <TabPane
             tab={
               <span>
@@ -537,7 +453,7 @@ const AdminDashboard: React.FC = () => {
                   size="small"
                   style={{ marginLeft: 8 }}
                 >
-                  Thêm
+                  Thêm Học Sinh
                 </Button>
               </span>
             }
@@ -563,7 +479,7 @@ const AdminDashboard: React.FC = () => {
                   size="small"
                   style={{ marginLeft: 8 }}
                 >
-                  Thêm
+                  Thêm Nhân Viên
                 </Button>
               </span>
             }
@@ -650,7 +566,10 @@ const AdminDashboard: React.FC = () => {
               <Form.Item
                 name="dateOfBirth"
                 label="Ngày sinh"
-                rules={[{ required: true, message: "Vui lòng chọn ngày sinh" }]}
+                rules={[
+                  { required: true, message: "Vui lòng chọn ngày sinh" },
+                  { validator: validateBirthDate(18) },
+                ]}
               >
                 <DatePicker
                   style={{ width: "100%" }}
@@ -799,7 +718,10 @@ const AdminDashboard: React.FC = () => {
               <Form.Item
                 name="dateOfBirth"
                 label="Ngày sinh"
-                rules={[{ required: true, message: "Vui lòng chọn ngày sinh" }]}
+                rules={[
+                  { required: true, message: "Vui lòng chọn ngày sinh" },
+                  { validator: validateBirthDate(22) }, 
+                ]}
               >
                 <DatePicker
                   style={{ width: "100%" }}
