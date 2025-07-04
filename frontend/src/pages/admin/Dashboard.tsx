@@ -227,33 +227,32 @@ const AdminDashboard: React.FC = () => {
   };
 
   const validateBirthDate = (minAge: number) => {
-  return (_: any, value: moment.Moment) => {
-    if (!value) return Promise.resolve();
+    return (_: any, value: moment.Moment) => {
+      if (!value) return Promise.resolve();
 
-    const today = moment();
-    const birthDate = value.clone();
+      const today = moment();
+      const birthDate = value.clone();
 
-    // Tính tuổi thật dựa trên ngày tháng năm
-    let age = today.year() - birthDate.year();
-    if (
-      today.month() < birthDate.month() ||
-      (today.month() === birthDate.month() && today.date() < birthDate.date())
-    ) {
-      age--;
-    }
+      // Tính tuổi thật dựa trên ngày tháng năm
+      let age = today.year() - birthDate.year();
+      if (
+        today.month() < birthDate.month() ||
+        (today.month() === birthDate.month() && today.date() < birthDate.date())
+      ) {
+        age--;
+      }
 
-    if (birthDate.isAfter(today)) {
-      return Promise.reject("Ngày sinh không được vượt quá ngày hiện tại");
-    }
+      if (birthDate.isAfter(today)) {
+        return Promise.reject("Ngày sinh không được vượt quá ngày hiện tại");
+      }
 
-    if (age < minAge) {
-      return Promise.reject(`Tuổi phải từ ${minAge} trở lên`);
-    }
+      if (age < minAge) {
+        return Promise.reject(`Tuổi phải từ ${minAge} trở lên`);
+      }
 
-    return Promise.resolve();
+      return Promise.resolve();
+    };
   };
-};
-
 
   // const getRoleTag = (role: string) => {
   //   const roleConfig = {
@@ -442,23 +441,23 @@ const AdminDashboard: React.FC = () => {
 
       <Card>
         <Tabs activeKey={activeTab} onChange={setActiveTab}>
-          <TabPane
-            tab={
-              <span>
-                Học sinh
+          <TabPane tab="Học sinh" key="students">
+            {/* Moved inside here */}
+            <Row justify="space-between" align="middle" className="mb-4">
+              <Col>
+                <Title level={3}>Danh sách Học sinh</Title>
+              </Col>
+              <Col>
                 <Button
-                  type="link"
+                  type="primary"
                   icon={<PlusOutlined />}
                   onClick={handleCreateStudent}
-                  size="small"
-                  style={{ marginLeft: 8 }}
                 >
                   Thêm Học Sinh
                 </Button>
-              </span>
-            }
-            key="students"
-          >
+              </Col>
+            </Row>
+
             <Table
               columns={studentColumns}
               dataSource={students}
@@ -468,23 +467,22 @@ const AdminDashboard: React.FC = () => {
             />
           </TabPane>
 
-          <TabPane
-            tab={
-              <span>
-                Nhân viên y tế
+          <TabPane tab="Nhân viên y tế" key="medical-staff">
+            <Row justify="space-between" align="middle" className="mb-4">
+              <Col>
+                <Title level={3}>Danh sách Nhân viên y tế</Title>
+              </Col>
+              <Col>
                 <Button
-                  type="link"
+                  type="primary"
                   icon={<PlusOutlined />}
                   onClick={handleCreateMedicalStaff}
-                  size="small"
-                  style={{ marginLeft: 8 }}
                 >
                   Thêm Nhân Viên
                 </Button>
-              </span>
-            }
-            key="medical-staff"
-          >
+              </Col>
+            </Row>
+
             <Table
               columns={medicalStaffColumns}
               dataSource={medicalStaff}
@@ -720,7 +718,7 @@ const AdminDashboard: React.FC = () => {
                 label="Ngày sinh"
                 rules={[
                   { required: true, message: "Vui lòng chọn ngày sinh" },
-                  { validator: validateBirthDate(22) }, 
+                  { validator: validateBirthDate(22) },
                 ]}
               >
                 <DatePicker
