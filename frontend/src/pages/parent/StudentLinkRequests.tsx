@@ -243,73 +243,109 @@ const StudentLinkRequests: React.FC = () => {
           setIsDetailModalVisible(false);
           setSelectedRequest(null);
         }}
-        width={600}
+        width={700}
         footer={[
           <Button key="close" onClick={() => setIsDetailModalVisible(false)}>
             Đóng
           </Button>
         ]}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <Descriptions bordered>
-            <Descriptions.Item label="Trạng thái" span={3}>
-              <Tag color={getStatusColor(selectedRequest.status)} icon={getStatusIcon(selectedRequest.status)}>
+        <div style={{ padding: '16px 0' }}>
+          {/* Student Info Section */}
+          <Card 
+            title="Thông tin học sinh" 
+            size="small" 
+            style={{ marginBottom: '16px' }}
+            extra={
+              <Tag 
+                color={getStatusColor(selectedRequest.status)} 
+                icon={getStatusIcon(selectedRequest.status)}
+                style={{ fontSize: '13px', padding: '6px 12px', borderRadius: '6px' }}
+              >
                 {getStatusText(selectedRequest.status)}
               </Tag>
-            </Descriptions.Item>
-            
-            <Descriptions.Item label="Học sinh" span={2}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Avatar icon={<UserOutlined />} />
-                <div>
-                  <div style={{ fontWeight: 500 }}>
-                    {selectedRequest.student.first_name} {selectedRequest.student.last_name}
-                  </div>
-                  <Text type="secondary">Lớp: {selectedRequest.student.class_name}</Text>
+            }
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <Avatar size={48} icon={<UserOutlined />} />
+              <div>
+                <div style={{ fontSize: '16px', fontWeight: 600, marginBottom: '4px' }}>
+                  {selectedRequest.student.first_name} {selectedRequest.student.last_name}
+                </div>
+                <div style={{ color: '#666', marginBottom: '2px' }}>
+                  Lớp: {selectedRequest.student.class_name}
+                </div>
+                <div style={{ color: '#666', fontSize: '13px' }}>
+                  MSHS: {selectedRequest.student.student_id || 'Chưa có'}
                 </div>
               </div>
-            </Descriptions.Item>
-            
-            <Descriptions.Item label="MSHS">
-              {selectedRequest.student.student_id || 'Chưa có'}
-            </Descriptions.Item>
+            </div>
+          </Card>
 
-            <Descriptions.Item label="Mối quan hệ">
-              {getRelationshipText(selectedRequest.relationship)}
+          {/* Relationship Info */}
+          <Row gutter={16} style={{ marginBottom: '16px' }}>
+            <Col span={12}>
+              <Card title="Mối quan hệ" size="small">
+                <div style={{ textAlign: 'center' }}>
+                  <Tag color="blue" style={{ fontSize: '13px', padding: '4px 12px' }}>
+                    {getRelationshipText(selectedRequest.relationship)}
+                  </Tag>
+                </div>
+              </Card>
+            </Col>
+            <Col span={12}>
+              <Card title="Liên hệ khẩn cấp" size="small">
+                <div style={{ textAlign: 'center' }}>
+                  {selectedRequest.is_emergency_contact ? (
+                    <Tag color="red" icon={<PhoneOutlined />} style={{ fontSize: '13px', padding: '4px 12px' }}>
+                      Có
+                    </Tag>
+                  ) : (
+                    <Tag color="default" style={{ fontSize: '13px', padding: '4px 12px' }}>
+                      Không
+                    </Tag>
+                  )}
+                </div>
+              </Card>
+            </Col>
+          </Row>
+
+          {/* Time Info */}
+          <Descriptions 
+            bordered 
+            size="small" 
+            column={2}
+            style={{ marginBottom: '16px' }}
+          >
+            <Descriptions.Item label="Ngày tạo">
+              {moment(selectedRequest.createdAt).format('DD/MM/YYYY HH:mm')}
             </Descriptions.Item>
-            
-            <Descriptions.Item label="Liên hệ khẩn cấp">
-              {selectedRequest.is_emergency_contact ? (
-                <Tag color="red" icon={<PhoneOutlined />}>Có</Tag>
-              ) : (
-                <Tag color="default">Không</Tag>
-              )}
+            <Descriptions.Item label="Cập nhật cuối">
+              {moment(selectedRequest.updatedAt).format('DD/MM/YYYY HH:mm')}
             </Descriptions.Item>
-            
-            <Descriptions.Item label="Hoạt động">
+            <Descriptions.Item label="Trạng thái hoạt động" span={2}>
               {selectedRequest.is_active ? (
                 <Tag color="green">Đang hoạt động</Tag>
               ) : (
                 <Tag color="default">Không hoạt động</Tag>
               )}
             </Descriptions.Item>
-
-            <Descriptions.Item label="Ngày tạo">
-              {moment(selectedRequest.createdAt).format('DD/MM/YYYY HH:mm')}
-            </Descriptions.Item>
-            
-            <Descriptions.Item label="Cập nhật cuối">
-              {moment(selectedRequest.updatedAt).format('DD/MM/YYYY HH:mm')}
-            </Descriptions.Item>
-            
-            {selectedRequest.notes && (
-              <Descriptions.Item label="Ghi chú" span={3}>
-                <div style={{ padding: '8px', backgroundColor: '#f6f6f6', borderRadius: '4px' }}>
-                  {selectedRequest.notes}
-                </div>
-              </Descriptions.Item>
-            )}
           </Descriptions>
+
+          {/* Notes Section */}
+          {selectedRequest.notes && (
+            <Card title="Ghi chú" size="small">
+              <div style={{ 
+                padding: '12px', 
+                backgroundColor: '#f9f9f9', 
+                borderRadius: '6px',
+                fontSize: '14px',
+                lineHeight: '1.5'
+              }}>
+                {selectedRequest.notes}
+              </div>
+            </Card>
+          )}
         </div>
       </Modal>
     );

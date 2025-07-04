@@ -51,9 +51,9 @@ const ParentStudents: React.FC = () => {
     },
     {
       title: 'Mã học sinh',
-      dataIndex: '_id',
-      key: '_id',
-      render: (id: string) => id.slice(-8) // Hiển thị 8 ký tự cuối của ID
+      dataIndex: 'student_id',
+      key: 'student_id',
+      render: (studentId: string) => studentId || 'Chưa có'
     },
     {
       title: 'Họ tên',
@@ -135,7 +135,7 @@ const ParentStudents: React.FC = () => {
         {selectedStudent && (
           <Descriptions column={2} bordered>
             <Descriptions.Item label="Mã học sinh" span={2}>
-              {selectedStudent._id}
+              {selectedStudent.student_id || 'Chưa có'}
             </Descriptions.Item>
             <Descriptions.Item label="Họ và tên">
               {`${selectedStudent.first_name} ${selectedStudent.last_name}`}
