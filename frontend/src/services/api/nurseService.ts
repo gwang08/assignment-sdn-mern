@@ -9,7 +9,8 @@ import {
   CampaignConsent, 
   CampaignResult, 
   ConsultationSchedule,
-  DashboardStats 
+  DashboardStats,
+  StudentParentRelation 
 } from '../../types';
 
 class NurseService extends BaseApiClient {
@@ -57,6 +58,11 @@ class NurseService extends BaseApiClient {
     return response.data;
   }
 
+  async getHealthCheckCampaigns(): Promise<ApiResponse<Campaign[]>> {
+    const response: AxiosResponse<ApiResponse<Campaign[]>> = await this.api.get('/nurse/health-check-campaigns');
+    return response.data;
+  }
+
   async createCampaign(campaignData: Partial<Campaign>): Promise<ApiResponse<Campaign>> {
     const response: AxiosResponse<ApiResponse<Campaign>> = await this.api.post('/nurse/campaigns', campaignData);
     return response.data;
@@ -95,9 +101,73 @@ class NurseService extends BaseApiClient {
     return response.data;
   }
 
+  async checkConsultationOverlap(overlapData: { scheduledDate: string; duration: number }): Promise<ApiResponse<{ hasOverlap: boolean; conflictingConsultation?: any }>> {
+    const response: AxiosResponse<ApiResponse<{ hasOverlap: boolean; conflictingConsultation?: any }>> = await this.api.post('/nurse/consultation-schedules/check-overlap', overlapData);
+    return response.data;
+  }
+
   // Dashboard
   async getDashboardStats(): Promise<ApiResponse<DashboardStats>> {
     const response: AxiosResponse<ApiResponse<DashboardStats>> = await this.api.get('/nurse/dashboard');
+    return response.data;
+  }
+
+  // Vaccination Management
+  async getVaccinationCampaigns(): Promise<ApiResponse<Campaign[]>> {
+    const response: AxiosResponse<ApiResponse<Campaign[]>> = await this.api.get('/nurse/vaccination-campaigns');
+    return response.data;
+  }
+
+  async createVaccinationCampaign(campaignData: Partial<Campaign>): Promise<ApiResponse<Campaign>> {
+    const response: AxiosResponse<ApiResponse<Campaign>> = await this.api.post('/nurse/vaccination-campaigns', campaignData);
+    return response.data;
+  }
+
+  async updateCampaignStatus(campaignId: string, status: string): Promise<ApiResponse<Campaign>> {
+    const response: AxiosResponse<ApiResponse<Campaign>> = await this.api.put(`/nurse/vaccination-campaigns/${campaignId}/status`, { status });
+    return response.data;
+  }
+
+  async getVaccinationList(campaignId: string): Promise<ApiResponse<any>> {
+    const response: AxiosResponse<ApiResponse<any>> = await this.api.get(`/nurse/vaccination-campaigns/${campaignId}/list`);
+    return response.data;
+  }
+
+  async recordVaccination(campaignId: string, vaccinationData: any): Promise<ApiResponse<CampaignResult>> {
+    const response: AxiosResponse<ApiResponse<CampaignResult>> = await this.api.post(`/nurse/vaccination-campaigns/${campaignId}/record`, vaccinationData);
+    return response.data;
+  }
+
+  async createConsentNotifications(campaignId: string): Promise<ApiResponse<any>> {
+    const response: AxiosResponse<ApiResponse<any>> = await this.api.post(`/nurse/vaccination-campaigns/${campaignId}/create-consents`);
+    return response.data;
+  }
+
+  async updateVaccinationFollowUp(resultId: string, followUpData: any): Promise<ApiResponse<CampaignResult>> {
+    const response: AxiosResponse<ApiResponse<CampaignResult>> = await this.api.put(`/nurse/vaccination-results/${resultId}/follow-up`, followUpData);
+    return response.data;
+  }
+
+  async getVaccinationStatistics(): Promise<ApiResponse<any>> {
+    const response: AxiosResponse<ApiResponse<any>> = await this.api.get('/nurse/vaccination-statistics');
+    return response.data;
+  }
+
+  // Medical Staff Management
+  async getMedicalStaff(): Promise<ApiResponse<any[]>> {
+    const response: AxiosResponse<ApiResponse<any[]>> = await this.api.get('/nurse/medical-staff');
+    return response.data;
+  }
+
+  // Student Management
+  async getStudents(): Promise<ApiResponse<any[]>> {
+    const response: AxiosResponse<ApiResponse<any[]>> = await this.api.get('/nurse/students');
+    return response.data;
+  }
+
+  // Student-Parent Relations
+  async getStudentParentRelations(): Promise<ApiResponse<StudentParentRelation[]>> {
+    const response: AxiosResponse<ApiResponse<StudentParentRelation[]>> = await this.api.get('/nurse/student-parent-relations');
     return response.data;
   }
 }

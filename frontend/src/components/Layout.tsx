@@ -126,6 +126,11 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           label: 'Chiến dịch y tế',
         },
         {
+          key: '/nurse/vaccination',
+          icon: <SafetyOutlined />,
+          label: 'Quản lý tiêm chủng',
+        },
+        {
           key: '/nurse/consultations',
           icon: <UserOutlined />,
           label: 'Lịch tư vấn',

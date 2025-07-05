@@ -14,6 +14,7 @@ import {
   Space,
   List,
   Descriptions,
+  Alert,
 } from 'antd';
 import {
   CalendarOutlined,
@@ -38,6 +39,21 @@ const ParentConsultations: React.FC = () => {
   const [medicalStaff, setMedicalStaff] = useState<MedicalStaff[]>([]);
   const [selectedConsultation, setSelectedConsultation] = useState<ConsultationSchedule | null>(null);
   const [isDetailModalVisible, setIsDetailModalVisible] = useState(false);
+
+  // Helper functions to safely extract data
+  const getStudentFromConsultation = (consultation: ConsultationSchedule): Student | null => {
+    if (typeof consultation.student === 'object' && consultation.student) {
+      return consultation.student as Student;
+    }
+    return students.find(s => s._id === consultation.student) || null;
+  };
+
+  const getMedicalStaffFromConsultation = (consultation: ConsultationSchedule): MedicalStaff | null => {
+    if (typeof consultation.medicalStaff === 'object' && consultation.medicalStaff) {
+      return consultation.medicalStaff as MedicalStaff;
+    }
+    return medicalStaff.find(s => s._id === consultation.medicalStaff) || null;
+  };
 
   useEffect(() => {
     loadData();
@@ -139,8 +155,7 @@ const ParentConsultations: React.FC = () => {
       key: 'student',
       width: 180,
       render: (_: any, record: ConsultationSchedule) => {
-        // Dữ liệu student được include trực tiếp trong consultation object
-        const student = record.student || students.find(s => s._id === record.student_id);
+        const student = getStudentFromConsultation(record);
         return (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Avatar size="small" icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} />
@@ -159,11 +174,10 @@ const ParentConsultations: React.FC = () => {
       key: 'medical_staff',
       width: 160,
       render: (_: any, record: ConsultationSchedule) => {
-        // Dữ liệu medicalStaff được include trực tiếp trong consultation object
-        const staff = record.medicalStaff || medicalStaff.find(s => s._id === record.medical_staff_id);
+        const staff = getMedicalStaffFromConsultation(record);
         return (
           <div style={{ fontSize: '13px' }}>
-            {staff ? `${staff.staff_role || 'Bác sĩ'} ${staff.first_name} ${staff.last_name}` : 'N/A'}
+            {staff ? `${(staff as any).staff_role || 'Bác sĩ'} ${staff.first_name} ${staff.last_name}` : 'N/A'}
           </div>
         );
       }
@@ -185,13 +199,13 @@ const ParentConsultations: React.FC = () => {
       width: 130,
       render: (_: any, record: ConsultationSchedule) => (
         <div style={{ fontSize: '13px' }}>
-          {record.appointment_date || record.scheduledDate ? (
+          {record.scheduledDate ? (
             <>
               <div style={{ fontWeight: 500 }}>
-                {moment(record.appointment_date || record.scheduledDate).format('DD/MM/YYYY')}
+                {moment(record.scheduledDate).format('DD/MM/YYYY')}
               </div>
               <Text type="secondary" style={{ fontSize: '12px' }}>
-                {record.appointment_time || moment(record.scheduledDate).format('HH:mm')}
+                {moment(record.scheduledDate).format('HH:mm')}
               </Text>
             </>
           ) : (
@@ -206,11 +220,11 @@ const ParentConsultations: React.FC = () => {
       width: 110,
       render: (_: any, record: ConsultationSchedule) => (
         <Tag 
-          icon={getConsultationTypeIcon(record.consultation_type || 'in_person')} 
+          icon={getConsultationTypeIcon('in_person')} 
           color="blue"
           style={{ fontSize: '11px', padding: '0 4px' }}
         >
-          {getConsultationTypeText(record.consultation_type || 'in_person')}
+          {getConsultationTypeText('in_person')}
         </Tag>
       )
     },
@@ -249,8 +263,8 @@ const ParentConsultations: React.FC = () => {
   const renderConsultationDetail = () => {
     if (!selectedConsultation) return null;
 
-    const student = selectedConsultation.student || students.find(s => s._id === selectedConsultation.student_id);
-    const staff = selectedConsultation.medicalStaff || medicalStaff.find(s => s._id === selectedConsultation.medical_staff_id);
+    const student = getStudentFromConsultation(selectedConsultation);
+    const staff = getMedicalStaffFromConsultation(selectedConsultation);
 
     return (
       <Modal
@@ -283,27 +297,26 @@ const ParentConsultations: React.FC = () => {
               {student ? `${student.first_name} ${student.last_name} - ${student.class_name}` : 'N/A'}
             </Descriptions.Item>
             <Descriptions.Item label="Bác sĩ/Y tá">
-              {staff ? `${staff.staff_role || 'Bác sĩ'} ${staff.first_name} ${staff.last_name}` : 'N/A'}
+              {staff ? `${(staff as any).staff_role || 'Bác sĩ'} ${staff.first_name} ${staff.last_name}` : 'N/A'}
             </Descriptions.Item>
             <Descriptions.Item label="Chuyên khoa">
-              {staff?.staff_role || 'N/A'}
+              {(staff as any)?.staff_role || 'N/A'}
             </Descriptions.Item>
             <Descriptions.Item label="Ngày tư vấn">
-              {selectedConsultation.appointment_date || selectedConsultation.scheduledDate ? 
-                moment(selectedConsultation.appointment_date || selectedConsultation.scheduledDate).format('DD/MM/YYYY') : 
+              {selectedConsultation.scheduledDate ? 
+                moment(selectedConsultation.scheduledDate).format('DD/MM/YYYY') : 
                 'Chưa xác định'
               }
             </Descriptions.Item>
             <Descriptions.Item label="Giờ tư vấn">
-              {selectedConsultation.appointment_time || 
-               (selectedConsultation.scheduledDate ? moment(selectedConsultation.scheduledDate).format('HH:mm') : 'Chưa xác định')}
+              {selectedConsultation.scheduledDate ? moment(selectedConsultation.scheduledDate).format('HH:mm') : 'Chưa xác định'}
             </Descriptions.Item>
             <Descriptions.Item label="Thời lượng">
               {selectedConsultation.duration ? `${selectedConsultation.duration} phút` : 'N/A'}
             </Descriptions.Item>
             <Descriptions.Item label="Hình thức">
-              <Tag icon={getConsultationTypeIcon(selectedConsultation.consultation_type || 'in_person')} color="blue">
-                {getConsultationTypeText(selectedConsultation.consultation_type || 'in_person')}
+              <Tag icon={getConsultationTypeIcon('in_person')} color="blue">
+                {getConsultationTypeText('in_person')}
               </Tag>
             </Descriptions.Item>
             <Descriptions.Item label="Lý do tư vấn">
@@ -311,35 +324,15 @@ const ParentConsultations: React.FC = () => {
             </Descriptions.Item>
           </Descriptions>
 
-          {selectedConsultation.notes && (
-            <Card title="Ghi chú của phụ huynh" size="small">
-              <div style={{ padding: '8px', backgroundColor: '#f6f6f6', borderRadius: '4px' }}>
-                {selectedConsultation.notes}
-              </div>
-            </Card>
-          )}
 
-          {selectedConsultation.doctor_notes && (
-            <Card title="Ghi chú của bác sĩ" size="small">
+          {selectedConsultation.notes && (
+            <Card title="Ghi chú" size="small">
               <div style={{ 
                 padding: '8px', 
                 backgroundColor: '#f0f5ff', 
                 borderRadius: '4px' 
               }}>
-                {selectedConsultation.doctor_notes}
-              </div>
-            </Card>
-          )}
-
-          {selectedConsultation.follow_up_required && selectedConsultation.follow_up_date && (
-            <Card title="Lịch hẹn tái khám" size="small">
-              <div style={{ 
-                padding: '8px', 
-                backgroundColor: '#fff7e6', 
-                borderRadius: '4px' 
-              }}>
-                <Text strong>Ngày tái khám: </Text>
-                {moment(selectedConsultation.follow_up_date).format('DD/MM/YYYY')}
+                {selectedConsultation.notes}
               </div>
             </Card>
           )}
@@ -347,9 +340,9 @@ const ParentConsultations: React.FC = () => {
           {staff && (
             <Card title="Thông tin liên hệ" size="small">
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div><Text strong>Email:</Text> {staff.email}</div>
-                <div><Text strong>Điện thoại:</Text> {staff.phone_number}</div>
-                <div><Text strong>Chức vụ:</Text> {staff.staff_role}</div>
+                <div><Text strong>Email:</Text> {(staff as any).email || 'N/A'}</div>
+                <div><Text strong>Điện thoại:</Text> {(staff as any).phone_number || 'N/A'}</div>
+                <div><Text strong>Chức vụ:</Text> {(staff as any).staff_role || 'N/A'}</div>
               </div>
             </Card>
           )}
@@ -467,12 +460,12 @@ const ParentConsultations: React.FC = () => {
               <List
                 dataSource={consultations.filter(c => 
                   c.status.toLowerCase() === 'scheduled' && 
-                  (c.appointment_date || c.scheduledDate) &&
-                  moment(c.appointment_date || c.scheduledDate).isAfter(moment())
+                  c.scheduledDate &&
+                  moment(c.scheduledDate).isAfter(moment())
                 ).slice(0, 5)}
                 renderItem={(consultation) => {
-                  const student = consultation.student || students.find(s => s._id === consultation.student_id);
-                  const staff = consultation.medicalStaff || medicalStaff.find(s => s._id === consultation.medical_staff_id);
+                  const student = getStudentFromConsultation(consultation);
+                  const staff = getMedicalStaffFromConsultation(consultation);
                   return (
                     <List.Item
                       actions={[
@@ -484,7 +477,7 @@ const ParentConsultations: React.FC = () => {
                       <List.Item.Meta
                         avatar={
                           <Avatar 
-                            icon={getConsultationTypeIcon(consultation.consultation_type || 'in_person')} 
+                            icon={getConsultationTypeIcon('in_person')} 
                             style={{ backgroundColor: '#1890ff' }}
                           />
                         }
@@ -493,10 +486,8 @@ const ParentConsultations: React.FC = () => {
                           <div>
                             <div><strong>Học sinh:</strong> {student ? `${student.first_name} ${student.last_name}` : 'N/A'}</div>
                             <div><strong>Bác sĩ:</strong> {staff ? `${staff.first_name} ${staff.last_name}` : 'Chờ phân công'}</div>
-                            <div><strong>Thời gian:</strong> {consultation.appointment_date || consultation.scheduledDate ? 
-                              `${moment(consultation.appointment_date || consultation.scheduledDate).format('DD/MM')} lúc ${
-                                consultation.appointment_time || moment(consultation.scheduledDate).format('HH:mm')
-                              }` : 
+                            <div><strong>Thời gian:</strong> {consultation.scheduledDate ? 
+                              `${moment(consultation.scheduledDate).format('DD/MM/YYYY')} lúc ${moment(consultation.scheduledDate).format('HH:mm')}` : 
                               'Chưa xác định'
                             }</div>
                           </div>
@@ -508,28 +499,12 @@ const ParentConsultations: React.FC = () => {
               />
             </Card>
 
-            <Card title="Cần tái khám">
-              <List
-                dataSource={consultations.filter(c => c.follow_up_required)}
-                renderItem={(consultation) => {
-                  const student = students.find(s => s._id === consultation.student_id);
-                  return (
-                    <List.Item>
-                      <List.Item.Meta
-                        avatar={<Avatar icon={<ExclamationCircleOutlined />} style={{ backgroundColor: '#fa8c16' }} />}
-                        title={student ? `${student.first_name} ${student.last_name}` : 'N/A'}
-                        description={
-                          <div>
-                            <div>{consultation.reason}</div>
-                            {consultation.follow_up_date && (
-                              <div><strong>Ngày tái khám:</strong> {moment(consultation.follow_up_date).format('DD/MM/YYYY')}</div>
-                            )}
-                          </div>
-                        }
-                      />
-                    </List.Item>
-                  );
-                }}
+            <Card title="Cần tái khám" style={{ marginTop: '16px' }}>
+              <Alert
+                message="Tính năng tái khám"
+                description="Tính năng theo dõi tái khám sẽ được cập nhật trong phiên bản tiếp theo."
+                type="info"
+                showIcon
               />
             </Card>
 

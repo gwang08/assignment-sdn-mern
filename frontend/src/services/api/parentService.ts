@@ -112,6 +112,11 @@ class ParentService extends BaseApiClient {
     return response.data;
   }
 
+  async getParentCampaignConsents(): Promise<ApiResponse<CampaignConsent[]>> {
+    const response: AxiosResponse<ApiResponse<CampaignConsent[]>> = await this.api.get('/parent/campaign-consents');
+    return response.data;
+  }
+
   async getStudentCampaignResults(studentId: string): Promise<ApiResponse<CampaignResult[]>> {
     const response: AxiosResponse<ApiResponse<CampaignResult[]>> = await this.api.get(`/parent/students/${studentId}/campaign-results`);
     return response.data;

@@ -403,6 +403,15 @@ exports.updateCampaignConsent = async (req, res) => {
     const { studentId, campaignId } = req.params;
     const { status, notes } = req.body;
 
+    // Validate status value
+    const validStatuses = ['Pending', 'Approved', 'Declined'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid status. Must be one of: ${validStatuses.join(', ')}`
+      });
+    }
+
     // Verify student role first
     const student = await User.findOne({ _id: studentId, role: "student" });
     if (!student) {
@@ -431,11 +440,13 @@ exports.updateCampaignConsent = async (req, res) => {
       consent = new CampaignConsent({
         campaign: campaignId,
         student: studentId,
+        answered_by: parentId,
         status,
         notes,
       });
     } else {
       consent.status = status;
+      consent.answered_by = parentId;
       consent.notes = notes;
     }
 
@@ -615,6 +626,37 @@ exports.getLinkRequests = async (req, res) => {
     });
   } catch (error) {
     console.error("Error getting link requests:", error);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+/**
+ * Get campaign consents for a parent
+ */
+exports.getParentCampaignConsents = async (req, res) => {
+  try {
+    const parentId = req.user._id;
+
+    // Find all students related to this parent
+    const studentRelations = await StudentParent.find({ parent: parentId });
+    const studentIds = studentRelations.map(relation => relation.student);
+
+    if (studentIds.length === 0) {
+      return res.status(200).json({ success: true, data: [] });
+    }
+
+    // Find all consents for the parent's students
+    const consents = await CampaignConsent.find({
+      student: { $in: studentIds }
+    })
+    .populate("campaign", "title campaign_type status requires_consent")
+    .populate("student", "first_name last_name class_name")
+    .populate("answered_by", "first_name last_name")
+    .sort({ createdAt: -1 });
+
+    return res.status(200).json({ success: true, data: consents });
+  } catch (error) {
+    console.error("Error fetching parent campaign consents:", error);
     return res.status(500).json({ success: false, message: "Server error" });
   }
 };

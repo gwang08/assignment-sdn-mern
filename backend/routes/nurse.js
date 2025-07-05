@@ -372,11 +372,25 @@ router.put(
 router.get("/medicine-requests", NurseController.getMedicineRequests);
 router.get("/medicine-inventory", NurseController.getMedicineInventory);
 
+/* General Campaign Management Routes */
+router.get("/campaigns", authenticateMedicalStaff, NurseController.getCampaigns);
+router.post("/campaigns", authenticateMedicalStaff, NurseController.createCampaign);
+router.put("/campaigns/:campaignId", authenticateMedicalStaff, NurseController.updateCampaign);
+router.get("/campaigns/:campaignId/consents", authenticateMedicalStaff, NurseController.getCampaignConsents);
+router.get("/campaigns/:campaignId/results", authenticateMedicalStaff, NurseController.getCampaignResults);
+router.post("/campaign-results", authenticateMedicalStaff, NurseController.submitCampaignResult);
+router.get("/consultation-schedules", NurseController.getConsultationSchedules);
+router.post("/consultation-schedules/check-overlap", authenticateMedicalStaff, NurseController.checkConsultationOverlap);
+
 /* Vaccination Management Routes */
 router.get("/vaccination-campaigns", NurseController.getVaccinationCampaigns);
 router.post(
   "/vaccination-campaigns",
   NurseController.createVaccinationCampaign
+);
+router.put(
+  "/vaccination-campaigns/:campaignId/status",
+  NurseController.updateCampaignStatus
 );
 router.get(
   "/vaccination-campaigns/:campaignId/results",
@@ -385,6 +399,26 @@ router.get(
 router.post(
   "/vaccination-campaigns/:campaignId/results",
   NurseController.createVaccinationResult
+);
+router.get(
+  "/vaccination-campaigns/:campaignId/list",
+  NurseController.getVaccinationList
+);
+router.post(
+  "/vaccination-campaigns/:campaignId/record",
+  NurseController.recordVaccination
+);
+router.post(
+  "/vaccination-campaigns/:campaignId/create-consents",
+  NurseController.createConsentNotificationsForCampaign
+);
+router.put(
+  "/vaccination-results/:resultId/follow-up",
+  NurseController.updateVaccinationFollowUp
+);
+router.get(
+  "/vaccination-statistics",
+  NurseController.getVaccinationStatistics
 );
 
 /* Periodic Health Check Management Routes */
@@ -404,9 +438,16 @@ router.post(
 
 /* Consultation Management Routes */
 router.get("/consultations", NurseController.getConsultations);
+router.post("/consultation-schedules", authenticateMedicalStaff, NurseController.createConsultationSchedule);
+
+/* Medical Staff Management Routes */
+router.get("/medical-staff", NurseController.getMedicalStaff);
+
+/* Student-Parent Relations Routes */
+router.get("/student-parent-relations", authenticateMedicalStaff, NurseController.getStudentParentRelations);
 
 /* Student Health Records Management Routes */
-router.get("/students", NurseController.getStudents);
+router.get("/students", authenticateMedicalStaff, NurseController.getStudents);
 router.get(
   "/students/:studentId/health-profile",
   NurseController.getStudentHealthProfile

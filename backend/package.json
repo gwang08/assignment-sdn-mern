@@ -6,7 +6,8 @@
     "start": "nodemon ./bin/www",
     "dev": "nodemon ./bin/www",
     "seed": "node ./seeders/seed.js",
-    "seed:users": "node ./seeders/test-users-seed.js"
+    "seed:users": "node ./seeders/test-users-seed.js",
+    "seed:sample": "node ./seeders/runSeeder.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",

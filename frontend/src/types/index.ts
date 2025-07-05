@@ -173,63 +173,67 @@ export interface Campaign {
 
 export interface CampaignConsent {
   _id: string;
-  campaign_id: string;
-  student_id: string;
-  parent_id: string;
-  consent_given: boolean;
-  consent_date: string;
+  campaign: string | { _id: string; title?: string; campaign_type?: string };
+  student: string | { _id: string; first_name?: string; last_name?: string };
+  answered_by?: string | { _id: string; first_name?: string; last_name?: string };
+  status: 'Pending' | 'Approved' | 'Declined';
   notes?: string;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface CampaignResult {
-  _id: string;
-  campaign_id: string;
-  student_id: string;
-  participated: boolean;
-  results: {
-    [key: string]: any;
-  };
+  _id?: string;
+  campaign: string;
+  created_by?: string;
+  student: string;
   notes?: string;
-  follow_up_required: boolean;
-  follow_up_notes?: string;
-  conducted_by: string;
-  conducted_at: string;
-  createdAt: string;
-  updatedAt: string;
+  checkupDetails?: {
+    findings?: string;
+    recommendations?: string;
+    status?: 'HEALTHY' | 'NEEDS_ATTENTION' | 'CRITICAL';
+    requiresConsultation?: boolean;
+    // Health check specific fields
+    height?: number;
+    weight?: number;
+    vision?: string;
+    bloodPressure?: string;
+    heartRate?: number;
+  };
+  vaccination_details?: {
+    vaccinated_at?: string;
+    vaccine_details?: {
+      brand?: string;
+      batch_number?: string;
+      dose_number?: number;
+      expiry_date?: string;
+    };
+    administered_by?: string;
+    side_effects?: string[];
+    follow_up_required?: boolean;
+    follow_up_date?: string;
+    follow_up_notes?: string;
+    additional_actions?: string[];
+    status?: string;
+    last_follow_up?: string;
+  };
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface ConsultationSchedule {
   _id: string;
-  student_id: string;
-  parent_id: string;
-  medical_staff_id: string;
-  appointment_date?: string;
-  appointment_time?: string;
-  scheduledDate?: string; // Alternative field name from API
-  duration?: number;
+  campaignResult: string | CampaignResult;
+  student: string | Student;
+  medicalStaff: string | MedicalStaff;
+  attending_parent: string | User;
+  scheduledDate: string;
+  duration: number;
   reason: string;
-  consultation_type?: "in_person" | "phone" | "video";
-  status:
-    | "requested"
-    | "scheduled"
-    | "completed"
-    | "cancelled"
-    | "rescheduled"
-    | "SCHEDULED"
-    | "COMPLETED"
-    | "CANCELLED";
-  notes?: string;
-  doctor_notes?: string;
-  follow_up_required?: boolean;
-  follow_up_date?: string;
-  attending_parent?: string;
+  status: "SCHEDULED" | "COMPLETED" | "CANCELLED" | "RESCHEDULED";
   notificationsSent?: boolean;
-  // Populated fields from API
-  student?: Student;
-  medicalStaff?: MedicalStaff;
-  campaignResult?: CampaignResult;
+  notes?: string;
+  cancelReason?: string;
   createdAt: string;
   updatedAt: string;
 }

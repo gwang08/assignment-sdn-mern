@@ -254,6 +254,7 @@ const AdminDashboard: React.FC = () => {
     };
   };
 
+
   // const getRoleTag = (role: string) => {
   //   const roleConfig = {
   //     super_admin: { color: "red", text: "Super Admin" },
@@ -286,7 +287,7 @@ const AdminDashboard: React.FC = () => {
       title: "Họ và tên",
       key: "fullname",
       render: (_, record: Student) =>
-        `${record.first_name} ${record.last_name}`,
+        ` ${record.last_name} ${record.first_name}`,
     },
     {
       title: "Lớp",

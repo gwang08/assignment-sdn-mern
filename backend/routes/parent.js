@@ -539,4 +539,24 @@ router.get(
   parentController.getLinkRequests
 );
 
+/**
+ * @swagger
+ * /parent/campaign-consents:
+ *   get:
+ *     summary: Get all campaign consents for the authenticated parent
+ *     tags: [Parent]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Campaign consents retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ */
+router.get(
+  "/campaign-consents",
+  authenticateParent,
+  parentController.getParentCampaignConsents
+);
+
 module.exports = router;
