@@ -442,23 +442,23 @@ const AdminDashboard: React.FC = () => {
 
       <Card>
         <Tabs activeKey={activeTab} onChange={setActiveTab}>
-          <TabPane
-            tab={
-              <span>
-                Học sinh
+          <TabPane tab="Học sinh" key="students">
+            {/* Moved inside here */}
+            <Row justify="space-between" align="middle" className="mb-4">
+              <Col>
+                <Title level={3}>Danh sách Học sinh</Title>
+              </Col>
+              <Col>
                 <Button
-                  type="link"
+                  type="primary"
                   icon={<PlusOutlined />}
                   onClick={handleCreateStudent}
-                  size="small"
-                  style={{ marginLeft: 8 }}
                 >
                   Thêm Học Sinh
                 </Button>
-              </span>
-            }
-            key="students"
-          >
+              </Col>
+            </Row>
+
             <Table
               columns={studentColumns}
               dataSource={students}
@@ -468,23 +468,22 @@ const AdminDashboard: React.FC = () => {
             />
           </TabPane>
 
-          <TabPane
-            tab={
-              <span>
-                Nhân viên y tế
+          <TabPane tab="Nhân viên y tế" key="medical-staff">
+            <Row justify="space-between" align="middle" className="mb-4">
+              <Col>
+                <Title level={3}>Danh sách Nhân viên y tế</Title>
+              </Col>
+              <Col>
                 <Button
-                  type="link"
+                  type="primary"
                   icon={<PlusOutlined />}
                   onClick={handleCreateMedicalStaff}
-                  size="small"
-                  style={{ marginLeft: 8 }}
                 >
                   Thêm Nhân Viên
                 </Button>
-              </span>
-            }
-            key="medical-staff"
-          >
+              </Col>
+            </Row>
+
             <Table
               columns={medicalStaffColumns}
               dataSource={medicalStaff}

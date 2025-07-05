@@ -152,6 +152,11 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           label: 'Con em của tôi',
         },
         {
+          key: '/parent/student-link-requests',
+          icon: <UserOutlined />,
+          label: 'Liên kết học sinh',
+        },
+        {
           key: '/parent/health-profiles',
           icon: <HeartOutlined />,
           label: 'Hồ sơ sức khỏe',

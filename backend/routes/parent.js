@@ -488,8 +488,8 @@ router.get(
  *             properties:
  *               studentId:
  *                 type: string
- *                 description: The ID of the student to link with
- *                 example: "60d21b4667d0d8992e610c85"
+ *                 description: The student ID (MSHS) of the student to link with
+ *                 example: "SE1701"
  *               relationship:
  *                 type: string
  *                 description: The relationship between parent and student
