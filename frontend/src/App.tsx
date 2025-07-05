@@ -12,6 +12,7 @@ import MedicalEventsPage from './pages/nurse/MedicalEvents';
 import HealthProfilesPage from './pages/nurse/HealthProfiles';
 import CampaignsPage from './pages/nurse/Campaigns';
 import MedicineRequestsPage from './pages/nurse/MedicineRequests';
+import VaccinationManagement from './pages/nurse/VaccinationManagement';
 import ParentDashboard from './pages/parent/Dashboard';
 import ParentStudents from './pages/parent/Students';
 import ParentHealthProfiles from './pages/parent/HealthProfiles';
@@ -144,6 +145,14 @@ const AppContent: React.FC = () => {
           element={
             <ProtectedRoute allowedRoles={['medicalStaff']}>
               <MedicineRequestsPage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/nurse/vaccination" 
+          element={
+            <ProtectedRoute allowedRoles={['medicalStaff']}>
+              <VaccinationManagement />
             </ProtectedRoute>
           } 
         />

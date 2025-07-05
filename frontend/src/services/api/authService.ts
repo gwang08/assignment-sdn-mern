@@ -4,8 +4,17 @@ import { ApiResponse, LoginRequest, LoginResponse, RegisterRequest, User } from 
 
 class AuthService extends BaseApiClient {
   async login(credentials: LoginRequest): Promise<ApiResponse<LoginResponse>> {
-    const response: AxiosResponse<ApiResponse<LoginResponse>> = await this.api.post('/auth/login', credentials);
-    return response.data;
+    console.log('🌐 AuthService.login called with:', credentials);
+    console.log('🌐 API base URL:', this.api.defaults.baseURL);
+    
+    try {
+      const response: AxiosResponse<ApiResponse<LoginResponse>> = await this.api.post('/auth/login', credentials);
+      console.log('📥 Login response received:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Login request failed:', error);
+      throw error;
+    }
   }
 
   async register(userData: RegisterRequest): Promise<ApiResponse<User>> {

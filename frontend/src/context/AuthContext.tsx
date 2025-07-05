@@ -139,7 +139,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       dispatch({ type: 'AUTH_START' });
       
+      console.log('🔐 Attempting login with:', credentials);
       const response = await apiService.login(credentials);
+      console.log('📤 Login response:', response);
       
       if (response.success && response.data) {
         const { token, user } = response.data;
@@ -154,10 +156,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         dispatch({ type: 'AUTH_SUCCESS', payload: user });
         // Remove message.success to avoid duplicate notifications
       } else {
+        console.error('❌ Login failed:', response.message);
         dispatch({ type: 'AUTH_FAILURE', payload: response.message || 'Đăng nhập thất bại' });
         // Remove message.error to use only Alert component
       }
     } catch (error: any) {
+      console.error('❌ Login error:', error);
+      console.error('❌ Error response:', error.response?.data);
+      
       const errorMessage = error.response?.data?.message || 'Có lỗi xảy ra khi đăng nhập';
       dispatch({ type: 'AUTH_FAILURE', payload: errorMessage });
       // Remove message.error to use only Alert component

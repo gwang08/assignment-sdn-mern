@@ -22,14 +22,20 @@ const AuthPage: React.FC = () => {
     clearError();
     
     try {
+      console.log('🚀 Starting login process with values:', values);
+      
       const loginData: LoginRequest = {
         username: values.username,
         password: values.password
       };
       
+      console.log('📤 Sending login data:', loginData);
       await login(loginData);
+      
+      console.log('✅ Login successful, navigating to home');
       navigate('/');
     } catch (err) {
+      console.error('❌ Login failed in component:', err);
       // Error handled in AuthContext
       // Keep form values intact
     } finally {

@@ -227,32 +227,32 @@ const AdminDashboard: React.FC = () => {
   };
 
   const validateBirthDate = (minAge: number) => {
-  return (_: any, value: moment.Moment) => {
-    if (!value) return Promise.resolve();
+    return (_: any, value: moment.Moment) => {
+      if (!value) return Promise.resolve();
 
-    const today = moment();
-    const birthDate = value.clone();
+      const today = moment();
+      const birthDate = value.clone();
 
-    // Tính tuổi thật dựa trên ngày tháng năm
-    let age = today.year() - birthDate.year();
-    if (
-      today.month() < birthDate.month() ||
-      (today.month() === birthDate.month() && today.date() < birthDate.date())
-    ) {
-      age--;
-    }
+      // Tính tuổi thật dựa trên ngày tháng năm
+      let age = today.year() - birthDate.year();
+      if (
+        today.month() < birthDate.month() ||
+        (today.month() === birthDate.month() && today.date() < birthDate.date())
+      ) {
+        age--;
+      }
 
-    if (birthDate.isAfter(today)) {
-      return Promise.reject("Ngày sinh không được vượt quá ngày hiện tại");
-    }
+      if (birthDate.isAfter(today)) {
+        return Promise.reject("Ngày sinh không được vượt quá ngày hiện tại");
+      }
 
-    if (age < minAge) {
-      return Promise.reject(`Tuổi phải từ ${minAge} trở lên`);
-    }
+      if (age < minAge) {
+        return Promise.reject(`Tuổi phải từ ${minAge} trở lên`);
+      }
 
-    return Promise.resolve();
+      return Promise.resolve();
+    };
   };
-};
 
 
   // const getRoleTag = (role: string) => {
@@ -287,7 +287,7 @@ const AdminDashboard: React.FC = () => {
       title: "Họ và tên",
       key: "fullname",
       render: (_, record: Student) =>
-        `${record.first_name} ${record.last_name}`,
+        ` ${record.last_name} ${record.first_name}`,
     },
     {
       title: "Lớp",
@@ -720,7 +720,7 @@ const AdminDashboard: React.FC = () => {
                 label="Ngày sinh"
                 rules={[
                   { required: true, message: "Vui lòng chọn ngày sinh" },
-                  { validator: validateBirthDate(22) }, 
+                  { validator: validateBirthDate(22) },
                 ]}
               >
                 <DatePicker

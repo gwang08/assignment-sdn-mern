@@ -125,12 +125,12 @@ const StudentCampaigns: React.FC = () => {
   };
 
   const getConsentStatus = (campaignId: string) => {
-    const consent = consents.find(c => c.campaign_id === campaignId && c.student_id === user?._id);
+    const consent = consents.find(c => c.campaign === campaignId && c.student === user?._id);
     return consent;
   };
 
   const getParticipationResult = (campaignId: string) => {
-    const result = results.find(r => r.campaign_id === campaignId && r.student_id === user?._id);
+    const result = results.find(r => r.campaign === campaignId && r.student === user?._id);
     return result;
   };
 
@@ -190,19 +190,19 @@ const StudentCampaigns: React.FC = () => {
             
             {consent && (
               <Tag 
-                color={consent.consent_given ? 'green' : 'red'} 
-                icon={consent.consent_given ? <CheckCircleOutlined /> : <ClockCircleOutlined />}
+                color={consent.status === 'Approved' ? 'green' : consent.status === 'Declined' ? 'red' : 'orange'} 
+                icon={consent.status === 'Approved' ? <CheckCircleOutlined /> : <ClockCircleOutlined />}
               >
-                {consent.consent_given ? 'Đã đồng ý tham gia' : 'Chưa đồng ý tham gia'}
+                {consent.status === 'Approved' ? 'Đã đồng ý tham gia' : consent.status === 'Declined' ? 'Đã từ chối tham gia' : 'Chờ phản hồi'}
               </Tag>
             )}
             
             {result && (
               <Tag 
-                color={result.participated ? 'green' : 'orange'} 
+                color={result.checkupDetails ? 'green' : 'orange'} 
                 icon={<CheckCircleOutlined />}
               >
-                {result.participated ? 'Đã tham gia' : 'Chưa tham gia'}
+                {result.checkupDetails ? 'Đã tham gia' : 'Chưa tham gia'}
               </Tag>
             )}
           </Space>

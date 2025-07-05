@@ -42,6 +42,7 @@ class ApiService {
   getMedicineRequests = nurseService.getMedicineRequests.bind(nurseService);
   updateMedicineRequestStatus = nurseService.updateMedicineRequestStatus.bind(nurseService);
   getCampaigns = nurseService.getCampaigns.bind(nurseService);
+  getHealthCheckCampaigns = nurseService.getHealthCheckCampaigns.bind(nurseService);
   createCampaign = nurseService.createCampaign.bind(nurseService);
   updateCampaign = nurseService.updateCampaign.bind(nurseService);
   getCampaignConsents = nurseService.getCampaignConsents.bind(nurseService);
@@ -50,6 +51,23 @@ class ApiService {
   getConsultationSchedules = nurseService.getConsultationSchedules.bind(nurseService);
   createConsultationSchedule = nurseService.createConsultationSchedule.bind(nurseService);
   getDashboardStats = nurseService.getDashboardStats.bind(nurseService);
+  
+  // Vaccination management methods
+  getVaccinationCampaigns = nurseService.getVaccinationCampaigns.bind(nurseService);
+  createVaccinationCampaign = nurseService.createVaccinationCampaign.bind(nurseService);
+  updateCampaignStatus = nurseService.updateCampaignStatus.bind(nurseService);
+  getVaccinationList = nurseService.getVaccinationList.bind(nurseService);
+  recordVaccination = nurseService.recordVaccination.bind(nurseService);
+  createConsentNotifications = nurseService.createConsentNotifications.bind(nurseService);
+  updateVaccinationFollowUp = nurseService.updateVaccinationFollowUp.bind(nurseService);
+  getVaccinationStatistics = nurseService.getVaccinationStatistics.bind(nurseService);
+  getMedicalStaffForVaccination = nurseService.getMedicalStaff.bind(nurseService);
+
+  // Student Management for Nurses
+  getNurseStudents = nurseService.getStudents.bind(nurseService);
+  
+  // Student-Parent Relations for Nurses
+  getNurseStudentParentRelations = nurseService.getStudentParentRelations.bind(nurseService);
 
   // Parent methods
   getParentProfile = parentService.getParentProfile.bind(parentService);
@@ -65,6 +83,7 @@ class ApiService {
   getParentCampaigns = parentService.getParentCampaigns.bind(parentService);
   submitCampaignConsent = parentService.submitCampaignConsent.bind(parentService);
   updateCampaignConsent = parentService.updateCampaignConsent.bind(parentService);
+  getParentCampaignConsents = parentService.getParentCampaignConsents.bind(parentService);
   getStudentCampaignResults = parentService.getStudentCampaignResults.bind(parentService);
   getParentConsultationSchedules = parentService.getParentConsultationSchedules.bind(parentService);
   createConsultationRequest = parentService.createConsultationRequest.bind(parentService);
