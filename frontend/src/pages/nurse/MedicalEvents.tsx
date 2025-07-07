@@ -1,6 +1,7 @@
 // Fixed MedicalEventsPage.tsx - Corrected enum mapping
 
 import {
+  CheckOutlined,
   EditOutlined,
   EyeOutlined,
   MedicineBoxOutlined,
@@ -40,16 +41,23 @@ const MedicalEventsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [events, setEvents] = useState<MedicalEventNurse[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
-  const [selectedEvent, setSelectedEvent] = useState<MedicalEventNurse | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<MedicalEventNurse | null>(
+    null
+  );
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isDetailDrawerVisible, setIsDetailDrawerVisible] = useState(false);
-  const [editingEvent, setEditingEvent] = useState<MedicalEventNurse | null>(null);
+  const [editingEvent, setEditingEvent] = useState<MedicalEventNurse | null>(
+    null
+  );
   const [form] = Form.useForm();
   const [filters, setFilters] = useState({
     event_type: undefined,
     severity: undefined,
     status: undefined,
   });
+  const [isResolveModalVisible, setIsResolveModalVisible] = useState(false);
+  const [resolvingEvent, setResolvingEvent] =
+    useState<MedicalEventNurse | null>(null);
 
   useEffect(() => {
     loadData();
@@ -166,6 +174,11 @@ const MedicalEventsPage: React.FC = () => {
     }
   };
 
+  const handleResolve = (event: MedicalEventNurse) => {
+    setResolvingEvent(event);
+    setIsResolveModalVisible(true);
+  };
+
   const columns: ColumnsType<MedicalEventNurse> = [
     {
       title: "Thời gian",
@@ -210,7 +223,17 @@ const MedicalEventsPage: React.FC = () => {
       render: (_, record) => (
         <Space>
           <Button icon={<EyeOutlined />} onClick={() => handleView(record)} />
-          <Button icon={<EditOutlined />} onClick={() => handleEdit(record)} />
+          <Button
+            icon={<EditOutlined />}
+            onClick={() => handleEdit(record)}
+            disabled={record.status === "Resolved"}
+          />
+          <Button
+            icon={<CheckOutlined />}
+            onClick={() => handleResolve(record)}
+            disabled={record.status === "Resolved"}
+            type="default"
+          />
         </Space>
       ),
     },
@@ -488,6 +511,52 @@ const MedicalEventsPage: React.FC = () => {
           </Descriptions>
         )}
       </Drawer>
+      <Modal
+        open={isResolveModalVisible}
+        title="Xác nhận giải quyết"
+        onCancel={() => setIsResolveModalVisible(false)}
+        onOk={async () => {
+          if (!resolvingEvent) return;
+          try {
+            await nurseService.resolveMedicalEvent(resolvingEvent._id, {
+              treatment_notes: resolvingEvent.treatment_notes,
+            });
+            message.success("Đã đánh dấu sự kiện là đã giải quyết");
+            setIsResolveModalVisible(false);
+            loadData();
+          } catch (err) {
+            message.error("Có lỗi xảy ra");
+          }
+        }}
+      >
+        {resolvingEvent && (
+          <div>
+            <p>
+              Bạn có chắc chắn muốn đánh dấu sự kiện này là{" "}
+              <b style={{ color: "green" }}>Đã giải quyết</b>?
+            </p>
+            <p>
+              <b>Học sinh:</b> {getStudentName(resolvingEvent.student_id)}
+            </p>
+            <p>
+              <b>Mô tả:</b> {resolvingEvent.description}
+            </p>
+            <p>
+              <b>Triệu chứng:</b>{" "}
+              {resolvingEvent.symptoms?.length > 0
+                ? resolvingEvent.symptoms.join(", ")
+                : "Không có"}
+            </p>
+            <p>
+              <b>Thời gian:</b>{" "}
+              {moment(resolvingEvent.createdAt).format("DD/MM/YYYY HH:mm")}
+            </p>
+            <p style={{ fontStyle: "italic", color: "gray" }}>
+              Sau khi xác nhận, sự kiện sẽ không thể chỉnh sửa và hoàn tác.
+            </p>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

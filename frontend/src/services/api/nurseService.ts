@@ -7,9 +7,9 @@ import {
   ConsultationSchedule,
   DashboardStats,
   HealthProfile,
-  MedicalEvent,
+  MedicalEventNurse,
   MedicineRequest,
-  StudentParentRelation,
+  StudentParentRelation
 } from "../../types";
 import BaseApiClient from "./baseApi";
 
@@ -33,28 +33,39 @@ class NurseService extends BaseApiClient {
   }
 
   // Medical Events
-  async getMedicalEvents(): Promise<ApiResponse<MedicalEvent[]>> {
-    const response: AxiosResponse<ApiResponse<MedicalEvent[]>> =
+  async getMedicalEvents(): Promise<ApiResponse<MedicalEventNurse[]>> {
+    const response: AxiosResponse<ApiResponse<MedicalEventNurse[]>> =
       await this.api.get("/nurse/medical-events");
     return response.data;
   }
 
-  async createMedicalEvent(
-    eventData: Partial<MedicalEvent>
-  ): Promise<ApiResponse<MedicalEvent>> {
-    const response: AxiosResponse<ApiResponse<MedicalEvent>> =
+  async  createMedicalEvent(
+    eventData: Partial<MedicalEventNurse>
+  ): Promise<ApiResponse<MedicalEventNurse>> {
+    const response: AxiosResponse<ApiResponse<MedicalEventNurse>> =
       await this.api.post("/nurse/medical-events", eventData);
     return response.data;
   }
 
   async updateMedicalEvent(
     eventId: string,
-    eventData: Partial<MedicalEvent>
-  ): Promise<ApiResponse<MedicalEvent>> {
-    const response: AxiosResponse<ApiResponse<MedicalEvent>> =
+    eventData: Partial<MedicalEventNurse>
+  ): Promise<ApiResponse<MedicalEventNurse>> {
+    const response: AxiosResponse<ApiResponse<MedicalEventNurse>> =
       await this.api.put(`/nurse/medical-events/${eventId}`, eventData);
     return response.data;
   }
+
+  async resolveMedicalEvent(
+  eventId: string,
+  data: Partial<MedicalEventNurse>
+): Promise<ApiResponse<MedicalEventNurse>> {
+  const response: AxiosResponse<ApiResponse<MedicalEventNurse>> = await this.api.put(
+    `/nurse/medical-events/${eventId}/resolve`,
+    data
+  );
+  return response.data;
+}
 
   // Medicine Requests
   async getMedicineRequests(): Promise<ApiResponse<MedicineRequest[]>> {
