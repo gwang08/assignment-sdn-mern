@@ -1,34 +1,34 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Table,
-  Card,
-  Button,
-  Space,
-  Tag,
-  Modal,
-  Form,
-  Select,
-  Row,
-  Col,
-  Typography,
-  message,
-  Descriptions,
-  Drawer,
-  Timeline,
-  Alert,
-  Input
-} from 'antd';
 import {
   CheckCircleOutlined,
+  ClockCircleOutlined,
   CloseCircleOutlined,
-  EyeOutlined,
   ExclamationCircleOutlined,
-  ClockCircleOutlined
+  EyeOutlined
 } from '@ant-design/icons';
+import {
+  Alert,
+  Button,
+  Card,
+  Col,
+  Descriptions,
+  Drawer,
+  Form,
+  Input,
+  Modal,
+  Row,
+  Select,
+  Space,
+  Table,
+  Tag,
+  Timeline,
+  Typography,
+  message
+} from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import moment from 'moment';
+import React, { useEffect, useState } from 'react';
 import apiService from '../../services/api';
-import { MedicineRequest, Medicine } from '../../types';
+import { MedicineRequest } from '../../types';
 
 const { Title } = Typography;
 const { Option } = Select;
