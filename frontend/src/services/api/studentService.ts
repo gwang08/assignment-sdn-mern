@@ -8,7 +8,7 @@ import {
 
 class StudentService extends BaseApiClient {
 
-  // ✅ GET /student/health-profile - Không cần studentId vì dùng token authentication
+  // ✅ GET /student/health-profile 
   async getStudentSelfHealthProfile(): Promise<ApiResponse<HealthProfile>> {
     const response: AxiosResponse<ApiResponse<HealthProfile>> =
       await this.api.get("/student/health-profile");
