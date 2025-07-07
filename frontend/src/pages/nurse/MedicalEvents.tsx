@@ -45,6 +45,11 @@ const MedicalEventsPage: React.FC = () => {
   const [isDetailDrawerVisible, setIsDetailDrawerVisible] = useState(false);
   const [editingEvent, setEditingEvent] = useState<MedicalEvent | null>(null);
   const [form] = Form.useForm();
+  const [filters, setFilters] = useState({
+    event_type: undefined,
+    severity: undefined,
+    status: undefined,
+  });
 
   useEffect(() => {
     loadData();
@@ -98,6 +103,11 @@ const MedicalEventsPage: React.FC = () => {
   const handleCreate = () => {
     setEditingEvent(null);
     form.resetFields();
+    form.setFieldsValue({
+      parent_notified: false,
+      follow_up_required: false,
+    });
+
     setIsModalVisible(true);
   };
 
@@ -109,6 +119,8 @@ const MedicalEventsPage: React.FC = () => {
       medications_given:
         event.medications_administered?.map((m) => m.name).join(", ") || "",
       treatment_provided: event.treatment_notes,
+      parent_notified: event.parent_notified?.status ?? false,
+      follow_up_required: event.follow_up_required ?? true,
     });
     setIsModalVisible(true);
   };
@@ -135,7 +147,7 @@ const MedicalEventsPage: React.FC = () => {
       parent_notified: {
         status: values.parent_notified || false,
       },
-      follow_up_required: values.follow_up_required || false,
+      follow_up_required: values.follow_up_required,
       follow_up_notes: values.follow_up_notes || "",
     };
 
@@ -213,17 +225,103 @@ const MedicalEventsPage: React.FC = () => {
           <MedicineBoxOutlined /> Quản lý Sự kiện Y tế
         </Title>
       </div>
-      <div className="flex flex-end items-end justify-end">
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 16,
+          flexWrap: "wrap", // Cho responsive
+          gap: 8,
+        }}
+      >
+        {/* Bên trái: Nút Tạo mới */}
         <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
           Tạo mới
         </Button>
+
+        {/* Bên phải: Bộ lọc + Xoá bộ lọc */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            flexWrap: "wrap",
+            justifyContent: "flex-end",
+          }}
+        >
+          <Select
+            allowClear
+            placeholder="Lọc theo loại sự kiện"
+            value={filters.event_type}
+            onChange={(value) =>
+              setFilters((prev) => ({ ...prev, event_type: value }))
+            }
+            style={{ width: 180 }}
+          >
+            <Option value="Accident">Tai nạn</Option>
+            <Option value="Fever">Sốt</Option>
+            <Option value="Injury">Chấn thương</Option>
+            <Option value="Epidemic">Dịch bệnh</Option>
+            <Option value="Other">Khác</Option>
+          </Select>
+
+          <Select
+            allowClear
+            placeholder="Lọc theo mức độ"
+            value={filters.severity}
+            onChange={(value) =>
+              setFilters((prev) => ({ ...prev, severity: value }))
+            }
+            style={{ width: 160 }}
+          >
+            <Option value="Low">Thấp</Option>
+            <Option value="Medium">Trung bình</Option>
+            <Option value="High">Cao</Option>
+            <Option value="Emergency">Khẩn cấp</Option>
+          </Select>
+
+          <Select
+            allowClear
+            placeholder="Lọc theo trạng thái"
+            value={filters.status}
+            onChange={(value) =>
+              setFilters((prev) => ({ ...prev, status: value }))
+            }
+            style={{ width: 200 }}
+          >
+            <Option value="Open">Mở</Option>
+            <Option value="In Progress">Đang xử lý</Option>
+            <Option value="Resolved">Đã giải quyết</Option>
+            <Option value="Referred to Hospital">Chuyển bệnh viện</Option>
+          </Select>
+
+          <Button
+            onClick={() =>
+              setFilters({
+                event_type: undefined,
+                severity: undefined,
+                status: undefined,
+              })
+            }
+          >
+            Xoá bộ lọc
+          </Button>
+        </div>
       </div>
 
       <Table
         rowKey="_id"
         loading={loading}
         columns={columns}
-        dataSource={events}
+        dataSource={events.filter((event) => {
+          const { event_type, severity, status } = filters;
+          return (
+            (!event_type || event.event_type === event_type) &&
+            (!severity || event.severity === severity) &&
+            (!status || event.status === status)
+          );
+        })}
       />
 
       <Modal

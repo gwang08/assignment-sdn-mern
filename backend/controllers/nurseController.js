@@ -87,7 +87,7 @@ class NurseController {
         treatment_notes = "",
         medications_administered = [],
         parent_notified = { status: false },
-        follow_up_required = false,
+        follow_up_required = true,
         follow_up_notes = "",
       } = req.body;
 
