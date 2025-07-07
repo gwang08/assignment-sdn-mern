@@ -58,14 +58,26 @@ class NurseController {
         .sort({ createdAt: -1 })
         .limit(50);
 
-      res.json(events);
+      // ✅ Trả về với success + data
+      res.json({
+        success: true,
+        data: events.map((event) => ({
+          ...event.toObject(),
+          _id: event._id.toString(),
+          student: event.student?._id?.toString() || null,
+          created_by: event.created_by?._id?.toString() || null,
+        })),
+      });
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch medical events" });
+      res
+        .status(500)
+        .json({ success: false, error: "Failed to fetch medical events" });
     }
   }
 
   static async createMedicalEvent(req, res, next) {
     try {
+      console.log("📥 req.body:", req.body);
       const {
         studentId,
         event_type,
@@ -324,9 +336,9 @@ class NurseController {
         data: campaigns,
       });
     } catch (error) {
-      res.status(500).json({ 
-        success: false, 
-        error: "Failed to fetch vaccination campaigns" 
+      res.status(500).json({
+        success: false,
+        error: "Failed to fetch vaccination campaigns",
       });
     }
   }
@@ -371,9 +383,9 @@ class NurseController {
       });
     } catch (error) {
       console.error("Error creating vaccination campaign:", error);
-      res.status(400).json({ 
-        success: false, 
-        error: "Failed to create vaccination campaign" 
+      res.status(400).json({
+        success: false,
+        error: "Failed to create vaccination campaign",
       });
     }
   }
@@ -384,11 +396,12 @@ class NurseController {
       const { status } = req.body;
 
       // Validate status
-      const validStatuses = ['draft', 'active', 'completed', 'cancelled'];
+      const validStatuses = ["draft", "active", "completed", "cancelled"];
       if (!validStatuses.includes(status)) {
         return res.status(400).json({
           success: false,
-          error: "Invalid status. Must be one of: draft, active, completed, cancelled"
+          error:
+            "Invalid status. Must be one of: draft, active, completed, cancelled",
         });
       }
 
@@ -401,12 +414,12 @@ class NurseController {
       if (!campaign) {
         return res.status(404).json({
           success: false,
-          error: "Campaign not found"
+          error: "Campaign not found",
         });
       }
 
       // If campaign is being activated and requires consent, create consent notifications for eligible students
-      if (status === 'active' && campaign.requires_consent) {
+      if (status === "active" && campaign.requires_consent) {
         await NurseController.createConsentNotifications(campaign);
       }
 
@@ -416,9 +429,9 @@ class NurseController {
       });
     } catch (error) {
       console.error("Error updating campaign status:", error);
-      res.status(400).json({ 
-        success: false, 
-        error: "Failed to update campaign status" 
+      res.status(400).json({
+        success: false,
+        error: "Failed to update campaign status",
       });
     }
   }
@@ -426,8 +439,10 @@ class NurseController {
   // Helper method to create consent notifications for eligible students
   static async createConsentNotifications(campaign) {
     try {
-      console.log(`Creating consent notifications for campaign: ${campaign.title}`);
-      
+      console.log(
+        `Creating consent notifications for campaign: ${campaign.title}`
+      );
+
       // Find all eligible students based on target classes
       const eligibleStudents = await User.find({
         role: "student",
@@ -441,34 +456,40 @@ class NurseController {
         campaign: campaign._id,
       });
 
-      const existingStudentIds = existingConsents.map(consent => consent.student.toString());
-      
-      // Filter students who don't have consent records yet
-      const studentsNeedingConsent = eligibleStudents.filter(
-        student => !existingStudentIds.includes(student._id.toString())
+      const existingStudentIds = existingConsents.map((consent) =>
+        consent.student.toString()
       );
 
-      console.log(`${studentsNeedingConsent.length} students need new consent notifications`);
+      // Filter students who don't have consent records yet
+      const studentsNeedingConsent = eligibleStudents.filter(
+        (student) => !existingStudentIds.includes(student._id.toString())
+      );
+
+      console.log(
+        `${studentsNeedingConsent.length} students need new consent notifications`
+      );
 
       // Create consent notifications for students who don't have them
       if (studentsNeedingConsent.length > 0) {
-        const consentNotifications = studentsNeedingConsent.map(student => ({
+        const consentNotifications = studentsNeedingConsent.map((student) => ({
           campaign: campaign._id,
           student: student._id,
           status: CAMPAIGN_CONSENT_STATUS.PENDING,
         }));
 
         await CampaignConsent.insertMany(consentNotifications);
-        console.log(`Created ${consentNotifications.length} consent notifications`);
+        console.log(
+          `Created ${consentNotifications.length} consent notifications`
+        );
       }
 
       return {
         success: true,
         created: studentsNeedingConsent.length,
-        total: eligibleStudents.length
+        total: eligibleStudents.length,
       };
     } catch (error) {
-      console.error('Error creating consent notifications:', error);
+      console.error("Error creating consent notifications:", error);
       throw error;
     }
   }
@@ -483,7 +504,7 @@ class NurseController {
       if (!campaign) {
         return res.status(404).json({
           success: false,
-          error: "Campaign not found"
+          error: "Campaign not found",
         });
       }
 
@@ -491,7 +512,7 @@ class NurseController {
       if (!campaign.requires_consent) {
         return res.status(400).json({
           success: false,
-          error: "This campaign does not require consent"
+          error: "This campaign does not require consent",
         });
       }
 
@@ -503,15 +524,15 @@ class NurseController {
         data: {
           campaign_id: campaign._id,
           campaign_title: campaign.title,
-          ...result
+          ...result,
         },
-        message: `Created ${result.created} new consent notifications out of ${result.total} eligible students`
+        message: `Created ${result.created} new consent notifications out of ${result.total} eligible students`,
       });
     } catch (error) {
       console.error("Error creating consent notifications manually:", error);
       res.status(500).json({
         success: false,
-        error: "Failed to create consent notifications"
+        error: "Failed to create consent notifications",
       });
     }
   }
@@ -571,9 +592,9 @@ class NurseController {
       });
     } catch (error) {
       console.error("Error getting vaccination list:", error);
-      res.status(500).json({ 
-        success: false, 
-        error: "Failed to fetch vaccination list" 
+      res.status(500).json({
+        success: false,
+        error: "Failed to fetch vaccination list",
       });
     }
   }
@@ -630,13 +651,16 @@ class NurseController {
       });
 
       await vaccinationResult.save();
-      await vaccinationResult.populate("student", "first_name last_name class_name");
+      await vaccinationResult.populate(
+        "student",
+        "first_name last_name class_name"
+      );
       await vaccinationResult.populate("created_by", "first_name last_name");
 
       res.status(201).json({
         success: true,
         data: vaccinationResult,
-        message: "Vaccination record created successfully"
+        message: "Vaccination record created successfully",
       });
     } catch (error) {
       console.error("Error recording vaccination:", error);
@@ -647,12 +671,8 @@ class NurseController {
   static async updateVaccinationFollowUp(req, res, next) {
     try {
       const { resultId } = req.params;
-      const {
-        follow_up_date,
-        follow_up_notes,
-        status,
-        additional_actions,
-      } = req.body;
+      const { follow_up_date, follow_up_notes, status, additional_actions } =
+        req.body;
 
       const result = await CampaignResult.findById(resultId);
       if (!result) {
@@ -664,7 +684,8 @@ class NurseController {
         follow_up_date && new Date(follow_up_date);
       result.vaccination_details.follow_up_notes =
         follow_up_notes || result.vaccination_details.follow_up_notes;
-      result.vaccination_details.status = status || result.vaccination_details.status;
+      result.vaccination_details.status =
+        status || result.vaccination_details.status;
       result.vaccination_details.additional_actions =
         additional_actions || result.vaccination_details.additional_actions;
       result.vaccination_details.last_follow_up = new Date();
@@ -675,7 +696,7 @@ class NurseController {
       res.json({
         success: true,
         data: result,
-        message: "Follow-up updated successfully"
+        message: "Follow-up updated successfully",
       });
     } catch (error) {
       console.error("Error updating vaccination follow-up:", error);
@@ -751,7 +772,12 @@ class NurseController {
             vaccinated: { $size: "$results" },
             completion_rate: {
               $multiply: [
-                { $divide: [{ $size: "$results" }, { $size: "$eligible_students" }] },
+                {
+                  $divide: [
+                    { $size: "$results" },
+                    { $size: "$eligible_students" },
+                  ],
+                },
                 100,
               ],
             },
@@ -783,9 +809,9 @@ class NurseController {
       });
     } catch (error) {
       console.error("Error fetching health check campaigns:", error);
-      res.status(500).json({ 
-        success: false, 
-        error: "Failed to fetch health check campaigns" 
+      res.status(500).json({
+        success: false,
+        error: "Failed to fetch health check campaigns",
       });
     }
   }
@@ -859,8 +885,8 @@ class NurseController {
           path: "campaignResult",
           populate: {
             path: "campaign",
-            select: "title campaign_type"
-          }
+            select: "title campaign_type",
+          },
         })
         .populate("student", "first_name last_name class_name")
         .sort({ scheduledDate: 1 });
@@ -884,20 +910,29 @@ class NurseController {
         scheduledDate,
         duration = 30,
         reason,
-        notes
+        notes,
       } = req.body;
 
       // Validate required fields
-      if (!campaignResult || !student || !attending_parent || !scheduledDate || !reason) {
+      if (
+        !campaignResult ||
+        !student ||
+        !attending_parent ||
+        !scheduledDate ||
+        !reason
+      ) {
         return res.status(400).json({
           success: false,
-          error: "Missing required fields: campaignResult, student, attending_parent, scheduledDate, reason"
+          error:
+            "Missing required fields: campaignResult, student, attending_parent, scheduledDate, reason",
         });
       }
 
       const requestedDate = new Date(scheduledDate);
-      const requestedEndTime = new Date(requestedDate.getTime() + duration * 60000);
-      
+      const requestedEndTime = new Date(
+        requestedDate.getTime() + duration * 60000
+      );
+
       // Check for overlapping consultations before creating
       const existingOverlap = await ConsultationSchedule.findOne({
         medicalStaff: req.user.id,
@@ -908,47 +943,56 @@ class NurseController {
             scheduledDate: { $lte: requestedDate },
             $expr: {
               $gt: [
-                { $add: ["$scheduledDate", { $multiply: ["$duration", 60000] }] },
-                requestedDate
-              ]
-            }
+                {
+                  $add: ["$scheduledDate", { $multiply: ["$duration", 60000] }],
+                },
+                requestedDate,
+              ],
+            },
           },
           // Case 2: Existing consultation starts during requested consultation
           {
             scheduledDate: { $gte: requestedDate },
-            scheduledDate: { $lt: requestedEndTime }
+            scheduledDate: { $lt: requestedEndTime },
           },
           // Case 3: Requested consultation is completely within existing consultation
           {
             scheduledDate: { $lte: requestedDate },
             $expr: {
               $gte: [
-                { $add: ["$scheduledDate", { $multiply: ["$duration", 60000] }] },
-                requestedEndTime
-              ]
-            }
-          }
-        ]
+                {
+                  $add: ["$scheduledDate", { $multiply: ["$duration", 60000] }],
+                },
+                requestedEndTime,
+              ],
+            },
+          },
+        ],
       }).populate("student", "first_name last_name class_name");
 
       if (existingOverlap) {
-        console.log('OVERLAP DETECTED during creation:', {
+        console.log("OVERLAP DETECTED during creation:", {
           existingStart: existingOverlap.scheduledDate,
-          existingEnd: new Date(existingOverlap.scheduledDate.getTime() + existingOverlap.duration * 60000),
+          existingEnd: new Date(
+            existingOverlap.scheduledDate.getTime() +
+              existingOverlap.duration * 60000
+          ),
           requestedStart: requestedDate,
-          requestedEnd: requestedEndTime
+          requestedEnd: requestedEndTime,
         });
-        
+
         return res.status(409).json({
           success: false,
           conflict: true,
           message: "This time slot overlaps with another consultation",
           conflictingConsultation: {
             id: existingOverlap._id,
-            studentName: existingOverlap.student ? `${existingOverlap.student.first_name} ${existingOverlap.student.last_name}` : 'Unknown Student',
+            studentName: existingOverlap.student
+              ? `${existingOverlap.student.first_name} ${existingOverlap.student.last_name}`
+              : "Unknown Student",
             scheduledDate: existingOverlap.scheduledDate,
-            duration: existingOverlap.duration
-          }
+            duration: existingOverlap.duration,
+          },
         });
       }
 
@@ -961,13 +1005,15 @@ class NurseController {
         scheduledDate: requestedDate,
         duration,
         reason,
-        notes
+        notes,
       });
 
       await consultation.save();
 
       // Populate the created consultation
-      const populatedConsultation = await ConsultationSchedule.findById(consultation._id)
+      const populatedConsultation = await ConsultationSchedule.findById(
+        consultation._id
+      )
         .populate("campaignResult")
         .populate("student", "first_name last_name class_name")
         .populate("medicalStaff", "first_name last_name")
@@ -979,35 +1025,35 @@ class NurseController {
       });
     } catch (error) {
       console.error("Error creating consultation schedule:", error);
-      
-      if (error.name === 'ValidationError') {
+
+      if (error.name === "ValidationError") {
         // Check if the error is about overlapping consultations
         if (error.message.includes("overlaps with another consultation")) {
           return res.status(409).json({
             success: false,
             conflict: true,
-            error: "This time slot overlaps with another consultation"
+            error: "This time slot overlaps with another consultation",
           });
         }
-        
+
         return res.status(400).json({
           success: false,
-          error: "Validation error: " + error.message
+          error: "Validation error: " + error.message,
         });
       }
-      
+
       // Handle MongoDB duplicate key errors
       if (error.code === 11000) {
         return res.status(409).json({
           success: false,
           conflict: true,
-          error: "A consultation with these details already exists"
+          error: "A consultation with these details already exists",
         });
       }
-      
+
       res.status(500).json({
         success: false,
-        error: "Failed to create consultation schedule"
+        error: "Failed to create consultation schedule",
       });
     }
   }
@@ -1038,21 +1084,25 @@ class NurseController {
         requires_consent,
         consent_deadline,
         instructions,
-        status
+        status,
       } = req.body;
 
       // Validate required fields
       if (!title || !campaign_type || !start_date || !end_date) {
-        return res.status(400).json({ 
-          success: false, 
-          message: "Missing required fields: title, campaign_type, start_date, end_date" 
+        return res.status(400).json({
+          success: false,
+          message:
+            "Missing required fields: title, campaign_type, start_date, end_date",
         });
       }
 
       const campaign = new Campaign({
         title,
         campaign_type,
-        type: campaign_type === "vaccination" ? CAMPAIGN_TYPE.VACCINATION : CAMPAIGN_TYPE.CHECKUP,
+        type:
+          campaign_type === "vaccination"
+            ? CAMPAIGN_TYPE.VACCINATION
+            : CAMPAIGN_TYPE.CHECKUP,
         description,
         start_date: new Date(start_date),
         end_date: new Date(end_date),
@@ -1060,7 +1110,7 @@ class NurseController {
         target_classes: target_classes || [],
         requires_consent: requires_consent !== false, // Default to true
         consent_deadline: consent_deadline ? new Date(consent_deadline) : null,
-        instructions: instructions || '',
+        instructions: instructions || "",
         created_by: req.user._id,
         status: status || "draft",
       });
@@ -1071,7 +1121,13 @@ class NurseController {
       res.status(201).json({ success: true, data: campaign });
     } catch (error) {
       console.error("Error creating campaign:", error);
-      res.status(400).json({ success: false, message: "Failed to create campaign", error: error.message });
+      res
+        .status(400)
+        .json({
+          success: false,
+          message: "Failed to create campaign",
+          error: error.message,
+        });
     }
   }
 
@@ -1087,20 +1143,28 @@ class NurseController {
       ).populate("created_by", "first_name last_name");
 
       if (!campaign) {
-        return res.status(404).json({ success: false, message: "Campaign not found" });
+        return res
+          .status(404)
+          .json({ success: false, message: "Campaign not found" });
       }
 
       res.json({ success: true, data: campaign });
     } catch (error) {
       console.error("Error updating campaign:", error);
-      res.status(400).json({ success: false, message: "Failed to update campaign", error: error.message });
+      res
+        .status(400)
+        .json({
+          success: false,
+          message: "Failed to update campaign",
+          error: error.message,
+        });
     }
   }
 
   static async getCampaignConsents(req, res, next) {
     try {
       const { campaignId } = req.params;
-      
+
       const consents = await CampaignConsent.find({
         campaign: campaignId,
       })
@@ -1110,13 +1174,13 @@ class NurseController {
 
       res.json({
         success: true,
-        data: consents
+        data: consents,
       });
     } catch (error) {
       console.error("Error fetching campaign consents:", error);
-      res.status(500).json({ 
-        success: false, 
-        error: "Failed to fetch campaign consents" 
+      res.status(500).json({
+        success: false,
+        error: "Failed to fetch campaign consents",
       });
     }
   }
@@ -1124,7 +1188,7 @@ class NurseController {
   static async getCampaignResults(req, res, next) {
     try {
       const { campaignId } = req.params;
-      
+
       const results = await CampaignResult.find({
         campaign: campaignId,
       })
@@ -1134,26 +1198,21 @@ class NurseController {
 
       res.json({
         success: true,
-        data: results
+        data: results,
       });
     } catch (error) {
       console.error("Error fetching campaign results:", error);
-      res.status(500).json({ 
-        success: false, 
-        error: "Failed to fetch campaign results" 
+      res.status(500).json({
+        success: false,
+        error: "Failed to fetch campaign results",
       });
     }
   }
 
   static async submitCampaignResult(req, res, next) {
     try {
-      const {
-        campaign,
-        student,
-        notes,
-        vaccination_details,
-        checkupDetails,
-      } = req.body;
+      const { campaign, student, notes, vaccination_details, checkupDetails } =
+        req.body;
 
       // Validate student
       const studentUser = await validateStudentRole(student);
@@ -1179,13 +1238,13 @@ class NurseController {
 
       res.status(201).json({
         success: true,
-        data: result
+        data: result,
       });
     } catch (error) {
       console.error("Error submitting campaign result:", error);
-      res.status(400).json({ 
+      res.status(400).json({
         success: false,
-        error: "Failed to submit campaign result" 
+        error: "Failed to submit campaign result",
       });
     }
   }
@@ -1197,8 +1256,8 @@ class NurseController {
           path: "campaignResult",
           populate: {
             path: "campaign",
-            select: "title campaign_type"
-          }
+            select: "title campaign_type",
+          },
         })
         .populate("student", "first_name last_name class_name")
         .sort({ scheduledDate: 1 });
@@ -1219,30 +1278,32 @@ class NurseController {
       if (!scheduledDate) {
         return res.status(400).json({
           success: false,
-          error: "scheduledDate is required"
+          error: "scheduledDate is required",
         });
       }
 
       const requestedDate = new Date(scheduledDate);
-      
+
       // Check if date is in future
       if (requestedDate <= new Date()) {
         return res.status(400).json({
           success: false,
-          error: "Scheduled date must be in the future"
+          error: "Scheduled date must be in the future",
         });
       }
 
-      console.log('Checking overlap for:', {
+      console.log("Checking overlap for:", {
         medicalStaffId,
         requestedDate,
         duration,
-        requestedEndTime: new Date(requestedDate.getTime() + duration * 60000)
+        requestedEndTime: new Date(requestedDate.getTime() + duration * 60000),
       });
 
       // Check for overlapping consultations with same medical staff
-      const requestedEndTime = new Date(requestedDate.getTime() + duration * 60000);
-      
+      const requestedEndTime = new Date(
+        requestedDate.getTime() + duration * 60000
+      );
+
       const overlapping = await ConsultationSchedule.findOne({
         medicalStaff: medicalStaffId,
         status: "Scheduled", // Use the correct capitalized status value
@@ -1252,69 +1313,80 @@ class NurseController {
             scheduledDate: { $lte: requestedDate },
             $expr: {
               $gt: [
-                { $add: ["$scheduledDate", { $multiply: ["$duration", 60000] }] },
-                requestedDate
-              ]
-            }
+                {
+                  $add: ["$scheduledDate", { $multiply: ["$duration", 60000] }],
+                },
+                requestedDate,
+              ],
+            },
           },
           // Case 2: Existing consultation starts during requested consultation
           {
             scheduledDate: { $gte: requestedDate },
-            scheduledDate: { $lt: requestedEndTime }
+            scheduledDate: { $lt: requestedEndTime },
           },
           // Case 3: Requested consultation is completely within existing consultation
           {
             scheduledDate: { $lte: requestedDate },
             $expr: {
               $gte: [
-                { $add: ["$scheduledDate", { $multiply: ["$duration", 60000] }] },
-                requestedEndTime
-              ]
-            }
-          }
-        ]
+                {
+                  $add: ["$scheduledDate", { $multiply: ["$duration", 60000] }],
+                },
+                requestedEndTime,
+              ],
+            },
+          },
+        ],
       }).populate("student", "first_name last_name class_name");
 
-      console.log('Overlap search result:', overlapping);
+      console.log("Overlap search result:", overlapping);
 
       if (overlapping) {
-        console.log('OVERLAP DETECTED:', {
+        console.log("OVERLAP DETECTED:", {
           existingStart: overlapping.scheduledDate,
-          existingEnd: new Date(overlapping.scheduledDate.getTime() + overlapping.duration * 60000),
+          existingEnd: new Date(
+            overlapping.scheduledDate.getTime() + overlapping.duration * 60000
+          ),
           requestedStart: requestedDate,
-          requestedEnd: requestedEndTime
+          requestedEnd: requestedEndTime,
         });
-        
+
         return res.json({
           success: true,
           data: {
             hasOverlap: true,
             conflictingConsultation: {
               id: overlapping._id,
-              studentName: overlapping.student ? `${overlapping.student.first_name} ${overlapping.student.last_name}` : 'Unknown Student',
+              studentName: overlapping.student
+                ? `${overlapping.student.first_name} ${overlapping.student.last_name}`
+                : "Unknown Student",
               scheduledDate: overlapping.scheduledDate,
               duration: overlapping.duration,
-              endTime: new Date(overlapping.scheduledDate.getTime() + overlapping.duration * 60000)
-            }
-          }
+              endTime: new Date(
+                overlapping.scheduledDate.getTime() +
+                  overlapping.duration * 60000
+              ),
+            },
+          },
         });
       }
 
-      console.log('No overlap found - time slot is available');
+      console.log("No overlap found - time slot is available");
 
       res.json({
         success: true,
         data: {
           hasOverlap: false,
-          available: true
+          available: true,
         },
-        message: "Time slot is available"
+        message: "Time slot is available",
       });
     } catch (error) {
       console.error("Error checking consultation overlap:", error);
       res.status(500).json({
         success: false,
-        error: "Failed to check consultation overlap"
+        error: "Failed to check consultation overlap",
       });
     }
   }
@@ -1322,10 +1394,10 @@ class NurseController {
   static async getVaccinationResults(req, res, next) {
     try {
       const { campaignId } = req.params;
-      
+
       const results = await CampaignResult.find({
         campaign: campaignId,
-        vaccination_details: { $exists: true }
+        vaccination_details: { $exists: true },
       })
         .populate("student", "first_name last_name class_name")
         .populate("created_by", "first_name last_name")
@@ -1333,13 +1405,13 @@ class NurseController {
 
       res.json({
         success: true,
-        data: results
+        data: results,
       });
     } catch (error) {
       console.error("Error fetching vaccination results:", error);
       res.status(500).json({
         success: false,
-        error: "Failed to fetch vaccination results"
+        error: "Failed to fetch vaccination results",
       });
     }
   }
@@ -1355,14 +1427,15 @@ class NurseController {
         batch_number,
         administration_date,
         side_effects,
-        notes
+        notes,
       } = req.body;
 
       // Validate required fields
       if (!student || !vaccine_name || !dose_number || !administration_date) {
         return res.status(400).json({
           success: false,
-          error: "Missing required fields: student, vaccine_name, dose_number, administration_date"
+          error:
+            "Missing required fields: student, vaccine_name, dose_number, administration_date",
         });
       }
 
@@ -1377,48 +1450,48 @@ class NurseController {
           batch_number,
           administration_date: new Date(administration_date),
           side_effects: side_effects || [],
-          administered_by: req.user.id
+          administered_by: req.user.id,
         },
-        notes
+        notes,
       });
 
       await result.save();
-      
+
       // Populate the result
       await result.populate("student", "first_name last_name class_name");
       await result.populate("created_by", "first_name last_name");
 
       res.status(201).json({
         success: true,
-        data: result
+        data: result,
       });
     } catch (error) {
       console.error("Error creating vaccination result:", error);
       res.status(500).json({
         success: false,
-        error: "Failed to create vaccination result"
+        error: "Failed to create vaccination result",
       });
     }
   }
 
   // Medical Staff Management
- static async getMedicalStaff(req, res, next) {
+  static async getMedicalStaff(req, res, next) {
     try {
       const medicalStaff = await User.find({
-        role: "medicalStaff"
+        role: "medicalStaff",
       })
         .select("first_name last_name email role phone_number staff_role")
         .sort({ last_name: 1, first_name: 1 });
 
       res.json({
         success: true,
-        data: medicalStaff
+        data: medicalStaff,
       });
     } catch (error) {
       console.error("Error fetching medical staff:", error);
       res.status(500).json({
         success: false,
-        error: "Failed to fetch medical staff"
+        error: "Failed to fetch medical staff",
       });
     }
   }
@@ -1433,13 +1506,13 @@ class NurseController {
 
       res.json({
         success: true,
-        data: relations
+        data: relations,
       });
     } catch (error) {
       console.error("Error fetching student-parent relations:", error);
       res.status(500).json({
         success: false,
-        error: "Failed to fetch student-parent relations"
+        error: "Failed to fetch student-parent relations",
       });
     }
   }
@@ -1453,13 +1526,13 @@ class NurseController {
 
       res.json({
         success: true,
-        data: students
+        data: students,
       });
     } catch (error) {
       console.error("Error fetching students:", error);
       res.status(500).json({
         success: false,
-        error: "Failed to fetch students"
+        error: "Failed to fetch students",
       });
     }
   }
@@ -1474,30 +1547,31 @@ class NurseController {
       if (!student) {
         return res.status(404).json({
           success: false,
-          error: "Student not found"
+          error: "Student not found",
         });
       }
 
       // Get health profile
-      const healthProfile = await HealthProfile.findOne({ student: studentId })
-        .populate("student", "first_name last_name class_name");
+      const healthProfile = await HealthProfile.findOne({
+        student: studentId,
+      }).populate("student", "first_name last_name class_name");
 
       if (!healthProfile) {
         return res.status(404).json({
           success: false,
-          error: "Health profile not found for this student"
+          error: "Health profile not found for this student",
         });
       }
 
       res.json({
         success: true,
-        data: healthProfile
+        data: healthProfile,
       });
     } catch (error) {
       console.error("Error fetching student health profile:", error);
       res.status(500).json({
         success: false,
-        error: "Failed to fetch student health profile"
+        error: "Failed to fetch student health profile",
       });
     }
   }
@@ -1512,7 +1586,7 @@ class NurseController {
       if (!student) {
         return res.status(404).json({
           success: false,
-          error: "Student not found"
+          error: "Student not found",
         });
       }
 
@@ -1525,13 +1599,13 @@ class NurseController {
 
       res.json({
         success: true,
-        data: healthProfile
+        data: healthProfile,
       });
     } catch (error) {
       console.error("Error updating student health profile:", error);
       res.status(500).json({
         success: false,
-        error: "Failed to update student health profile"
+        error: "Failed to update student health profile",
       });
     }
   }
@@ -1545,7 +1619,7 @@ class NurseController {
       if (!student) {
         return res.status(404).json({
           success: false,
-          error: "Student not found"
+          error: "Student not found",
         });
       }
 
@@ -1565,14 +1639,14 @@ class NurseController {
         data: {
           student,
           medicalEvents,
-          campaignResults
-        }
+          campaignResults,
+        },
       });
     } catch (error) {
       console.error("Error fetching student medical history:", error);
       res.status(500).json({
         success: false,
-        error: "Failed to fetch student medical history"
+        error: "Failed to fetch student medical history",
       });
     }
   }

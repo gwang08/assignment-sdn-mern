@@ -1,20 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Card, 
-  Typography, 
-  Table, 
-  Tag, 
-  Alert, 
-  Space, 
-  Button,
-  Timeline,
-  Descriptions,
-} from 'antd';
 import {
   FileTextOutlined,
-  InfoCircleOutlined,
-  HeartOutlined
+  HeartOutlined,
+  InfoCircleOutlined
 } from '@ant-design/icons';
+import {
+  Alert,
+  Button,
+  Card,
+  Descriptions,
+  Space,
+  Table,
+  Tag,
+  Timeline,
+  Typography,
+} from 'antd';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api';
 import { MedicalEvent } from '../../types';
@@ -33,7 +33,6 @@ const StudentMedicalHistory: React.FC = () => {
   const loadMedicalHistory = async () => {
     try {
       setLoading(true);
-      // This would need to be implemented in the API service for student-specific events
       const response = await apiService.getMedicalEvents();
       if (response.success && response.data) {
         // Filter events for current student
@@ -50,62 +49,62 @@ const StudentMedicalHistory: React.FC = () => {
 
   const getEventTypeColor = (type: string) => {
     const colors: { [key: string]: string } = {
-      'accident': 'red',
-      'illness': 'orange',
-      'injury': 'volcano',
-      'emergency': 'red',
-      'other': 'default'
+      'Accident': 'red',
+      'Fever': 'orange',
+      'Injury': 'volcano',
+      'Epidemic': 'purple',
+      'Other': 'default'
     };
     return colors[type] || 'default';
   };
 
   const getEventTypeLabel = (type: string) => {
     const labels: { [key: string]: string } = {
-      'accident': 'tai nạn',
-      'illness': 'Bệnh tật',
-      'injury': 'Chấn thương',
-      'emergency': 'Cấp cứu',
-      'other': 'Khác'
+      'Accident': 'Tai nạn',
+      'Fever': 'Sốt',
+      'Injury': 'Chấn thương',
+      'Epidemic': 'Dịch bệnh',
+      'Other': 'Khác'
     };
     return labels[type] || type;
   };
 
   const getSeverityColor = (severity: string) => {
     const colors: { [key: string]: string } = {
-      'low': 'green',
-      'medium': 'orange',
-      'high': 'red',
-      'critical': 'red'
+      'Low': 'green',
+      'Medium': 'orange',
+      'High': 'red',
+      'Emergency': 'red'
     };
     return colors[severity] || 'default';
   };
 
   const getSeverityLabel = (severity: string) => {
     const labels: { [key: string]: string } = {
-      'low': 'Nhẹ',
-      'medium': 'Trung bình',
-      'high': 'Nặng',
-      'critical': 'Nghiêm trọng'
+      'Low': 'Nhẹ',
+      'Medium': 'Trung bình',
+      'High': 'Nặng',
+      'Emergency': 'Cấp cứu'
     };
     return labels[severity] || severity;
   };
 
   const getStatusColor = (status: string) => {
     const colors: { [key: string]: string } = {
-      'open': 'blue',
-      'in_progress': 'processing',
-      'resolved': 'success',
-      'referred': 'warning'
+      'Open': 'blue',
+      'In Progress': 'processing',
+      'Resolved': 'success',
+      'Referred to Hospital': 'warning'
     };
     return colors[status] || 'default';
   };
 
   const getStatusLabel = (status: string) => {
     const labels: { [key: string]: string } = {
-      'open': 'Mở',
-      'in_progress': 'Đang xử lý',
-      'resolved': 'Đã giải quyết',
-      'referred': 'Chuyển tuyến'
+      'Open': 'Mở',
+      'In Progress': 'Đang xử lý',
+      'Resolved': 'Đã giải quyết',
+      'Referred to Hospital': 'Chuyển viện'
     };
     return labels[status] || status;
   };
@@ -113,18 +112,18 @@ const StudentMedicalHistory: React.FC = () => {
   const medicalEventColumns = [
     {
       title: 'Ngày',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
+      dataIndex: 'occurred_at', // Updated to match interface
+      key: 'occurred_at',
       render: (date: string) => new Date(date).toLocaleDateString('vi-VN'),
       sorter: (a: MedicalEvent, b: MedicalEvent) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime(),
       defaultSortOrder: 'descend' as const
     },
     {
       title: 'Tiêu đề',
       dataIndex: 'title',
       key: 'title',
-      render: (title: string) => <Text strong>{title}</Text>
+      render: (title: string) => <Text strong>{title || 'Không có tiêu đề'}</Text>
     },
     {
       title: 'Loại sự kiện',
@@ -175,16 +174,25 @@ const StudentMedicalHistory: React.FC = () => {
             ) : 'Không có triệu chứng được ghi nhận'}
           </Descriptions.Item>
           <Descriptions.Item label="Thuốc được sử dụng">
-            {record.medications_given && record.medications_given.length > 0 ? (
+            {record.medications_administered && record.medications_administered.length > 0 ? (
               <div>
-                {record.medications_given.map((medication: string, index: number) => (
-                  <Tag key={index} color="blue" className="mb-1">{medication}</Tag>
+                {record.medications_administered.map((medication, index: number) => (
+                  <div key={index} className="mb-2">
+                    <Tag color="blue" className="mb-1">
+                      {medication.name}
+                      {medication.dosage && ` - ${medication.dosage}`}
+                    </Tag>
+                    <div className="text-xs text-gray-500">
+                      Thời gian: {new Date(medication.time).toLocaleString('vi-VN')}
+                      {medication.administered_by && ` | Người thực hiện: ${medication.administered_by}`}
+                    </div>
+                  </div>
                 ))}
               </div>
             ) : 'Không có thuốc được sử dụng'}
           </Descriptions.Item>
           <Descriptions.Item label="Điều trị đã thực hiện" span={2}>
-            {record.treatment_provided || 'Chưa có thông tin điều trị'}
+            {record.treatment_notes || 'Chưa có thông tin điều trị'}
           </Descriptions.Item>
           
           {record.follow_up_required && (
@@ -207,16 +215,34 @@ const StudentMedicalHistory: React.FC = () => {
           )}
           
           <Descriptions.Item label="Phụ huynh đã được thông báo">
-            <Tag color={record.parent_notified ? 'green' : 'red'}>
-              {record.parent_notified ? 'Đã thông báo' : 'Chưa thông báo'}
+            <Tag color={record.parent_notified.status ? 'green' : 'red'}>
+              {record.parent_notified.status ? 'Đã thông báo' : 'Chưa thông báo'}
             </Tag>
           </Descriptions.Item>
           <Descriptions.Item label="Thời gian thông báo">
-            {record.notification_sent_at ? 
-              new Date(record.notification_sent_at).toLocaleString('vi-VN') : 
+            {record.parent_notified.time ? 
+              new Date(record.parent_notified.time).toLocaleString('vi-VN') : 
               'Chưa thông báo'
             }
           </Descriptions.Item>
+          {record.parent_notified.method && (
+            <Descriptions.Item label="Phương thức thông báo">
+              {record.parent_notified.method}
+            </Descriptions.Item>
+          )}
+          
+          <Descriptions.Item label="Người tạo">
+            {record.created_by}
+          </Descriptions.Item>
+          <Descriptions.Item label="Thời gian tạo">
+            {new Date(record.createdAt).toLocaleString('vi-VN')}
+          </Descriptions.Item>
+          
+          {record.resolved_at && (
+            <Descriptions.Item label="Thời gian giải quyết">
+              {new Date(record.resolved_at).toLocaleString('vi-VN')}
+            </Descriptions.Item>
+          )}
         </Descriptions>
       </div>
     );
@@ -247,13 +273,13 @@ const StudentMedicalHistory: React.FC = () => {
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-green-600">
-                  {medicalEvents.filter(e => e.status === 'resolved').length}
+                  {medicalEvents.filter(e => e.status === 'Resolved').length}
                 </div>
                 <div className="text-sm text-gray-600">Đã giải quyết</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-orange-600">
-                  {medicalEvents.filter(e => e.status === 'in_progress').length}
+                  {medicalEvents.filter(e => e.status === 'In Progress').length}
                 </div>
                 <div className="text-sm text-gray-600">Đang xử lý</div>
               </div>
@@ -298,16 +324,16 @@ const StudentMedicalHistory: React.FC = () => {
           <Card title="Dòng thời gian" className="mt-4">
             <Timeline mode="left">
               {medicalEvents
-                .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                .sort((a, b) => new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime())
                 .slice(0, 10)
                 .map((event) => (
                   <Timeline.Item
                     key={event._id}
                     color={getEventTypeColor(event.event_type)}
-                    label={new Date(event.createdAt).toLocaleDateString('vi-VN')}
+                    label={new Date(event.occurred_at).toLocaleDateString('vi-VN')}
                   >
                     <div>
-                      <Text strong>{event.title}</Text>
+                      <Text strong>{event.title || 'Sự kiện y tế'}</Text>
                       <br />
                       <Text type="secondary">{event.description}</Text>
                       <br />
