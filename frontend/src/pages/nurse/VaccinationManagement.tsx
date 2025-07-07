@@ -1241,7 +1241,7 @@ const VaccinationManagement: React.FC = () => {
       </Tabs>
 
       {/* Create Campaign Modal */}
-     <Modal
+    <Modal
   title="Tạo chiến dịch tiêm chủng mới"
   open={isCreateModalVisible}
   onCancel={() => setIsCreateModalVisible(false)}
@@ -1302,30 +1302,13 @@ const VaccinationManagement: React.FC = () => {
         </Form.Item>
       </Col>
       <Col span={12}>
-       <Form.Item
-  name="consent_deadline"
-  label="Hạn đồng ý của phụ huynh"
-  rules={[
-    { required: true, message: 'Vui lòng chọn hạn đồng ý' },
-    ({ getFieldValue }) => ({
-      validator(_, value) {
-        const range = getFieldValue('date_range');
-        if (!value) return Promise.resolve();
-        if (!range || range.length !== 2) return Promise.resolve();
-        const start = moment.isMoment(range[0]) ? range[0] : moment(range[0]);
-        const end = moment.isMoment(range[1]) ? range[1] : moment(range[1]);
-        if (value.isBefore(start, 'day') || value.isAfter(end, 'day')) {
-          return Promise.reject(
-            new Error('Hạn đồng ý của phụ huynh phải nằm trong Thời gian thực hiện!')
-          );
-        }
-        return Promise.resolve();
-      }
-    })
-  ]}
->
-  <DatePicker style={{ width: '100%' }} />
-</Form.Item>
+        <Form.Item
+          name="consent_deadline"
+          label="Hạn đồng ý của phụ huynh"
+          rules={[{ required: true, message: 'Vui lòng chọn hạn đồng ý' }]}
+        >
+          <DatePicker style={{ width: '100%' }} />
+        </Form.Item>
       </Col>
     </Row>
 
@@ -1402,9 +1385,9 @@ const VaccinationManagement: React.FC = () => {
     </Form.Item>
   </Form>
 </Modal>
-
       {/* Edit Campaign Modal */}
-    <Modal
+    
+<Modal
   title="Chỉnh sửa chiến dịch tiêm chủng"
   open={isEditModalVisible}
   onCancel={() => {
@@ -1421,7 +1404,6 @@ const VaccinationManagement: React.FC = () => {
     form={editForm}
     layout="vertical"
     onFinish={handleUpdateCampaign}
-    
   >
     <Row gutter={16}>
       <Col span={12}>
@@ -1490,24 +1472,21 @@ const VaccinationManagement: React.FC = () => {
         <Form.Item
   name="consent_deadline"
   label="Hạn đồng ý của phụ huynh"
-  dependencies={['date_range']}
   rules={[
     { required: true, message: 'Vui lòng chọn hạn đồng ý' },
     ({ getFieldValue }) => ({
       validator(_, value) {
         const range = getFieldValue('date_range');
-        if (!value) return Promise.resolve();
-        if (!range || range.length !== 2) return Promise.resolve();
-        const start = moment.isMoment(range[0]) ? range[0] : moment(range[0]);
-        const end = moment.isMoment(range[1]) ? range[1] : moment(range[1]);
-        if (value.isBefore(start, 'day') || value.isAfter(end, 'day')) {
-          return Promise.reject(
-            new Error('Hạn đồng ý của phụ huynh phải nằm trong Thời gian thực hiện!')
-          );
+        if (!value || !range || range.length !== 2) return Promise.resolve();
+        if (value.isBefore(moment())) {
+          return Promise.reject(new Error('Hạn đồng ý không được nhỏ hơn ngày hôm nay'));
+        }
+        if (value.isBefore(range[0]) || value.isAfter(range[1])) {
+          return Promise.reject(new Error('Hạn đồng ý phải nằm trong phạm vi thời gian thực hiện'));
         }
         return Promise.resolve();
-      }
-    })
+      },
+    }),
   ]}
 >
   <DatePicker
@@ -1515,6 +1494,7 @@ const VaccinationManagement: React.FC = () => {
     disabledDate={(current) => current && current < moment().startOf('day')}
   />
 </Form.Item>
+
       </Col>
     </Row>
 
@@ -1591,7 +1571,7 @@ const VaccinationManagement: React.FC = () => {
           htmlType="submit"
           loading={loading}
           icon={<EditOutlined />}
-          disabled={loading} // Vô hiệu hóa nút khi đang loading
+          disabled={loading}
         >
           Cập nhật chiến dịch
         </Button>
@@ -1609,6 +1589,7 @@ const VaccinationManagement: React.FC = () => {
     </Form.Item>
   </Form>
 </Modal>
+
 
       {/* Vaccination List Modal */}
     <Modal
