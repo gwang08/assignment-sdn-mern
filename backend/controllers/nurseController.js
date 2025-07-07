@@ -301,6 +301,43 @@ class NurseController {
     }
   }
 
+  static async updateMedicineRequestStatus(req, res, next) {
+    try {
+      const { requestId } = req.params;
+      const { status } = req.body;
+
+      if (!["approved", "rejected", "completed"].includes(status)) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Trạng thái không hợp lệ" });
+      }
+
+      const updatedRequest = await MedicineRequest.findByIdAndUpdate(
+        requestId,
+        {
+          status,
+          approved_at: status === "approved" ? new Date() : undefined,
+          approved_by:
+            status === "approved" && req.user?.name ? req.user.name : undefined,
+        },
+        { new: true }
+      )
+        .populate("student", "first_name last_name class_name")
+        .populate("created_by", "first_name last_name");
+
+      if (!updatedRequest) {
+        return res
+          .status(404)
+          .json({ success: false, message: "Không tìm thấy yêu cầu" });
+      }
+
+      res.json({ success: true, data: updatedRequest });
+    } catch (error) {
+      console.error("Lỗi khi cập nhật trạng thái:", error);
+      res.status(500).json({ success: false, message: "Lỗi server" });
+    }
+  }
+
   static async getMedicineInventory(req, res, next) {
     try {
       const inventory = await MedicineRequest.aggregate([
@@ -1121,13 +1158,11 @@ class NurseController {
       res.status(201).json({ success: true, data: campaign });
     } catch (error) {
       console.error("Error creating campaign:", error);
-      res
-        .status(400)
-        .json({
-          success: false,
-          message: "Failed to create campaign",
-          error: error.message,
-        });
+      res.status(400).json({
+        success: false,
+        message: "Failed to create campaign",
+        error: error.message,
+      });
     }
   }
 
@@ -1151,13 +1186,11 @@ class NurseController {
       res.json({ success: true, data: campaign });
     } catch (error) {
       console.error("Error updating campaign:", error);
-      res
-        .status(400)
-        .json({
-          success: false,
-          message: "Failed to update campaign",
-          error: error.message,
-        });
+      res.status(400).json({
+        success: false,
+        message: "Failed to update campaign",
+        error: error.message,
+      });
     }
   }
 

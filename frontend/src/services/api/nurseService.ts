@@ -9,7 +9,7 @@ import {
   HealthProfile,
   MedicalEventNurse,
   MedicineRequest,
-  StudentParentRelation
+  StudentParentRelation,
 } from "../../types";
 import BaseApiClient from "./baseApi";
 
@@ -39,7 +39,7 @@ class NurseService extends BaseApiClient {
     return response.data;
   }
 
-  async  createMedicalEvent(
+  async createMedicalEvent(
     eventData: Partial<MedicalEventNurse>
   ): Promise<ApiResponse<MedicalEventNurse>> {
     const response: AxiosResponse<ApiResponse<MedicalEventNurse>> =
@@ -57,15 +57,13 @@ class NurseService extends BaseApiClient {
   }
 
   async resolveMedicalEvent(
-  eventId: string,
-  data: Partial<MedicalEventNurse>
-): Promise<ApiResponse<MedicalEventNurse>> {
-  const response: AxiosResponse<ApiResponse<MedicalEventNurse>> = await this.api.put(
-    `/nurse/medical-events/${eventId}/resolve`,
-    data
-  );
-  return response.data;
-}
+    eventId: string,
+    data: Partial<MedicalEventNurse>
+  ): Promise<ApiResponse<MedicalEventNurse>> {
+    const response: AxiosResponse<ApiResponse<MedicalEventNurse>> =
+      await this.api.put(`/nurse/medical-events/${eventId}/resolve`, data);
+    return response.data;
+  }
 
   // Medicine Requests
   async getMedicineRequests(): Promise<ApiResponse<MedicineRequest[]>> {
@@ -74,14 +72,28 @@ class NurseService extends BaseApiClient {
     return response.data;
   }
 
+  async getNurseMedicineRequests(): Promise<MedicineRequest[]> {
+    const response: AxiosResponse<MedicineRequest[]> = await this.api.get(
+      "/nurse/medicine-requests"
+    );
+
+    if (Array.isArray(response.data)) {
+      return response.data;
+    } else {
+      throw new Error("Lỗi khi lấy dữ liệu");
+    }
+  }
+
   async updateMedicineRequestStatus(
     requestId: string,
-    status: string
+    payload: { status: string; notes?: string }
   ): Promise<ApiResponse<MedicineRequest>> {
     const response: AxiosResponse<ApiResponse<MedicineRequest>> =
-      await this.api.put(`/nurse/medicine-requests/${requestId}/status`, {
-        status,
-      });
+      await this.api.put(
+        `/nurse/medicine-requests/${requestId}/status`,
+        payload
+      );
+
     return response.data;
   }
 

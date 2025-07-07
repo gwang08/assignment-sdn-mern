@@ -371,6 +371,7 @@ router.put(
 /* Medicine & Supplies Management Routes */
 router.get("/medicine-requests", NurseController.getMedicineRequests);
 router.get("/medicine-inventory", NurseController.getMedicineInventory);
+router.put("/medicine-requests/:requestId/status", NurseController.updateMedicineRequestStatus);
 
 /* General Campaign Management Routes */
 router.get("/campaigns", authenticateMedicalStaff, NurseController.getCampaigns);
