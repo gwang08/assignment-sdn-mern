@@ -130,11 +130,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           icon: <SafetyOutlined />,
           label: 'Quản lý tiêm chủng',
         },
-        {
-          key: '/nurse/consultations',
-          icon: <UserOutlined />,
-          label: 'Lịch tư vấn',
-        },
+       
       ];
     }
 

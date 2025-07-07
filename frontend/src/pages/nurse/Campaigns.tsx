@@ -41,7 +41,8 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import { nurseService } from '../../services/api';
 import { Campaign, CampaignConsent, CampaignResult } from '../../types';
-
+import dayjs from 'dayjs';
+import { Table as AntTable } from 'antd';
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 const { Option } = Select;
@@ -60,8 +61,12 @@ const CampaignsPage: React.FC = () => {
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
   const [activeTab, setActiveTab] = useState('campaigns');
   const [form] = Form.useForm();
+  const requiresConsent = Form.useWatch('requires_consent', form);
+const dateRange = Form.useWatch('date_range', form);
   const [availableClasses, setAvailableClasses] = useState<string[]>([]);
   const [loadingClasses, setLoadingClasses] = useState(false);
+  const [isConsultationScheduleModalVisible, setIsConsultationScheduleModalVisible] = useState(false);
+const [consultationSchedules, setConsultationSchedules] = useState<any[]>([]);
 
   // Consultation progress state for each campaign
   const [consultationProgress, setConsultationProgress] = useState<{ [key: string]: { completed: number, total: number, percentage: number } }>({});
@@ -92,6 +97,29 @@ const CampaignsPage: React.FC = () => {
     };
     loadData();
   }, []);
+
+  const handleViewConsultationSchedules = async (campaign: Campaign) => {
+  setSelectedCampaign(campaign);
+  setIsConsultationScheduleModalVisible(true);
+  setLoading(true);
+  try {
+    const res = await nurseService.getConsultationSchedules();
+    let data = Array.isArray(res) ? res : res?.data || [];
+    // Lọc lịch tư vấn thuộc campaign này
+    data = data.filter((item: any) => {
+      if (item.campaignResult && typeof item.campaignResult === 'object' && item.campaignResult.campaign) {
+        return (typeof item.campaignResult.campaign === 'object'
+          ? item.campaignResult.campaign._id
+          : item.campaignResult.campaign) === campaign._id;
+      }
+      return false;
+    });
+    setConsultationSchedules(data);
+  } catch (e) {
+    setConsultationSchedules([]);
+  }
+  setLoading(false);
+};
 
   const loadAvailableClasses = async (silent = false) => {
     try {
@@ -220,38 +248,51 @@ const CampaignsPage: React.FC = () => {
   };
 
   const handleCreateCampaign = () => {
-    setEditingCampaign(null);
-    form.resetFields();
-    // Set default values for new campaign
+  setEditingCampaign(null);
+  form.resetFields();
+  setIsModalVisible(true);
+
+  // Set default values after modal open
+  setTimeout(() => {
     form.setFieldsValue({
       campaign_type: 'health_check',
       status: 'draft',
       requires_consent: true,
       target_classes: [],
-      date_range: [moment().add(1, 'day'), moment().add(7, 'days')] // Default to tomorrow to next week
+      date_range: [moment().add(1, 'day'), moment().add(7, 'days')]
     });
-    setIsModalVisible(true);
-  };
+  }, 0);
+};
+
 
   const handleEditCampaign = (campaign: Campaign) => {
-    setEditingCampaign(campaign);
-    form.setFieldsValue({
-      ...campaign,
-      date_range: campaign.start_date && campaign.end_date ? [moment(campaign.start_date), moment(campaign.end_date)] : null,
-      consent_deadline: campaign.consent_deadline ? moment(campaign.consent_deadline) : null,
-      target_groups: campaign.target_classes
-    });
-    setIsModalVisible(true);
-  };
+  setEditingCampaign(campaign);
+  form.setFieldsValue({
+  ...campaign,
+  date_range: campaign.start_date && campaign.end_date
+    ? [moment(campaign.start_date), moment(campaign.end_date)]
+    : null,
+  consent_deadline: campaign.consent_deadline ? moment(campaign.consent_deadline) : null,
+  target_groups: campaign.target_classes
+});
+  setIsModalVisible(true);
+  // Bắt validate lại hạn đồng ý
+  setTimeout(() => {
+    form.validateFields(['consent_deadline']);
+  }, 0);
+};
 
   const handleViewCampaign = async (campaign: Campaign) => {
     setSelectedCampaign(campaign);
     await loadCampaignDetails(campaign._id);
+    await form.validateFields();
     setIsDetailDrawerVisible(true);
   };
 
   const handleSubmit = async (values: any) => {
     try {
+       await form.validateFields(); // Bắt validate lại toàn bộ form, kể cả khi chưa thay đổi trường nào
+    const values = form.getFieldsValue();
       // Validate date range
       if (!values.date_range || values.date_range.length !== 2) {
         message.error('Vui lòng chọn khoảng thời gian hợp lệ');
@@ -470,6 +511,15 @@ const CampaignsPage: React.FC = () => {
             >
               Gửi & Hẹn
             </Button>
+            <Button
+  icon={<EyeOutlined />}
+  onClick={() => handleViewConsultationSchedules(record)}
+  title="Xem lịch tư vấn"
+  size="small"
+  style={{ marginLeft: 4 }}
+>
+  Xem lịch tư vấn
+</Button>
           </Space>
         </Space>
       ),
@@ -1022,19 +1072,23 @@ Y tế trường học`
         });
 
         // Filter out students who already have consultation schedules for THIS campaign
-        const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResult) => {
-          let studentId;
-          if (typeof result.student === 'object' && (result.student as any)._id) {
-            studentId = (result.student as any)._id;
-          } else if (typeof result.student === 'string') {
-            studentId = result.student;
-          } else {
-            return false; // Skip this result if we can't get the student ID
-          }
+        const scheduledResultIds = new Set();
+existingConsultations.forEach((consultation: any) => {
+  let campaignResultId = null;
+  if (consultation.campaignResult && typeof consultation.campaignResult === 'object') {
+    campaignResultId = consultation.campaignResult._id;
+  } else if (typeof consultation.campaignResult === 'string') {
+    campaignResultId = consultation.campaignResult;
+  }
+  if (campaignResultId) {
+    scheduledResultIds.add(campaignResultId);
+  }
+});
 
-          const hasSchedule = studentsWithConsultations.has(studentId);
-          return !hasSchedule;
-        });
+// Lọc ra các kết quả khám bất thường chưa có lịch tư vấn (theo campaignResult)
+const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResult) => {
+  return !scheduledResultIds.has(result._id);
+});
 
 
 
@@ -1283,20 +1337,23 @@ Y tế trường học`
         });
 
         // Filter out students who already have consultation schedules for THIS campaign
-        const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResult) => {
-          let studentId;
-          if (typeof result.student === 'object' && (result.student as any)._id) {
-            studentId = (result.student as any)._id;
-          } else if (typeof result.student === 'string') {
-            studentId = result.student;
-          } else {
-            return false; // Skip this result if we can't get the student ID
-          }
+        const scheduledResultIds = new Set();
+existingConsultations.forEach((consultation: any) => {
+  let campaignResultId = null;
+  if (consultation.campaignResult && typeof consultation.campaignResult === 'object') {
+    campaignResultId = consultation.campaignResult._id;
+  } else if (typeof consultation.campaignResult === 'string') {
+    campaignResultId = consultation.campaignResult;
+  }
+  if (campaignResultId) {
+    scheduledResultIds.add(campaignResultId);
+  }
+});
 
-          const hasSchedule = studentsWithConsultations.has(studentId);
-          return !hasSchedule;
-        });
-
+// Lọc ra các kết quả khám bất thường chưa có lịch tư vấn (theo campaignResult)
+const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResult) => {
+  return !scheduledResultIds.has(result._id);
+});
 
         // Only include students who need to book a consultation (unscheduled students)
         const studentsNeedingConsultation: Array<{ 
@@ -1564,6 +1621,7 @@ Y tế trường học`
         setExamResults([...examResults, newResult]);
         message.success('Đã lưu kết quả khám thành công');
         examForm.resetFields();
+        setIsExamResultModalVisible(false);
 
         // Refresh the results data
         if (selectedCampaign) {
@@ -1698,23 +1756,24 @@ Y tế trường học`
       </Card>
 
       {/* Create/Edit Modal */}
-      <Modal
-        title={editingCampaign ? 'Chỉnh sửa chiến dịch' : 'Tạo chiến dịch mới'}
-        open={isModalVisible}
-        onCancel={() => {
-          setIsModalVisible(false);
-          form.resetFields();
-          setEditingCampaign(null);
-        }}
-        footer={null}
-        width={800}
-        destroyOnClose
-        maskClosable={false}
-      >
+     <Modal
+  title={editingCampaign ? 'Chỉnh sửa chiến dịch' : 'Tạo chiến dịch mới'}
+  open={isModalVisible}
+  onCancel={() => {
+    setIsModalVisible(false);
+    form.resetFields();
+    setEditingCampaign(null);
+  }}
+  footer={null}
+  width={800}
+  destroyOnClose
+  maskClosable={false}
+>
         <Form
           form={form}
           layout="vertical"
           onFinish={handleSubmit}
+           validateTrigger="onSubmit"
         >
           <Row gutter={16}>
             <Col span={12}>
@@ -1734,18 +1793,7 @@ Y tế trường học`
                 />
               </Form.Item>
             </Col>
-            <Col span={12}>
-              <Form.Item
-                name="campaign_type"
-                label="Loại chiến dịch"
-                rules={[{ required: true, message: 'Vui lòng chọn loại chiến dịch' }]}
-              >
-                <Select placeholder="Chọn loại chiến dịch">
-                  <Option value="vaccination">Tiêm phòng</Option>
-                  <Option value="health_check">Khám sức khỏe</Option>
-                </Select>
-              </Form.Item>
-            </Col>
+            
           </Row>
 
           <Form.Item
@@ -1770,6 +1818,7 @@ Y tế trường học`
               <Form.Item
                 name="date_range"
                 label="Thời gian thực hiện"
+                 preserve={false}
                 rules={[
                   { required: true, message: 'Vui lòng chọn thời gian' },
                   {
@@ -1788,18 +1837,12 @@ Y tế trường học`
                   }
                 ]}
               >
-                <RangePicker
-                  style={{ width: '100%' }}
-                  disabledDate={(current) => {
-                    // Only disable past dates for new campaigns
-                    if (!current) return false;
-                    const today = moment().startOf('day');
-                    const currentMoment = moment(current.toDate());
-                    return !editingCampaign && currentMoment.isBefore(today);
-                  }}
-                  showTime={{ format: 'HH:mm' }}
-                  format="DD/MM/YYYY HH:mm"
-                />
+              <RangePicker
+  style={{ width: '100%' }}
+  disabledDate={(current) => {
+    return current && current < dayjs().startOf('day');
+  }}
+/>
               </Form.Item>
             </Col>
             <Col span={12}>
@@ -1886,23 +1929,49 @@ Y tế trường học`
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item
-                name="consent_deadline"
-                label="Hạn cuối đồng ý"
-                tooltip="Ngày hạn cuối để phụ huynh gửi đồng ý tham gia"
-                dependencies={['requires_consent']}
-              >
-                <DatePicker
-                  style={{ width: '100%' }}
-                  placeholder="Chọn hạn cuối đồng ý"
-                  disabledDate={(current) => {
-                    if (!current) return false;
-                    const today = moment().startOf('day');
-                    const currentMoment = moment(current.toDate());
-                    return currentMoment.isBefore(today);
-                  }}
-                />
-              </Form.Item>
+             <Form.Item
+  name="consent_deadline"
+  label="Hạn cuối đồng ý"
+  preserve={false}
+  tooltip="Ngày hạn cuối để phụ huynh gửi đồng ý tham gia"
+  dependencies={['requires_consent', 'date_range']}
+  rules={[
+    ({ getFieldValue }) => ({
+      validator(_, value) {
+        const required = getFieldValue('requires_consent');
+        const range = getFieldValue('date_range');
+
+        if (!required) return Promise.resolve();
+
+        if (!value) {
+          return Promise.reject(new Error('Vui lòng chọn hạn cuối đồng ý'));
+        }
+
+        if (!range || range.length !== 2) {
+          return Promise.reject(new Error('Vui lòng chọn thời gian thực hiện trước'));
+        }
+
+        if (value.isBefore(range[0]) || value.isAfter(range[1])) {
+          return Promise.reject(new Error('Hạn cuối đồng ý phải nằm trong thời gian thực hiện'));
+        }
+
+        return Promise.resolve();
+      }
+    })
+  ]}
+>
+  <DatePicker
+    style={{ width: '100%' }}
+    placeholder="Chọn hạn cuối đồng ý"
+    disabled={form.getFieldValue('requires_consent') === false}
+    disabledDate={(current) => {
+      const today = dayjs().startOf('day');
+      return current && current < today;
+    }}
+  />
+</Form.Item>
+
+
             </Col>
           </Row>
 
@@ -2310,13 +2379,18 @@ Y tế trường học`
                 </Col>
                 <Col span={12}>
                   <Form.Item
-                    name="examDate"
-                    label="Ngày khám"
-                    rules={[{ required: true, message: 'Vui lòng chọn ngày khám' }]}
-                    initialValue={moment()}
-                  >
-                    <DatePicker style={{ width: '100%' }} />
-                  </Form.Item>
+  name="examDate"
+  label="Ngày khám"
+  rules={[{ required: true, message: 'Vui lòng chọn ngày khám' }]}
+  initialValue={dayjs()}
+>
+  <DatePicker
+    style={{ width: '100%' }}
+    disabledDate={(current) => {
+      return current && current < dayjs().startOf('day');
+    }}
+  />
+</Form.Item>
                 </Col>
               </Row>
 
@@ -2540,23 +2614,49 @@ Y tế trường học`
         >
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item
-                name="scheduledDate"
-                label="Ngày và giờ tư vấn"
-                rules={[{ required: true, message: 'Vui lòng chọn ngày tư vấn' }]}
-              >
-                <DatePicker
-                  showTime
-                  style={{ width: '100%' }}
-                  placeholder="Chọn ngày và giờ"
-                  disabledDate={(current) => {
-                    if (!current) return false;
-                    const today = moment().startOf('day');
-                    const currentMoment = moment(current.toDate());
-                    return currentMoment.isBefore(today);
-                  }}
-                />
-              </Form.Item>
+              import dayjs from 'dayjs';
+
+<Form.Item
+  name="scheduledDate"
+  label="Ngày và giờ tư vấn"
+  rules={[{ required: true, message: 'Vui lòng chọn ngày tư vấn' }]}
+>
+  <DatePicker
+    showTime={{
+      format: 'HH:mm',
+      defaultValue: dayjs('09:00', 'HH:mm'),
+    }}
+    format="DD/MM/YYYY HH:mm"
+    style={{ width: '100%' }}
+    placeholder="Chọn ngày và giờ"
+    disabledDate={(current) => {
+      // Không cho chọn ngày trước hôm nay
+      return current && current < dayjs().startOf('day');
+    }}
+    disabledTime={(current) => {
+  if (!current) return {};
+
+  const now = dayjs();
+  const selectedDate = dayjs(current);
+
+  if (selectedDate.isSame(now, 'day')) {
+    const disabledHours = Array.from({ length: now.hour() }, (_, i) => i);
+    const disabledMinutes = (selectedHour: number) =>
+      selectedHour === now.hour()
+        ? Array.from({ length: now.minute() }, (_, i) => i)
+        : [];
+
+    return {
+      disabledHours: () => disabledHours,
+      disabledMinutes,
+    };
+  }
+
+  return {};
+}}
+  />
+</Form.Item>
+
             </Col>
             <Col span={12}>
               <Form.Item
@@ -2623,6 +2723,53 @@ Y tế trường học`
 
         </div>
       </Modal>
+      <Modal
+  title={`Lịch tư vấn - ${selectedCampaign?.title || ''}`}
+  open={isConsultationScheduleModalVisible}
+  onCancel={() => setIsConsultationScheduleModalVisible(false)}
+  footer={null}
+  width={700}
+>
+  <AntTable
+    dataSource={consultationSchedules}
+    rowKey="_id"
+    columns={[
+      {
+        title: 'Học sinh',
+        dataIndex: ['student', 'first_name'],
+        render: (_, r) =>
+          r.student
+            ? `${r.student.first_name || ''} ${r.student.last_name || ''}`
+            : 'N/A',
+      },
+      {
+        title: 'Thời gian',
+        dataIndex: 'scheduledDate',
+        render: (d, r) =>
+          `${moment(d).format('DD/MM/YYYY HH:mm')} - ${moment(d).add(r.duration || 30, 'minutes').format('HH:mm')}`,
+      },
+      {
+  title: 'Phụ huynh',
+  dataIndex: ['attending_parent', 'first_name'],
+  render: (_, r) => {
+    if (r.attending_parent && typeof r.attending_parent === 'object') {
+      return `${r.attending_parent.first_name || ''} ${r.attending_parent.last_name || ''}`.trim() || 'N/A';
+    }
+    if (typeof r.attending_parent === 'string') {
+      return r.attending_parent; // Hiển thị ID nếu không có object
+    }
+    return 'N/A';
+  }
+},
+      {
+        title: 'Ghi chú',
+        dataIndex: 'notes',
+      },
+    ]}
+    pagination={false}
+    locale={{ emptyText: 'Chưa có lịch tư vấn nào cho chiến dịch này.' }}
+  />
+</Modal>
     </div>
   );
 };

@@ -49,6 +49,7 @@ import type { ColumnsType } from 'antd/es/table';
 import moment from 'moment';
 import apiService from '../../services/api';
 import { Campaign, CampaignConsent, CampaignResult, HealthProfile } from '../../types';
+import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -109,6 +110,7 @@ const VaccinationManagement: React.FC = () => {
   const [availableClasses, setAvailableClasses] = useState<string[]>([]);
   const [loadingClasses, setLoadingClasses] = useState(false);
   
+  
   // Modals
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
@@ -127,6 +129,25 @@ const VaccinationManagement: React.FC = () => {
   const [currentStudent, setCurrentStudent] = useState<any>(null);
   const [selectedVaccinationRecord, setSelectedVaccinationRecord] = useState<VaccinationRecord | null>(null);
   const [activeTab, setActiveTab] = useState('campaigns');
+
+  useEffect(() => {
+  if (editingCampaign) {
+    editForm.setFieldsValue({
+      title: editingCampaign.title || '',
+      description: editingCampaign.description || '',
+      date_range: editingCampaign.start_date && editingCampaign.end_date
+        ? [dayjs(editingCampaign.start_date), dayjs(editingCampaign.end_date)]
+        : [],
+      consent_deadline: editingCampaign.consent_deadline ? dayjs(editingCampaign.consent_deadline) : null,
+      target_classes: editingCampaign.target_classes || [],
+      instructions: editingCampaign.instructions || '',
+      vaccine_brand: editingCampaign.vaccineDetails?.brand || '',
+      batch_number: editingCampaign.vaccineDetails?.batchNumber || '',
+      dosage: editingCampaign.vaccineDetails?.dosage || '',
+      status: editingCampaign.status || 'draft',
+    });
+  }
+}, [editingCampaign, editForm]);
 
   useEffect(() => {
     loadVaccinationCampaigns();
@@ -338,38 +359,52 @@ const VaccinationManagement: React.FC = () => {
     }
   };
 
-  const handleCreateCampaign = async (values: any) => {
-    try {
-      const campaignData = {
-        title: values.title,
-        description: values.description,
-        start_date: values.date_range[0].toDate(),
-        end_date: values.date_range[1].toDate(),
-        target_classes: values.target_classes,
-        requires_consent: true,
-        consent_deadline: values.consent_deadline?.toDate(),
-        instructions: values.instructions,
-        vaccineDetails: {
-          brand: values.vaccine_brand,
-          batchNumber: values.batch_number,
-          dosage: values.dosage
-        }
-      };
+ const handleCreateCampaign = async (values: any) => {
+  try {
+    const startDate = values.date_range[0];
+    const endDate = values.date_range[1];
+    const consentDeadline = values.consent_deadline;
 
-      const response = await apiService.createVaccinationCampaign(campaignData);
-      if (response.success) {
-        message.success('Tạo chiến dịch tiêm chủng thành công');
-        setIsCreateModalVisible(false);
-        createForm.resetFields();
-        loadVaccinationCampaigns();
-      } else {
-        message.error(response.message || 'Có lỗi xảy ra');
-      }
-    } catch (error) {
-      console.error('Error creating vaccination campaign:', error);
-      message.error('Có lỗi xảy ra khi tạo chiến dịch');
+    if (consentDeadline.isBefore(startDate) || consentDeadline.isAfter(endDate)) {
+      createForm.setFields([
+        {
+          name: 'consent_deadline',
+          errors: ['Hạn đồng ý của phụ huynh phải nằm trong khoảng thời gian thực hiện.'],
+        },
+      ]);
+      return;
     }
-  };
+
+    const campaignData = {
+      title: values.title,
+      description: values.description,
+      start_date: startDate.toDate(),
+      end_date: endDate.toDate(),
+      target_classes: values.target_classes,
+      requires_consent: true,
+      consent_deadline: consentDeadline?.toDate(),
+      instructions: values.instructions,
+      vaccineDetails: {
+        brand: values.vaccine_brand,
+        batchNumber: values.batch_number,
+        dosage: values.dosage,
+      },
+    };
+
+    const response = await apiService.createVaccinationCampaign(campaignData);
+    if (response.success) {
+      message.success('Tạo chiến dịch tiêm chủng thành công');
+      setIsCreateModalVisible(false);
+      createForm.resetFields();
+      loadVaccinationCampaigns();
+    } else {
+      message.error(response.message || 'Có lỗi xảy ra');
+    }
+  } catch (error) {
+    console.error('Error creating vaccination campaign:', error);
+    message.error('Có lỗi xảy ra khi tạo chiến dịch');
+  }
+};
 
   const handleEditCampaign = (campaign: Campaign) => {
     setEditingCampaign(campaign);
@@ -472,47 +507,57 @@ const VaccinationManagement: React.FC = () => {
   };
 
   const handleRecordVaccination = async (values: any) => {
-    try {
-      const recordData = {
-        student_id: currentStudent._id,
-        vaccinated_at: values.vaccinated_at.toDate(),
-        vaccine_details: {
-          brand: values.vaccine_brand,
-          batch_number: values.batch_number,
-          dose_number: values.dose_number,
-          expiry_date: values.expiry_date.toDate()
-        },
-        administered_by: values.administered_by,
-        side_effects: values.side_effects || [],
-        follow_up_required: values.follow_up_required,
-        follow_up_date: values.follow_up_date?.toDate(),
-        notes: values.notes || ''
-      };
-
-      console.log('Recording vaccination data:', recordData); // Debug log
-
-      const response = await apiService.recordVaccination(selectedCampaign!._id, recordData);
-      
-      console.log('Record vaccination response:', response); // Debug log
-      
-      if (response.success) {
-        message.success('Ghi nhận kết quả tiêm chủng thành công!');
-        setIsRecordModalVisible(false);
-        recordForm.resetFields();
-        setCurrentStudent(null);
-        
-        // Reload vaccination list to show updated data
-        if (selectedCampaign) {
-          await loadVaccinationList(selectedCampaign._id);
-        }
-      } else {
-        message.error(response.message || 'Có lỗi xảy ra khi ghi nhận kết quả tiêm chủng');
-      }
-    } catch (error) {
-      console.error('Error recording vaccination:', error);
-      message.error('Có lỗi xảy ra khi ghi nhận kết quả');
+  try {
+    // Kiểm tra nếu đã quá hạn đồng ý của phụ huynh
+    if (selectedCampaign?.consent_deadline && moment().isAfter(moment(selectedCampaign.consent_deadline))) {
+      notification.error({
+        message: 'Không thể ghi nhận',
+        description: 'Hạn đồng ý của phụ huynh đã qua, không thể ghi nhận kết quả tiêm chủng',
+        duration: 4
+      });
+      return;
     }
-  };
+
+    const recordData = {
+      student_id: currentStudent._id,
+      vaccinated_at: values.vaccinated_at.toDate(),
+      vaccine_details: {
+        brand: values.vaccine_brand,
+        batch_number: values.batch_number,
+        dose_number: values.dose_number,
+        expiry_date: values.expiry_date.toDate()
+      },
+      administered_by: values.administered_by,
+      side_effects: values.side_effects || [],
+      follow_up_required: values.follow_up_required,
+      follow_up_date: values.follow_up_date?.toDate(),
+      notes: values.notes || ''
+    };
+
+    console.log('Recording vaccination data:', recordData); // Debug log
+
+    const response = await apiService.recordVaccination(selectedCampaign!._id, recordData);
+
+    console.log('Record vaccination response:', response); // Debug log
+
+    if (response.success) {
+      message.success('Ghi nhận kết quả tiêm chủng thành công!');
+      setIsRecordModalVisible(false);
+      recordForm.resetFields();
+      setCurrentStudent(null);
+
+      // Reload vaccination list to show updated data
+      if (selectedCampaign) {
+        await loadVaccinationList(selectedCampaign._id);
+      }
+    } else {
+      message.error(response.message || 'Có lỗi xảy ra khi ghi nhận kết quả tiêm chủng');
+    }
+  } catch (error) {
+    console.error('Error recording vaccination:', error);
+    message.error('Có lỗi xảy ra khi ghi nhận kết quả');
+  }
+};
 
   const handleFollowUp = async (values: any) => {
     try {
@@ -841,83 +886,94 @@ const VaccinationManagement: React.FC = () => {
       }
     },
     {
-      title: 'Thao tác',
-      key: 'actions',
-      render: (_, record: any) => {
-        const isVaccinated = vaccinationList?.vaccinated_students.find(
-          v => {
-            const studentId = v.student?._id || v.student;
-            const recordId = record._id;
-            return studentId === recordId;
-          }
-        );
-        
-        // Check consent status for this student
-        const consent = consentData.find((c: any) => {
-          const studentId = typeof c.student === 'object' ? c.student._id : c.student;
-          return studentId === record._id;
-        });
-        
-        const hasApprovedConsent = consent && consent.status === 'Approved';
-        
-        // Check if follow-up is needed and not yet completed
-        const followUpRequired = isVaccinated?.vaccination_details?.follow_up_required || isVaccinated?.follow_up_required;
-        const hasFollowUpNotes = (isVaccinated as any)?.vaccination_details?.follow_up_notes;
-        const lastFollowUp = (isVaccinated as any)?.vaccination_details?.last_follow_up;
-        const isFollowUpCompleted = hasFollowUpNotes && lastFollowUp;
-        
-        const needsFollowUp = followUpRequired && !isFollowUpCompleted;
-        
-        return (
-          <Space>
-            {!isVaccinated ? (
-              <Tooltip 
-                title={!hasApprovedConsent ? "Cần có sự đồng ý của phụ huynh trước khi tiêm chủng" : ""}
-              >
-                <Button
-                  icon={<MedicineBoxOutlined />}
-                  onClick={() => handleOpenRecordModal(record)}
-                  type="primary"
-                  size="small"
-                  disabled={!hasApprovedConsent}
-                >
-                  Ghi nhận tiêm
-                </Button>
-              </Tooltip>
-            ) : (
-              <Button
-                icon={<EyeOutlined />}
-                onClick={() => {
-                  setCurrentStudent(record);
-                  setSelectedVaccinationRecord(isVaccinated);
-                  setIsDetailModalVisible(true);
-                }}
-                size="small"
-              >
-                Xem kết quả
-              </Button>
-            )}
-            {needsFollowUp && (
-              <Button
-                icon={<WarningOutlined />}
-                onClick={() => {
-                  setCurrentStudent({
-                    ...record,
-                    vaccination_record_id: isVaccinated?._id
-                  });
-                  setSelectedVaccinationRecord(isVaccinated);
-                  setIsFollowUpModalVisible(true);
-                }}
-                type="dashed"
-                size="small"
-              >
-                Theo dõi
-              </Button>
-            )}
-          </Space>
-        );
+  title: 'Thao tác',
+  key: 'actions',
+  render: (_, record: any) => {
+    const isVaccinated = vaccinationList?.vaccinated_students.find(
+      v => {
+        const studentId = v.student?._id || v.student;
+        const recordId = record._id;
+        return studentId === recordId;
       }
-    }
+    );
+
+    // Check consent status for this student
+    const consent = consentData.find((c: any) => {
+      const studentId = typeof c.student === 'object' ? c.student._id : c.student;
+      return studentId === record._id;
+    });
+
+    const hasApprovedConsent = consent && consent.status === 'Approved';
+
+    // Check if consent deadline has passed
+    const consentDeadlinePassed = selectedCampaign?.consent_deadline
+      ? moment().isAfter(moment(selectedCampaign.consent_deadline))
+      : false;
+
+    // Check if follow-up is needed and not yet completed
+    const followUpRequired = isVaccinated?.vaccination_details?.follow_up_required || isVaccinated?.follow_up_required;
+    const hasFollowUpNotes = (isVaccinated as any)?.vaccination_details?.follow_up_notes;
+    const lastFollowUp = (isVaccinated as any)?.vaccination_details?.last_follow_up;
+    const isFollowUpCompleted = hasFollowUpNotes && lastFollowUp;
+
+    const needsFollowUp = followUpRequired && !isFollowUpCompleted;
+
+    return (
+      <Space>
+        {!isVaccinated ? (
+          <Tooltip
+            title={
+              consentDeadlinePassed
+                ? "Hạn đồng ý của phụ huynh đã qua"
+                : !hasApprovedConsent
+                ? "Cần có sự đồng ý của phụ huynh trước khi tiêm chủng"
+                : ""
+            }
+          >
+            <Button
+  icon={<MedicineBoxOutlined />}
+  onClick={() => handleOpenRecordModal(record)}
+  type="primary"
+  size="small"
+  disabled={consentDeadlinePassed || !hasApprovedConsent}
+>
+  Ghi nhận tiêm
+</Button>
+          </Tooltip>
+        ) : (
+          <Button
+            icon={<EyeOutlined />}
+            onClick={() => {
+              setCurrentStudent(record);
+              setSelectedVaccinationRecord(isVaccinated);
+              setIsDetailModalVisible(true);
+            }}
+            size="small"
+          >
+            Xem kết quả
+          </Button>
+        )}
+        {needsFollowUp && (
+          <Button
+            icon={<WarningOutlined />}
+            onClick={() => {
+              setCurrentStudent({
+                ...record,
+                vaccination_record_id: isVaccinated?._id
+              });
+              setSelectedVaccinationRecord(isVaccinated);
+              setIsFollowUpModalVisible(true);
+            }}
+            type="dashed"
+            size="small"
+          >
+            Theo dõi
+          </Button>
+        )}
+      </Space>
+    );
+  }
+}
   ];
 
   return (
@@ -1185,369 +1241,405 @@ const VaccinationManagement: React.FC = () => {
       </Tabs>
 
       {/* Create Campaign Modal */}
-      <Modal
-        title="Tạo chiến dịch tiêm chủng mới"
-        open={isCreateModalVisible}
-        onCancel={() => setIsCreateModalVisible(false)}
-        footer={null}
-        width={800}
-      >
-        <Form form={createForm} layout="vertical" onFinish={handleCreateCampaign}>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="title"
-                label="Tên chiến dịch"
-                rules={[{ required: true, message: 'Vui lòng nhập tên chiến dịch' }]}
-              >
-                <Input placeholder="VD: Tiêm chủng HPV cho học sinh lớp 6" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="vaccine_brand"
-                label="Tên vaccine"
-                rules={[{ required: true, message: 'Vui lòng nhập tên vaccine' }]}
-              >
-                <Input placeholder="VD: Gardasil 9" />
-              </Form.Item>
-            </Col>
-          </Row>
+     <Modal
+  title="Tạo chiến dịch tiêm chủng mới"
+  open={isCreateModalVisible}
+  onCancel={() => setIsCreateModalVisible(false)}
+  footer={null}
+  width={800}
+>
+  <Form form={createForm} layout="vertical" onFinish={handleCreateCampaign}>
+    <Row gutter={16}>
+      <Col span={12}>
+        <Form.Item
+          name="title"
+          label="Tên chiến dịch"
+          rules={[
+            { required: true, message: 'Vui lòng nhập tên chiến dịch' },
+            { min: 5, message: 'Tên chiến dịch phải có ít nhất 5 ký tự' },
+            { max: 100, message: 'Tên chiến dịch không được quá 100 ký tự' }
+          ]}
+        >
+          <Input placeholder="VD: Tiêm chủng HPV cho học sinh lớp 6" showCount maxLength={100} />
+        </Form.Item>
+      </Col>
+      <Col span={12}>
+        <Form.Item
+          name="vaccine_brand"
+          label="Tên vaccine"
+          rules={[{ required: true, message: 'Vui lòng nhập tên vaccine' }]}
+        >
+          <Input placeholder="VD: Gardasil 9" />
+        </Form.Item>
+      </Col>
+    </Row>
 
-          <Form.Item
-            name="description"
-            label="Mô tả"
-            rules={[{ required: true, message: 'Vui lòng nhập mô tả' }]}
-          >
-            <TextArea rows={3} placeholder="Mô tả về chiến dịch tiêm chủng..." />
-          </Form.Item>
+    <Form.Item
+      name="description"
+      label="Mô tả"
+      rules={[
+        { required: true, message: 'Vui lòng nhập mô tả' },
+        { min: 10, message: 'Mô tả phải có ít nhất 10 ký tự' },
+        { max: 500, message: 'Mô tả không được quá 500 ký tự' }
+      ]}
+    >
+      <TextArea rows={3} placeholder="Mô tả về chiến dịch tiêm chủng..." showCount maxLength={500} />
+    </Form.Item>
 
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="date_range"
-                label="Thời gian thực hiện"
-                rules={[{ required: true, message: 'Vui lòng chọn thời gian' }]}
-              >
-                <RangePicker style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="consent_deadline"
-                label="Hạn đồng ý của phụ huynh"
-                rules={[{ required: true, message: 'Vui lòng chọn hạn đồng ý' }]}
-              >
-                <DatePicker style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item
-                name="batch_number"
-                label="Số lô"
-                rules={[{ required: true, message: 'Vui lòng nhập số lô' }]}
-              >
-                <Input placeholder="VD: LOT001" />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item
-                name="dosage"
-                label="Liều lượng"
-                rules={[{ required: true, message: 'Vui lòng nhập liều lượng' }]}
-              >
-                <Input placeholder="VD: 0.5ml" />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item
-                name="target_classes"
-                label={
-                  <span>
-                    Lớp đối tượng{' '}
-                    <Button 
-                      type="link" 
-                      size="small" 
-                      onClick={() => loadAvailableClasses()}
-                      loading={loadingClasses}
-                      title="Tải lại danh sách lớp"
-                      style={{ padding: 0, height: 'auto' }}
-                    >
-                      🔄
-                    </Button>
-                  </span>
-                }
-                tooltip="Chọn lớp mà chiến dịch tiêm chủng sẽ nhắm tới. Danh sách được tạo từ học sinh hiện có trong hệ thống."
-                rules={[{ required: true, message: 'Vui lòng chọn lớp đối tượng' }]}
-              >
-                <Select mode="multiple" placeholder="Chọn lớp" options={getTargetClassOptions()} />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item
-            name="instructions"
-            label="Hướng dẫn"
-            rules={[{ required: true, message: 'Vui lòng nhập hướng dẫn' }]}
-          >
-            <TextArea rows={2} placeholder="Hướng dẫn chuẩn bị trước khi tiêm..." />
-          </Form.Item>
-
-          <Alert
-            message="Lưu ý về thông báo đồng ý"
-            description="Sau khi tạo chiến dịch, hệ thống sẽ tự động tạo thông báo xin đồng ý cho phụ huynh khi chiến dịch được chuyển sang trạng thái 'Đang tiến hành'."
-            type="info"
-            showIcon
-            className="mb-4"
+    <Row gutter={16}>
+      <Col span={12}>
+        <Form.Item
+          name="date_range"
+          label="Thời gian thực hiện"
+          rules={[{ required: true, message: 'Vui lòng chọn thời gian' }]}
+        >
+          <RangePicker
+            style={{ width: '100%' }}
+            disabledDate={(current) => {
+              return current && current < moment().startOf('day');
+            }}
           />
+        </Form.Item>
+      </Col>
+      <Col span={12}>
+       <Form.Item
+  name="consent_deadline"
+  label="Hạn đồng ý của phụ huynh"
+  rules={[
+    { required: true, message: 'Vui lòng chọn hạn đồng ý' },
+    ({ getFieldValue }) => ({
+      validator(_, value) {
+        const range = getFieldValue('date_range');
+        if (!value) return Promise.resolve();
+        if (!range || range.length !== 2) return Promise.resolve();
+        const start = moment.isMoment(range[0]) ? range[0] : moment(range[0]);
+        const end = moment.isMoment(range[1]) ? range[1] : moment(range[1]);
+        if (value.isBefore(start, 'day') || value.isAfter(end, 'day')) {
+          return Promise.reject(
+            new Error('Hạn đồng ý của phụ huynh phải nằm trong Thời gian thực hiện!')
+          );
+        }
+        return Promise.resolve();
+      }
+    })
+  ]}
+>
+  <DatePicker style={{ width: '100%' }} />
+</Form.Item>
+      </Col>
+    </Row>
 
-          <Form.Item>
-            <Space>
-              <Button type="primary" htmlType="submit">
-                Tạo chiến dịch
+    <Row gutter={16}>
+      <Col span={8}>
+        <Form.Item
+          name="batch_number"
+          label="Số lô"
+          rules={[{ required: true, message: 'Vui lòng nhập số lô' }]}
+        >
+          <Input placeholder="VD: LOT001" />
+        </Form.Item>
+      </Col>
+      <Col span={8}>
+        <Form.Item
+          name="dosage"
+          label="Liều lượng"
+          rules={[{ required: true, message: 'Vui lòng nhập liều lượng' }]}
+        >
+          <Input placeholder="VD: 0.5ml" />
+        </Form.Item>
+      </Col>
+      <Col span={8}>
+        <Form.Item
+          name="target_classes"
+          label={
+            <span>
+              Lớp đối tượng{' '}
+              <Button
+                type="link"
+                size="small"
+                onClick={() => loadAvailableClasses()}
+                loading={loadingClasses}
+                title="Tải lại danh sách lớp"
+                style={{ padding: 0, height: 'auto' }}
+              >
+                🔄
               </Button>
-              <Button onClick={() => setIsCreateModalVisible(false)}>
-                Hủy
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Modal>
+            </span>
+          }
+          tooltip="Chọn lớp mà chiến dịch tiêm chủng sẽ nhắm tới. Danh sách được tạo từ học sinh hiện có trong hệ thống."
+          rules={[{ required: true, message: 'Vui lòng chọn lớp đối tượng' }]}
+        >
+          <Select mode="multiple" placeholder="Chọn lớp" options={getTargetClassOptions()} />
+        </Form.Item>
+      </Col>
+    </Row>
+
+    <Form.Item
+      name="instructions"
+      label="Hướng dẫn"
+      rules={[{ required: true, message: 'Vui lòng nhập hướng dẫn' }]}
+    >
+      <TextArea rows={2} placeholder="Hướng dẫn chuẩn bị trước khi tiêm..." />
+    </Form.Item>
+
+    <Alert
+      message="Lưu ý về thông báo đồng ý"
+      description="Sau khi tạo chiến dịch, hệ thống sẽ tự động tạo thông báo xin đồng ý cho phụ huynh khi chiến dịch được chuyển sang trạng thái 'Đang tiến hành'."
+      type="info"
+      showIcon
+      className="mb-4"
+    />
+
+    <Form.Item>
+      <Space>
+        <Button type="primary" htmlType="submit">
+          Tạo chiến dịch
+        </Button>
+        <Button onClick={() => setIsCreateModalVisible(false)}>
+          Hủy
+        </Button>
+      </Space>
+    </Form.Item>
+  </Form>
+</Modal>
 
       {/* Edit Campaign Modal */}
-      <Modal
-        title="Chỉnh sửa chiến dịch tiêm chủng"
-        open={isEditModalVisible}
-        onCancel={() => {
-          setIsEditModalVisible(false);
-          editForm.resetFields();
-          setEditingCampaign(null);
-        }}
-        footer={null}
-        width={800}
-        destroyOnClose
-        maskClosable={false}
-      >
-        <Form form={editForm} layout="vertical" onFinish={handleUpdateCampaign}>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="title"
-                label="Tên chiến dịch"
-                rules={[
-                  { required: true, message: 'Vui lòng nhập tên chiến dịch' },
-                  { min: 5, message: 'Tên chiến dịch phải có ít nhất 5 ký tự' },
-                  { max: 100, message: 'Tên chiến dịch không được quá 100 ký tự' }
-                ]}
-              >
-                <Input 
-                  placeholder="Nhập tên chiến dịch" 
-                  showCount
-                  maxLength={100}
-                />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="vaccine_brand"
-                label="Tên vaccine"
-                rules={[{ required: true, message: 'Vui lòng nhập tên vaccine' }]}
-              >
-                <Input placeholder="VD: Gardasil 9" />
-              </Form.Item>
-            </Col>
-          </Row>
+    <Modal
+  title="Chỉnh sửa chiến dịch tiêm chủng"
+  open={isEditModalVisible}
+  onCancel={() => {
+    setIsEditModalVisible(false);
+    editForm.resetFields();
+    setEditingCampaign(null);
+  }}
+  footer={null}
+  width={800}
+  destroyOnClose
+  maskClosable={false}
+>
+  <Form
+    form={editForm}
+    layout="vertical"
+    onFinish={handleUpdateCampaign}
+    
+  >
+    <Row gutter={16}>
+      <Col span={12}>
+        <Form.Item
+          name="title"
+          label="Tên chiến dịch"
+          rules={[
+            { required: true, message: 'Vui lòng nhập tên chiến dịch' },
+            { min: 5, message: 'Tên chiến dịch phải có ít nhất 5 ký tự' },
+            { max: 100, message: 'Tên chiến dịch không được quá 100 ký tự' },
+          ]}
+        >
+          <Input placeholder="Nhập tên chiến dịch" showCount maxLength={100} />
+        </Form.Item>
+      </Col>
+      <Col span={12}>
+        <Form.Item
+          name="vaccine_brand"
+          label="Tên vaccine"
+          rules={[{ required: true, message: 'Vui lòng nhập tên vaccine' }]}
+        >
+          <Input placeholder="VD: Gardasil 9" />
+        </Form.Item>
+      </Col>
+    </Row>
 
-          <Form.Item
-            name="description"
-            label="Mô tả"
-            rules={[
-              { required: true, message: 'Vui lòng nhập mô tả' },
-              { min: 10, message: 'Mô tả phải có ít nhất 10 ký tự' },
-              { max: 500, message: 'Mô tả không được quá 500 ký tự' }
-            ]}
-          >
-            <TextArea 
-              rows={3} 
-              placeholder="Nhập mô tả chi tiết về chiến dịch tiêm chủng..." 
-              showCount
-              maxLength={500}
-            />
-          </Form.Item>
+    <Form.Item
+      name="description"
+      label="Mô tả"
+      rules={[
+        { required: true, message: 'Vui lòng nhập mô tả' },
+        { min: 10, message: 'Mô tả phải có ít nhất 10 ký tự' },
+        { max: 500, message: 'Mô tả không được quá 500 ký tự' },
+      ]}
+    >
+      <TextArea rows={3} placeholder="Nhập mô tả chi tiết về chiến dịch tiêm chủng..." showCount maxLength={500} />
+    </Form.Item>
 
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="date_range"
-                label="Thời gian thực hiện"
-                rules={[
-                  { required: true, message: 'Vui lòng chọn thời gian' },
-                  {
-                    validator: (_, value) => {
-                      if (!value || value.length !== 2) {
-                        return Promise.reject(new Error('Vui lòng chọn khoảng thời gian hợp lệ'));
-                      }
-                      if (value[1].isBefore(value[0])) {
-                        return Promise.reject(new Error('Ngày kết thúc phải sau ngày bắt đầu'));
-                      }
-                      return Promise.resolve();
-                    }
-                  }
-                ]}
-              >
-                <RangePicker 
-                  style={{ width: '100%' }}
-                  disabledDate={(current) => {
-                    if (!current) return false;
-                    const today = moment().startOf('day');
-                    const currentMoment = moment(current.toDate());
-                    return currentMoment.isBefore(today);
-                  }}
-                  showTime={{ format: 'HH:mm' }}
-                  format="DD/MM/YYYY HH:mm"
-                />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="consent_deadline"
-                label="Hạn đồng ý của phụ huynh"
-                rules={[{ required: true, message: 'Vui lòng chọn hạn đồng ý' }]}
-              >
-                <DatePicker 
-                  style={{ width: '100%' }}
-                  placeholder="Chọn hạn cuối đồng ý"
-                  disabledDate={(current) => {
-                    if (!current) return false;
-                    const today = moment().startOf('day');
-                    const currentMoment = moment(current.toDate());
-                    return currentMoment.isBefore(today);
-                  }}
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item
-                name="batch_number"
-                label="Số lô"
-                rules={[{ required: true, message: 'Vui lòng nhập số lô' }]}
-              >
-                <Input placeholder="VD: LOT001" />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item
-                name="dosage"
-                label="Liều lượng"
-                rules={[{ required: true, message: 'Vui lòng nhập liều lượng' }]}
-              >
-                <Input placeholder="VD: 0.5ml" />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item
-                name="target_classes"
-                label={
-                  <span>
-                    Lớp đối tượng{' '}
-                    <Button 
-                      type="link" 
-                      size="small" 
-                      onClick={() => loadAvailableClasses()}
-                      loading={loadingClasses}
-                      title="Tải lại danh sách lớp"
-                      style={{ padding: 0, height: 'auto' }}
-                    >
-                      🔄
-                    </Button>
-                  </span>
+    <Row gutter={16}>
+      <Col span={12}>
+        <Form.Item
+          name="date_range"
+          label="Thời gian thực hiện"
+          rules={[
+            { required: true, message: 'Vui lòng chọn thời gian' },
+            {
+              validator: (_, value) => {
+                if (!value || value.length !== 2) {
+                  return Promise.reject(new Error('Vui lòng chọn khoảng thời gian hợp lệ'));
                 }
-                tooltip="Chọn lớp mà chiến dịch tiêm chủng sẽ nhắm tới. Danh sách được tạo từ học sinh hiện có trong hệ thống."
-                rules={[{ required: true, message: 'Vui lòng chọn lớp đối tượng' }]}
+                if (value[1].isBefore(value[0])) {
+                  return Promise.reject(new Error('Ngày kết thúc phải sau ngày bắt đầu'));
+                }
+                return Promise.resolve();
+              },
+            },
+          ]}
+        >
+          <RangePicker
+            style={{ width: '100%' }}
+            disabledDate={(current) => current && current < moment().startOf('day')}
+          />
+        </Form.Item>
+      </Col>
+      <Col span={12}>
+        <Form.Item
+  name="consent_deadline"
+  label="Hạn đồng ý của phụ huynh"
+  dependencies={['date_range']}
+  rules={[
+    { required: true, message: 'Vui lòng chọn hạn đồng ý' },
+    ({ getFieldValue }) => ({
+      validator(_, value) {
+        const range = getFieldValue('date_range');
+        if (!value) return Promise.resolve();
+        if (!range || range.length !== 2) return Promise.resolve();
+        const start = moment.isMoment(range[0]) ? range[0] : moment(range[0]);
+        const end = moment.isMoment(range[1]) ? range[1] : moment(range[1]);
+        if (value.isBefore(start, 'day') || value.isAfter(end, 'day')) {
+          return Promise.reject(
+            new Error('Hạn đồng ý của phụ huynh phải nằm trong Thời gian thực hiện!')
+          );
+        }
+        return Promise.resolve();
+      }
+    })
+  ]}
+>
+  <DatePicker
+    style={{ width: '100%' }}
+    disabledDate={(current) => current && current < moment().startOf('day')}
+  />
+</Form.Item>
+      </Col>
+    </Row>
+
+    <Row gutter={16}>
+      <Col span={8}>
+        <Form.Item
+          name="batch_number"
+          label="Số lô"
+          rules={[{ required: true, message: 'Vui lòng nhập số lô' }]}
+        >
+          <Input placeholder="VD: LOT001" />
+        </Form.Item>
+      </Col>
+      <Col span={8}>
+        <Form.Item
+          name="dosage"
+          label="Liều lượng"
+          rules={[{ required: true, message: 'Vui lòng nhập liều lượng' }]}
+        >
+          <Input placeholder="VD: 0.5ml" />
+        </Form.Item>
+      </Col>
+      <Col span={8}>
+        <Form.Item
+          name="target_classes"
+          label={
+            <span>
+              Lớp đối tượng{' '}
+              <Button
+                type="link"
+                size="small"
+                onClick={() => loadAvailableClasses()}
+                loading={loadingClasses}
+                title="Tải lại danh sách lớp"
+                style={{ padding: 0, height: 'auto' }}
               >
-                <Select mode="multiple" placeholder="Chọn lớp" options={getTargetClassOptions()} />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item
-            name="instructions"
-            label="Hướng dẫn"
-            rules={[{ required: true, message: 'Vui lòng nhập hướng dẫn' }]}
-          >
-            <TextArea 
-              rows={2} 
-              placeholder="Hướng dẫn chuẩn bị trước khi tiêm..."
-              showCount
-              maxLength={300}
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="status"
-            label="Trạng thái"
-            rules={[{ required: true, message: 'Vui lòng chọn trạng thái' }]}
-          >
-            <Select placeholder="Chọn trạng thái">
-              <Option value="draft">Bản nháp</Option>
-              <Option value="active">Đang tiến hành</Option>
-              <Option value="completed">Hoàn thành</Option>
-              <Option value="cancelled">Đã hủy</Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item>
-            <Space>
-              <Button 
-                type="primary" 
-                htmlType="submit"
-                loading={loading}
-                icon={<EditOutlined />}
-              >
-                Cập nhật chiến dịch
+                🔄
               </Button>
-              <Button 
-                onClick={() => {
-                  setIsEditModalVisible(false);
-                  editForm.resetFields();
-                  setEditingCampaign(null);
-                }}
-                disabled={loading}
-              >
-                Hủy
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Modal>
+            </span>
+          }
+          tooltip="Chọn lớp mà chiến dịch tiêm chủng sẽ nhắm tới. Danh sách được tạo từ học sinh hiện có trong hệ thống."
+          rules={[{ required: true, message: 'Vui lòng chọn lớp đối tượng' }]}
+        >
+          <Select mode="multiple" placeholder="Chọn lớp" options={getTargetClassOptions()} />
+        </Form.Item>
+      </Col>
+    </Row>
+
+    <Form.Item
+      name="instructions"
+      label="Hướng dẫn"
+      rules={[{ required: true, message: 'Vui lòng nhập hướng dẫn' }]}
+    >
+      <TextArea rows={2} placeholder="Hướng dẫn chuẩn bị trước khi tiêm..." showCount maxLength={300} />
+    </Form.Item>
+
+    <Form.Item
+      name="status"
+      label="Trạng thái"
+      rules={[{ required: true, message: 'Vui lòng chọn trạng thái' }]}
+    >
+      <Select placeholder="Chọn trạng thái">
+        <Option value="draft">Bản nháp</Option>
+        <Option value="active">Đang tiến hành</Option>
+        <Option value="completed">Hoàn thành</Option>
+        <Option value="cancelled">Đã hủy</Option>
+      </Select>
+    </Form.Item>
+
+    <Form.Item>
+      <Space>
+        <Button
+          type="primary"
+          htmlType="submit"
+          loading={loading}
+          icon={<EditOutlined />}
+          disabled={loading} // Vô hiệu hóa nút khi đang loading
+        >
+          Cập nhật chiến dịch
+        </Button>
+        <Button
+          onClick={() => {
+            setIsEditModalVisible(false);
+            editForm.resetFields();
+            setEditingCampaign(null);
+          }}
+          disabled={loading}
+        >
+          Hủy
+        </Button>
+      </Space>
+    </Form.Item>
+  </Form>
+</Modal>
 
       {/* Vaccination List Modal */}
-      <Modal
-        title={`Danh sách tiêm chủng - ${selectedCampaign?.title}`}
-        open={isListModalVisible}
-        onCancel={() => {
-          setIsListModalVisible(false);
-          setConsentData([]); // Reset consent data when modal is closed
-        }}
-        footer={null}
-        width={1000}
-      >
-        {vaccinationList && (
-          <div>
-            <Row gutter={16} className="mb-4">
-              <Col span={6}>
-                <Card>
-                  <Statistic
-                    title="Tổng số HS"
-                    value={vaccinationList.eligible_students.length}
-                    prefix={<TeamOutlined />}
-                  />
+    <Modal
+  title={`Danh sách tiêm chủng - ${selectedCampaign?.title}`}
+  open={isListModalVisible}
+  onCancel={() => {
+    setIsListModalVisible(false);
+    setConsentData([]); // Reset consent data when modal is closed
+  }}
+  footer={null}
+  width={1000}
+>
+  {vaccinationList && (
+    <div>
+      {selectedCampaign?.consent_deadline && moment().isAfter(moment(selectedCampaign.consent_deadline)) && (
+        <Alert
+          message="Hạn đồng ý của phụ huynh đã qua"
+          description="Không thể thực hiện thêm hành động liên quan đến đồng ý của phụ huynh cho chiến dịch này."
+          type="warning"
+          showIcon
+          className="mb-4"
+        />
+      )}
+      <Row gutter={16} className="mb-4">
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="Tổng số HS"
+              value={vaccinationList.eligible_students.length}
+              prefix={<TeamOutlined />}
+            />
                 </Card>
               </Col>
               <Col span={6}>
@@ -1626,7 +1718,11 @@ const VaccinationManagement: React.FC = () => {
                 rules={[{ required: true, message: 'Vui lòng chọn thời gian' }]}
                 initialValue={moment()}
               >
-                <DatePicker showTime style={{ width: '100%' }} />
+                <DatePicker
+  
+  style={{ width: '100%' }}
+  disabledDate={(current) => current && current < moment().startOf('day')}
+/>
               </Form.Item>
             </Col>
             <Col span={12}>
@@ -1694,7 +1790,10 @@ const VaccinationManagement: React.FC = () => {
             label="Hạn sử dụng vaccine"
             rules={[{ required: true, message: 'Vui lòng chọn hạn sử dụng' }]}
           >
-            <DatePicker style={{ width: '100%' }} />
+            <DatePicker
+  style={{ width: '100%' }}
+  disabledDate={(current) => current && current < moment().startOf('day')}
+/>
           </Form.Item>
 
           <Form.Item
@@ -1725,7 +1824,10 @@ const VaccinationManagement: React.FC = () => {
             label="Ngày theo dõi"
             dependencies={['follow_up_required']}
           >
-            <DatePicker style={{ width: '100%' }} />
+            <DatePicker
+  style={{ width: '100%' }}
+  disabledDate={(current) => current && current < moment().startOf('day')}
+/>
           </Form.Item>
 
           <Form.Item
@@ -1794,7 +1896,10 @@ const VaccinationManagement: React.FC = () => {
             label="Ngày theo dõi"
             rules={[{ required: true, message: 'Vui lòng chọn ngày theo dõi' }]}
           >
-            <DatePicker showTime style={{ width: '100%' }} />
+            <DatePicker
+  style={{ width: '100%' }}
+  disabledDate={(current) => current && current < moment().startOf('day')}
+/>
           </Form.Item>
 
           <Form.Item
