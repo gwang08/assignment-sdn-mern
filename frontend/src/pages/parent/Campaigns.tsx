@@ -239,10 +239,10 @@ const ParentCampaigns: React.FC = () => {
     
     if (campaign) {
       // Only allow consent updates for campaigns with draft status
-      if (campaign.status !== 'draft') {
-        message.warning('Chỉ có thể cập nhật đồng ý cho các chiến dịch ở trạng thái bản nháp');
-        return;
-      }
+      if (!['draft', 'active'].includes(campaign.status)) {
+  message.warning('Chỉ có thể cập nhật đồng ý cho các chiến dịch đang diễn ra hoặc bản nháp');
+  return;
+}
 
       // Check if there's already a consent record for this campaign and student
       const existingConsent = consents.find(c => {
@@ -302,9 +302,9 @@ const ParentCampaigns: React.FC = () => {
   const getPendingConsents = () => {
     // Return campaigns that require consent, are in draft status, and have at least one student without consent and not vaccinated
     return campaigns.filter(campaign => {
-      if (!campaign.requires_consent || campaign.status !== 'draft') {
-        return false;
-      }
+      if (!campaign.requires_consent || !['draft', 'active'].includes(campaign.status)) {
+  return false;
+}
       
       // Check if any student still needs consent for this campaign and is not vaccinated or examined
       return students.some(student => {
@@ -484,7 +484,7 @@ const ParentCampaigns: React.FC = () => {
           >
             Chi tiết
           </Button>
-          {record.requires_consent && record.status === 'draft' && students.length > 0 && (
+          {record.requires_consent && ['draft', 'active'].includes(record.status) && students.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               {students.map(student => {
                 const consent = getConsentStatus(record._id, student._id);
@@ -595,7 +595,7 @@ const ParentCampaigns: React.FC = () => {
                 return (
                   <List.Item
                     actions={
-                      selectedCampaign.requires_consent && selectedCampaign.status === 'draft' ? [
+                      selectedCampaign.requires_consent && ['draft', 'active'].includes(selectedCampaign.status) ? [
                         isVaccinated ? (
                           <Tag color="blue" style={{ fontSize: '12px' }}>
                             Đã tiêm chủng
@@ -766,9 +766,9 @@ const ParentCampaigns: React.FC = () => {
             <List
               key={`pending-list-${refreshKey}`}
               dataSource={campaigns.filter(campaign => {
-                if (!campaign.requires_consent || campaign.status !== 'draft') {
-                  return false;
-                }
+                if (!campaign.requires_consent || !['draft', 'active'].includes(campaign.status)) {
+  return false;
+}
                 
                 // Check if any student still needs consent for this campaign and is not vaccinated or examined
                 return students.some(student => {
@@ -825,9 +825,9 @@ const ParentCampaigns: React.FC = () => {
               }}
             />
             {campaigns.filter(campaign => {
-              if (!campaign.requires_consent || campaign.status !== 'draft') {
-                return false;
-              }
+              if (!campaign.requires_consent || !['draft', 'active'].includes(campaign.status)) {
+  return false;
+}
               
               // Check if any student still needs consent for this campaign and is not vaccinated or examined
               return students.some(student => {
