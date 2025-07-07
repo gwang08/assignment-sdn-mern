@@ -26,7 +26,7 @@ import React, { useEffect, useState } from "react";
 import nurseService from "../../services/api/nurseService";
 import {
   eventTypeMap,
-  MedicalEvent,
+  MedicalEventNurse,
   severityMap,
   statusMap,
   Student,
@@ -38,12 +38,12 @@ const { Option } = Select;
 
 const MedicalEventsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
-  const [events, setEvents] = useState<MedicalEvent[]>([]);
+  const [events, setEvents] = useState<MedicalEventNurse[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
-  const [selectedEvent, setSelectedEvent] = useState<MedicalEvent | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<MedicalEventNurse | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isDetailDrawerVisible, setIsDetailDrawerVisible] = useState(false);
-  const [editingEvent, setEditingEvent] = useState<MedicalEvent | null>(null);
+  const [editingEvent, setEditingEvent] = useState<MedicalEventNurse | null>(null);
   const [form] = Form.useForm();
   const [filters, setFilters] = useState({
     event_type: undefined,
@@ -111,7 +111,7 @@ const MedicalEventsPage: React.FC = () => {
     setIsModalVisible(true);
   };
 
-  const handleEdit = (event: MedicalEvent) => {
+  const handleEdit = (event: MedicalEventNurse) => {
     setEditingEvent(event);
     form.setFieldsValue({
       ...event,
@@ -125,7 +125,7 @@ const MedicalEventsPage: React.FC = () => {
     setIsModalVisible(true);
   };
 
-  const handleView = (event: MedicalEvent) => {
+  const handleView = (event: MedicalEventNurse) => {
     setSelectedEvent(event);
     setIsDetailDrawerVisible(true);
   };
@@ -144,9 +144,7 @@ const MedicalEventsPage: React.FC = () => {
           dosage: "",
           time: new Date(),
         })) || [],
-      parent_notified: {
-        status: values.parent_notified || false,
-      },
+      parent_notified: values.parent_notified || false,
       follow_up_required: values.follow_up_required,
       follow_up_notes: values.follow_up_notes || "",
     };
@@ -168,7 +166,7 @@ const MedicalEventsPage: React.FC = () => {
     }
   };
 
-  const columns: ColumnsType<MedicalEvent> = [
+  const columns: ColumnsType<MedicalEventNurse> = [
     {
       title: "Thời gian",
       dataIndex: "createdAt",

@@ -89,8 +89,29 @@ export interface VaccinationRecord {
   notes?: string;
 }
 
-// Updated MedicalEvent interface to match backend enums
 export interface MedicalEvent {
+  _id: string;
+  student_id: string;
+  event_type: "accident" | "illness" | "injury" | "emergency" | "other";
+  title: string;
+  description: string;
+  severity: "low" | "medium" | "high" | "critical";
+  symptoms: string[];
+  treatment_provided: string;
+  medications_given: string[];
+  status: "open" | "in_progress" | "resolved" | "referred";
+  created_by: string;
+  follow_up_required: boolean;
+  follow_up_date?: string;
+  follow_up_notes?: string;
+  parent_notified: boolean;
+  notification_sent_at?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Updated MedicalEvent interface to match backend enums
+export interface MedicalEventNurse {
   _id: string;
   student_id: string;
   event_type: "Accident" | "Fever" | "Injury" | "Epidemic" | "Other";
