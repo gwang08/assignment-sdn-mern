@@ -21,10 +21,8 @@ import ParentCampaigns from './pages/parent/Campaigns';
 import ParentConsultations from './pages/parent/Consultations';
 import StudentLinkRequests from './pages/parent/StudentLinkRequests';
 import AdminDashboard from './pages/admin/Dashboard';
-import StudentDashboard from './pages/student/Dashboard';
 import StudentHealthProfile from './pages/student/HealthProfile';
 import StudentMedicalHistory from './pages/student/MedicalHistory';
-import StudentCampaigns from './pages/student/Campaigns';
 import './App.css';
 
 // Protected Route Component
@@ -83,7 +81,7 @@ const AppContent: React.FC = () => {
       case 'parent':
         return '/parent/dashboard';
       case 'student':
-        return '/student/dashboard';
+        return '/student/health-profile';
       default:
         return '/home';
     }
@@ -218,14 +216,6 @@ const AppContent: React.FC = () => {
         
         {/* Student Routes */}
         <Route 
-          path="/student/dashboard" 
-          element={
-            <ProtectedRoute allowedRoles={['student']}>
-              <StudentDashboard />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
           path="/student/health-profile" 
           element={
             <ProtectedRoute allowedRoles={['student']}>
@@ -241,15 +231,6 @@ const AppContent: React.FC = () => {
             </ProtectedRoute>
           } 
         />
-        <Route 
-          path="/student/campaigns" 
-          element={
-            <ProtectedRoute allowedRoles={['student']}>
-              <StudentCampaigns />
-            </ProtectedRoute>
-          } 
-        />
-        
         <Route path="/login" element={<Navigate to="/" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

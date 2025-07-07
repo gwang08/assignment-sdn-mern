@@ -183,11 +183,6 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       return [
         ...commonItems,
         {
-          key: '/student/dashboard',
-          icon: <DashboardOutlined />,
-          label: 'Dashboard',
-        },
-        {
           key: '/student/health-profile',
           icon: <HeartOutlined />,
           label: 'Hồ sơ sức khỏe',
@@ -196,11 +191,6 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           key: '/student/medical-history',
           icon: <FileTextOutlined />,
           label: 'Lịch sử y tế',
-        },
-        {
-          key: '/student/campaigns',
-          icon: <SafetyOutlined />,
-          label: 'Chiến dịch y tế',
         },
       ];
     }
