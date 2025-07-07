@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { 
   Card, 
   Typography, 
-  Descriptions, 
   Tag, 
   Alert, 
   Button, 
@@ -11,7 +10,10 @@ import {
   Col,
   Divider,
   List,
-  Avatar
+  Avatar,
+  Badge,
+  Spin,
+  Tooltip
 } from 'antd';
 import {
   HeartOutlined,
@@ -20,11 +22,18 @@ import {
   ExclamationCircleOutlined,
   EditOutlined,
   FileTextOutlined,
-  MedicineBoxOutlined
+  MedicineBoxOutlined,
+  EyeOutlined,
+  AudioOutlined,
+  WarningOutlined,
+  CheckCircleOutlined,
+  CalendarOutlined,
+  SafetyOutlined
 } from '@ant-design/icons';
 import { useAuth } from '../../context/AuthContext';
-import apiService from '../../services/api';
+import studentService from '../../services/api/studentService'; 
 import { HealthProfile } from '../../types';
+import './StudentHealthProfile.css';
 
 const { Title, Text } = Typography;
 
@@ -40,11 +49,11 @@ const StudentHealthProfile: React.FC = () => {
   const loadHealthProfile = async () => {
     try {
       setLoading(true);
-      if (user?._id) {
-        const response = await apiService.getHealthProfile(user._id);
-        if (response.success && response.data) {
-          setHealthProfile(response.data);
-        }
+      const response = await studentService.getStudentSelfHealthProfile();
+      console.log("Health profile response:", response);
+
+      if (response.success && response.data) {
+        setHealthProfile(response.data);
       }
     } catch (error) {
       console.log('No health profile found for student');
@@ -54,20 +63,34 @@ const StudentHealthProfile: React.FC = () => {
     }
   };
 
+  // Loading state
+  if (loading) {
+    return (
+      <div className="student-health-profile">
+        <div className="loading-container">
+          <Spin size="large" />
+          <div className="loading-text">
+            <Text type="secondary">Đang tải thông tin sức khỏe...</Text>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <Title level={2}>
-          <HeartOutlined className="mr-2" />
+    <div className="student-health-profile">
+      <div className="profile-header">
+        <Title level={2} className="header-title">
+          <HeartOutlined className="header-icon" />
           Hồ sơ sức khỏe của tôi
         </Title>
-        <Text type="secondary">
+        <Text className="header-subtitle">
           Thông tin chi tiết về tình trạng sức khỏe của bạn
         </Text>
       </div>
 
       {healthProfile ? (
-        <div>
+        <div className="profile-content">
           {/* Basic Information */}
           <Card 
             title={
@@ -76,23 +99,56 @@ const StudentHealthProfile: React.FC = () => {
                 <span>Thông tin cơ bản</span>
               </Space>
             } 
-            className="mb-4"
+            className="enhanced-card basic-info-card"
             loading={loading}
           >
-            <Descriptions column={2} bordered>
-              <Descriptions.Item label="Họ và tên" span={2}>
-                {user?.first_name && user?.last_name ? 
-                  `${user.first_name} ${user.last_name}` : 
-                  'Chưa cập nhật'
-                }
-              </Descriptions.Item>
-              <Descriptions.Item label="Tình trạng thị lực">
-                {healthProfile.vision_status || 'Chưa cập nhật'}
-              </Descriptions.Item>
-              <Descriptions.Item label="Tình trạng thính lực">
-                {healthProfile.hearing_status || 'Chưa cập nhật'}
-              </Descriptions.Item>
-            </Descriptions>
+            <div className="student-info-header">
+              <Avatar 
+                size={64} 
+                icon={<UserOutlined />} 
+                className="student-avatar"
+              />
+              <div className="student-details">
+                <Title level={3} className="student-name">
+                  {user?.first_name && user?.last_name ? 
+                    `${user.first_name} ${user.last_name}` : 
+                    'Chưa cập nhật'
+                  }
+                </Title>
+                <Text type="secondary">Học sinh</Text>
+              </div>
+            </div>
+            
+            <Divider />
+            
+            <Row gutter={[24, 24]} className="health-status-row">
+              <Col xs={24} md={12}>
+                <div className="status-item">
+                  <div className="status-icon">
+                    <Avatar icon={<EyeOutlined />} style={{ backgroundColor: '#1890ff' }} />
+                  </div>
+                  <div className="status-content">
+                    <Text strong>Tình trạng thị lực</Text>
+                    <div className="status-value">
+                      {healthProfile.vision_status || 'Chưa cập nhật'}
+                    </div>
+                  </div>
+                </div>
+              </Col>
+              <Col xs={24} md={12}>
+                <div className="status-item">
+                  <div className="status-icon">
+                    <Avatar icon={<AudioOutlined />} style={{ backgroundColor: '#52c41a' }} />
+                  </div>
+                  <div className="status-content">
+                    <Text strong>Tình trạng thính lực</Text>
+                    <div className="status-value">
+                      {healthProfile.hearing_status || 'Chưa cập nhật'}
+                    </div>
+                  </div>
+                </div>
+              </Col>
+            </Row>
           </Card>
 
           {/* Medical Information */}
@@ -103,18 +159,21 @@ const StudentHealthProfile: React.FC = () => {
                 <span>Thông tin y tế</span>
               </Space>
             } 
-            className="mb-4"
+            className="enhanced-card medical-info-card"
             loading={loading}
           >
-            <Row gutter={[16, 16]}>
+            <Row gutter={[24, 24]}>
               <Col xs={24} md={12}>
-                <div className="mb-4">
-                  <Title level={4}>Dị ứng</Title>
+                <div className="info-section">
+                  <Title level={4} className="section-title">
+                    <WarningOutlined className="section-icon" />
+                    Dị ứng
+                  </Title>
                   {healthProfile.allergies && healthProfile.allergies.length > 0 ? (
-                    <div>
-                      {healthProfile.allergies.map((allergy: string, index: number) => (
-                        <Tag key={index} color="red" className="mb-1">
-                          {allergy}
+                    <div className="tags-container">
+                      {healthProfile.allergies.map((allergy: any, index: number) => (
+                        <Tag key={index} className="medical-tag allergy-tag" icon={<ExclamationCircleOutlined />}>
+                          {typeof allergy === 'string' ? allergy : allergy.name}
                         </Tag>
                       ))}
                     </div>
@@ -123,20 +182,24 @@ const StudentHealthProfile: React.FC = () => {
                       message="Không có dị ứng nào được ghi nhận"
                       type="success"
                       showIcon
-                      icon={<InfoCircleOutlined />}
+                      icon={<CheckCircleOutlined />}
+                      className="info-alert"
                     />
                   )}
                 </div>
               </Col>
 
               <Col xs={24} md={12}>
-                <div className="mb-4">
-                  <Title level={4}>Thuốc đang sử dụng</Title>
+                <div className="info-section">
+                  <Title level={4} className="section-title">
+                    <MedicineBoxOutlined className="section-icon" />
+                    Thuốc đang sử dụng
+                  </Title>
                   {healthProfile.medications && healthProfile.medications.length > 0 ? (
-                    <div>
-                      {healthProfile.medications.map((medication: string, index: number) => (
-                        <Tag key={index} color="blue" className="mb-1">
-                          {medication}
+                    <div className="tags-container">
+                      {healthProfile.medications.map((medication: any, index: number) => (
+                        <Tag key={index} className="medical-tag medication-tag" icon={<MedicineBoxOutlined />}>
+                          {typeof medication === 'string' ? medication : medication.name}
                         </Tag>
                       ))}
                     </div>
@@ -145,6 +208,7 @@ const StudentHealthProfile: React.FC = () => {
                       message="Không có thuốc nào đang sử dụng"
                       type="info"
                       showIcon
+                      className="info-alert"
                     />
                   )}
                 </div>
@@ -153,17 +217,20 @@ const StudentHealthProfile: React.FC = () => {
 
             <Divider />
 
-            <div className="mb-4">
-              <Title level={4}>Tiền sử bệnh</Title>
+            <div className="info-section">
+              <Title level={4} className="section-title">
+                <FileTextOutlined className="section-icon" />
+                Tiền sử bệnh
+              </Title>
               {healthProfile.medical_history && healthProfile.medical_history.length > 0 ? (
                 <List
                   size="small"
                   dataSource={healthProfile.medical_history}
                   renderItem={(item, index) => (
-                    <List.Item key={index}>
+                    <List.Item key={index} className="history-item">
                       <List.Item.Meta
-                        avatar={<Avatar icon={<FileTextOutlined />} />}
-                        description={item}
+                        avatar={<Avatar icon={<FileTextOutlined />} style={{ backgroundColor: '#faad14' }} />}
+                        description={<Text>{item}</Text>}
                       />
                     </List.Item>
                   )}
@@ -173,16 +240,20 @@ const StudentHealthProfile: React.FC = () => {
                   message="Không có tiền sử bệnh đặc biệt"
                   type="info"
                   showIcon
+                  className="info-alert"
                 />
               )}
             </div>
 
             {healthProfile.chronic_conditions && healthProfile.chronic_conditions.length > 0 && (
-              <div className="mb-4">
-                <Title level={4}>Bệnh mãn tính</Title>
-                <div>
+              <div className="info-section">
+                <Title level={4} className="section-title">
+                  <ExclamationCircleOutlined className="section-icon" />
+                  Bệnh mãn tính
+                </Title>
+                <div className="tags-container">
                   {healthProfile.chronic_conditions.map((condition: string, index: number) => (
-                    <Tag key={index} color="orange" className="mb-1">
+                    <Tag key={index} className="medical-tag chronic-tag" icon={<ExclamationCircleOutlined />}>
                       {condition}
                     </Tag>
                   ))}
@@ -196,26 +267,44 @@ const StudentHealthProfile: React.FC = () => {
             <Card 
               title={
                 <Space>
-                  <MedicineBoxOutlined />
+                  <SafetyOutlined />
                   <span>Lịch sử tiêm chủng</span>
+                  <Badge count={healthProfile.vaccination_records.length} style={{ backgroundColor: '#52c41a' }} />
                 </Space>
               } 
-              className="mb-4"
+              className="enhanced-card vaccination-card"
               loading={loading}
             >
               <List
                 dataSource={healthProfile.vaccination_records}
                 renderItem={(vaccination, index) => (
-                  <List.Item key={index}>
+                  <List.Item key={index} className="vaccination-item">
                     <List.Item.Meta
-                      avatar={<Avatar icon={<MedicineBoxOutlined />} />}
-                      title={vaccination.vaccine_name}
+                      avatar={<Avatar icon={<SafetyOutlined />} style={{ backgroundColor: '#52c41a' }} size={48} />}
+                      title={
+                        <div className="vaccination-title">
+                          <Text strong>{vaccination.vaccine_name}</Text>
+                          <Tag color="green" className="dose-tag">
+                            Mũi {vaccination.dose_number}
+                          </Tag>
+                        </div>
+                      }
                       description={
-                        <div>
-                          <div>Ngày tiêm: {new Date(vaccination.date_administered).toLocaleDateString('vi-VN')}</div>
-                          <div>Mũi số: {vaccination.dose_number}</div>
-                          <div>Người tiêm: {vaccination.administered_by}</div>
-                          {vaccination.notes && <div>Ghi chú: {vaccination.notes}</div>}
+                        <div className="vaccination-details">
+                          <div className="detail-item">
+                            <CalendarOutlined />
+                            <Text>Ngày tiêm: {new Date(vaccination.date_administered).toLocaleDateString('vi-VN')}</Text>
+                          </div>
+                          <div className="detail-item">
+                            <UserOutlined />
+                            <Text>Người tiêm: {vaccination.administered_by}</Text>
+                          </div>
+                          {vaccination.notes && (
+                            <div className="detail-item">
+                              <InfoCircleOutlined />
+                              <Text>Ghi chú: {vaccination.notes}</Text>
+                            </div>
+                          )}
                         </div>
                       }
                     />
@@ -227,11 +316,19 @@ const StudentHealthProfile: React.FC = () => {
 
           {/* Notes and Updates */}
           <Card 
-            title="Ghi chú và cập nhật"
+            title={
+              <Space>
+                <EditOutlined />
+                <span>Ghi chú và cập nhật</span>
+              </Space>
+            }
+            className="enhanced-card notes-card"
             extra={
-              <Button type="primary" icon={<EditOutlined />} disabled>
-                Yêu cầu cập nhật
-              </Button>
+              <Tooltip title="Liên hệ y tá trường để cập nhật thông tin">
+                <Button type="primary" icon={<EditOutlined />} disabled className="update-btn">
+                  Yêu cầu cập nhật
+                </Button>
+              </Tooltip>
             }
           >
             <Alert
@@ -240,32 +337,38 @@ const StudentHealthProfile: React.FC = () => {
               type="warning"
               showIcon
               icon={<ExclamationCircleOutlined />}
+              className="important-notice"
             />
 
-            <div className="mt-4 text-sm text-gray-500">
-              Cập nhật lần cuối: {new Date(healthProfile.updatedAt).toLocaleString('vi-VN')}
+            <div className="last-updated">
+              <Text type="secondary">
+                Cập nhật lần cuối: {new Date(healthProfile.updatedAt).toLocaleString('vi-VN')}
+              </Text>
             </div>
           </Card>
         </div>
       ) : (
-        <Card>
-          <Alert
-            message="Chưa có hồ sơ sức khỏe"
-            description={
-              <div>
-                <p>Bạn chưa có hồ sơ sức khỏe trong hệ thống.</p>
-                <p>Vui lòng liên hệ với phụ huynh hoặc y tá trường để tạo hồ sơ sức khỏe.</p>
-              </div>
-            }
-            type="warning"
-            showIcon
-            icon={<ExclamationCircleOutlined />}
-            action={
-              <Button type="primary" disabled>
-                Yêu cầu tạo hồ sơ
-              </Button>
-            }
-          />
+        <Card className="enhanced-card no-profile-card">
+          <div className="no-profile-content">
+            <Avatar size={80} icon={<ExclamationCircleOutlined />} style={{ backgroundColor: '#faad14' }} />
+            <Title level={3} className="no-profile-title">
+              Chưa có hồ sơ sức khỏe
+            </Title>
+            <div className="no-profile-description">
+              <Text>Bạn chưa có hồ sơ sức khỏe trong hệ thống.</Text>
+              <br />
+              <Text>Vui lòng liên hệ với phụ huynh hoặc y tá trường để tạo hồ sơ sức khỏe.</Text>
+            </div>
+            <Button 
+              type="primary" 
+              size="large" 
+              icon={<EditOutlined />} 
+              disabled
+              className="create-profile-btn"
+            >
+              Yêu cầu tạo hồ sơ
+            </Button>
+          </div>
         </Card>
       )}
     </div>
