@@ -3,6 +3,7 @@ import authService from './authService';
 import adminService from './adminService';
 import nurseService from './nurseService';
 import parentService from './parentService';
+import studentService from './studentService';
 
 // Export all services
 export { default as authService } from './authService';
@@ -63,9 +64,13 @@ class ApiService {
   getVaccinationStatistics = nurseService.getVaccinationStatistics.bind(nurseService);
   getMedicalStaffForVaccination = nurseService.getMedicalStaff.bind(nurseService);
 
+  // Student methods
+  getStudentSelfHealthProfile  = studentService.getStudentSelfHealthProfile.bind(studentService);
+  getStudentSelfMedicalEvents = studentService.getMedicalEvents.bind(studentService);
+
+
   // Student Management for Nurses
   getNurseStudents = nurseService.getStudents.bind(nurseService);
-  
   // Student-Parent Relations for Nurses
   getNurseStudentParentRelations = nurseService.getStudentParentRelations.bind(nurseService);
 
