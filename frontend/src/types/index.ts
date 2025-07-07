@@ -110,6 +110,108 @@ export interface MedicalEvent {
   updatedAt: string;
 }
 
+// Updated MedicalEvent interface to match backend enums
+export interface MedicalEventNurse {
+  _id: string;
+  student_id: string;
+  event_type: "Accident" | "Fever" | "Injury" | "Epidemic" | "Other";
+  title?: string;
+  description: string;
+  severity: "Low" | "Medium" | "High" | "Emergency";
+  symptoms: string[];
+  treatment_notes: string; // Changed from treatment_provided to match backend
+  medications_administered: {
+    name: string;
+    dosage: string;
+    time: Date;
+    administered_by?: string;
+  }[]; // Changed from medications_given to match backend structure
+  status: "Open" | "In Progress" | "Resolved" | "Referred to Hospital";
+  created_by: string;
+  follow_up_required: boolean;
+  follow_up_date?: string;
+  follow_up_notes?: string;
+  parent_notified: {
+    status: boolean;
+    time?: Date;
+    method?: string;
+  }; // Changed from boolean to object to match backend
+  occurred_at: string;
+  resolved_at?: string;
+  notification_sent_at?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Alternative: If you prefer to keep your frontend using lowercase enums,
+// you can create a mapping interface for the backend
+export interface MedicalEventBackend {
+  studentId: string;
+  event_type: "Accident" | "Fever" | "Injury" | "Epidemic" | "Other";
+  description: string;
+  severity: "Low" | "Medium" | "High" | "Emergency";
+  symptoms: string[];
+  treatment_notes: string;
+  medications_administered: {
+    name: string;
+    dosage: string;
+    time: Date;
+  }[];
+  parent_notified: {
+    status: boolean;
+    time?: Date;
+    method?: string;
+  };
+  follow_up_required: boolean;
+  follow_up_notes?: string;
+}
+
+// Utility function to convert frontend form data to backend format
+export const mapFormToBackend = (formData: any): MedicalEventBackend => {
+  return {
+    studentId: formData.student_id,
+    event_type: formData.event_type,
+    description: formData.description,
+    severity: formData.severity,
+    symptoms: formData.symptoms?.split(",").map((s: string) => s.trim()) || [],
+    treatment_notes: formData.treatment_provided,
+    medications_administered: formData.medications_given?.split(",").map((name: string) => ({
+      name: name.trim(),
+      dosage: "",
+      time: new Date(),
+    })) || [],
+    parent_notified: {
+      status: formData.parent_notified || false,
+    },
+    follow_up_required: formData.follow_up_required || false,
+    follow_up_notes: formData.follow_up_notes || "",
+  };
+};
+
+export const eventTypeMap: Record<string, string> = {
+  Accident: "Tai nạn",
+  Fever: "Sốt",
+  Injury: "Chấn thương",
+  Epidemic: "Dịch bệnh",
+  Other: "Khác",
+};
+
+export const severityMap: Record<string, string> = {
+  Low: "Thấp",
+  Medium: "Trung bình",
+  High: "Cao",
+  Emergency: "Khẩn cấp",
+};
+
+export const statusMap: Record<string, string> = {
+  Open: "Mở",
+  "In Progress": "Đang xử lý",
+  Resolved: "Đã giải quyết",
+  "Referred to Hospital": "Chuyển bệnh viện",
+};
+
+export const booleanMap = (val?: boolean) => (val ? "Có" : "Không");
+
 export interface MedicineRequest {
   _id: string;
   student_id?: string;

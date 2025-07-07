@@ -1,13 +1,13 @@
 import { AxiosResponse } from "axios";
-import BaseApiClient from "./baseApi";
 import {
   ApiResponse,
-  User,
-  Student,
   MedicalStaff,
-  StudentParentRelation,
   Parent,
+  Student,
+  StudentParentRelation,
+  User,
 } from "../../types";
+import BaseApiClient from "./baseApi";
 
 class AdminService extends BaseApiClient {
   async getCurrentUser(): Promise<ApiResponse<User>> {

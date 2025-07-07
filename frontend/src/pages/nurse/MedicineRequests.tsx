@@ -1,79 +1,105 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Table,
-  Card,
-  Button,
-  Space,
-  Tag,
-  Modal,
-  Form,
-  Select,
-  Row,
-  Col,
-  Typography,
-  message,
-  Descriptions,
-  Drawer,
-  Timeline,
-  Alert,
-  Input
-} from 'antd';
 import {
   CheckCircleOutlined,
+  ClockCircleOutlined,
   CloseCircleOutlined,
-  EyeOutlined,
   ExclamationCircleOutlined,
-  ClockCircleOutlined
-} from '@ant-design/icons';
-import type { ColumnsType } from 'antd/es/table';
-import moment from 'moment';
-import apiService from '../../services/api';
-import { MedicineRequest, Medicine } from '../../types';
+  EyeOutlined,
+} from "@ant-design/icons";
+import {
+  Button,
+  Card,
+  Col,
+  DatePicker,
+  Descriptions,
+  Drawer,
+  Form,
+  Input,
+  Modal,
+  Row,
+  Select,
+  Space,
+  Table,
+  Tag,
+  Typography,
+  message,
+} from "antd";
+import type { ColumnsType } from "antd/es/table";
+import moment from "moment";
+import React, { useEffect, useState } from "react";
+import apiService from "../../services/api";
+import { MedicineRequest } from "../../types";
 
 const { Title } = Typography;
 const { Option } = Select;
 const { TextArea } = Input;
+const { RangePicker } = DatePicker;
 
 const MedicineRequestsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [requests, setRequests] = useState<MedicineRequest[]>([]);
-  const [selectedRequest, setSelectedRequest] = useState<MedicineRequest | null>(null);
-  const [isDetailDrawerVisible, setIsDetailDrawerVisible] = useState(false);
+  const [selectedRequest, setSelectedRequest] =
+    useState<MedicineRequest | null>(null);
   const [isStatusModalVisible, setIsStatusModalVisible] = useState(false);
-  const [processingRequest, setProcessingRequest] = useState<MedicineRequest | null>(null);
+  const [processingRequest, setProcessingRequest] =
+    useState<MedicineRequest | null>(null);
   const [form] = Form.useForm();
+  const [filters, setFilters] = useState<{
+    status?: string;
+    dateRange?: [moment.Moment, moment.Moment];
+  }>({});
 
   useEffect(() => {
     loadRequests();
   }, []);
 
-  const loadRequests = async () => {
+  const loadRequests = async (formValues?: any) => {
     try {
       setLoading(true);
-      const response = await apiService.getMedicineRequests();
-      if (response.success && response.data) {
-        setRequests(response.data);
-      } else {
-        message.error('Không thể tải danh sách yêu cầu thuốc');
+
+      // Cập nhật bộ lọc nếu có
+      if (formValues) {
+        setFilters(formValues);
       }
+
+      const data = await apiService.getNurseMedicineRequests();
+      let filteredData = data ?? [];
+
+      // Áp dụng lọc theo status
+      if (formValues?.status) {
+        filteredData = filteredData.filter(
+          (req) => req.status === formValues.status
+        );
+      }
+
+      // Áp dụng lọc theo ngày tạo
+      if (formValues?.dateRange?.[0] && formValues?.dateRange?.[1]) {
+        const [start, end] = formValues.dateRange;
+        filteredData = filteredData.filter((req) => {
+          const created = moment(req.createdAt);
+          return created.isBetween(
+            start.startOf("day"),
+            end.endOf("day"),
+            null,
+            "[]"
+          );
+        });
+      }
+
+      setRequests(filteredData);
     } catch (error) {
-      console.error('Error loading medicine requests:', error);
-      message.error('Có lỗi xảy ra khi tải danh sách yêu cầu thuốc');
+      console.error("Error loading medicine requests:", error);
+      setRequests([]);
+      message.error("Có lỗi xảy ra khi tải danh sách yêu cầu thuốc");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleViewRequest = (request: MedicineRequest) => {
-    setSelectedRequest(request);
-    setIsDetailDrawerVisible(true);
-  };
-
   const handleProcessRequest = (request: MedicineRequest) => {
     setProcessingRequest(request);
     form.setFieldsValue({
-      status: request.status,
-      notes: request.notes || ''
+      status: request.status || undefined,
+      notes: request.notes || "",
     });
     setIsStatusModalVisible(true);
   };
@@ -84,34 +110,57 @@ const MedicineRequestsPage: React.FC = () => {
     try {
       const response = await apiService.updateMedicineRequestStatus(
         processingRequest._id,
-        values.status
+        values
       );
 
       if (response.success) {
-        message.success('Cập nhật trạng thái thành công');
+        message.success("Cập nhật trạng thái thành công");
         setIsStatusModalVisible(false);
         form.resetFields();
         loadRequests();
       } else {
-        message.error(response.message || 'Có lỗi xảy ra');
+        message.error(response.message || "Có lỗi xảy ra");
       }
     } catch (error) {
-      console.error('Error updating status:', error);
-      message.error('Có lỗi xảy ra khi cập nhật trạng thái');
+      console.error("Error updating status:", error);
+      message.error("Có lỗi xảy ra khi cập nhật trạng thái");
     }
+  };
+
+  const handleClearFilters = () => {
+    setFilters({});
+    loadRequests();
   };
 
   const getStatusTag = (status?: string) => {
     const statusConfig = {
-      pending: { color: 'orange', text: 'Chờ duyệt', icon: <ClockCircleOutlined /> },
-      approved: { color: 'green', text: 'Đã duyệt', icon: <CheckCircleOutlined /> },
-      rejected: { color: 'red', text: 'Từ chối', icon: <CloseCircleOutlined /> },
-      completed: { color: 'blue', text: 'Hoàn thành', icon: <CheckCircleOutlined /> }
+      pending: {
+        color: "orange",
+        text: "Chờ duyệt",
+        icon: <ClockCircleOutlined />,
+      },
+      approved: {
+        color: "green",
+        text: "Đã duyệt",
+        icon: <CheckCircleOutlined />,
+      },
+      rejected: {
+        color: "red",
+        text: "Từ chối",
+        icon: <CloseCircleOutlined />,
+      },
+      completed: {
+        color: "blue",
+        text: "Hoàn thành",
+        icon: <CheckCircleOutlined />,
+      },
     };
-    const config = statusConfig[(status || 'pending') as keyof typeof statusConfig] || { 
-      color: 'default', 
-      text: status || 'Không xác định', 
-      icon: <ExclamationCircleOutlined /> 
+    const config = statusConfig[
+      (status || "pending") as keyof typeof statusConfig
+    ] || {
+      color: "default",
+      text: status || "Không xác định",
+      icon: <ExclamationCircleOutlined />,
     };
     return (
       <Tag color={config.color} icon={config.icon}>
@@ -120,111 +169,74 @@ const MedicineRequestsPage: React.FC = () => {
     );
   };
 
-  const getUrgencyColor = (endDate?: string) => {
-    if (!endDate) return 'default';
-    const daysLeft = moment(endDate).diff(moment(), 'days');
-    if (daysLeft < 0) return 'red';
-    if (daysLeft <= 3) return 'orange';
-    if (daysLeft <= 7) return 'yellow';
-    return 'green';
-  };
-
   const columns: ColumnsType<MedicineRequest> = [
     {
-      title: 'Mã yêu cầu',
-      dataIndex: '_id',
-      key: '_id',
+      title: "Mã yêu cầu",
+      dataIndex: "_id",
+      key: "_id",
+      align: "center",
       render: (id: string) => id.slice(-8).toUpperCase(),
     },
     {
-      title: 'Tên thuốc',
-      key: 'medicine_name',
-      render: (_, record: MedicineRequest) => {
-        const medicineName = record.medicine_name || 
-          (record.medicines && record.medicines.length > 0 ? record.medicines[0].name : 'N/A');
-        const dosage = record.dosage || 
-          (record.medicines && record.medicines.length > 0 ? record.medicines[0].dosage : 'N/A');
-        const frequency = record.frequency || 
-          (record.medicines && record.medicines.length > 0 ? record.medicines[0].frequency : 'N/A');
-        
+      title: "Tên thuốc",
+      key: "medicine_name",
+      render: (_, record) => {
+        const medicine = record.medicines?.[0];
         return (
           <div>
-            <strong>{medicineName}</strong>
-            <div style={{ fontSize: '12px', color: '#666' }}>
-              {dosage} - {frequency}
+            <strong>{medicine?.name ?? "N/A"}</strong>
+            <div style={{ fontSize: "12px", color: "#666" }}>
+              {medicine?.dosage ?? "N/A"} - {medicine?.frequency ?? "N/A"}
             </div>
           </div>
         );
       },
     },
     {
-      title: 'Học sinh',
-      key: 'student',
-      render: (_, record: MedicineRequest) => {
-        if (record.student) {
-          return (
+      title: "Học sinh",
+      key: "student",
+      render: (_, record) => {
+        const student = record.student;
+        return student ? (
+          <div>
             <div>
-              <div>{record.student.first_name} {record.student.last_name}</div>
-              <div style={{ fontSize: '12px', color: '#666' }}>{record.student.class_name}</div>
+              {student.first_name} {student.last_name}
             </div>
-          );
-        }
-        return (
-          <div>
-            <div>ID: {record.student_id ? record.student_id.slice(-6).toUpperCase() : 'N/A'}</div>
+            <div style={{ fontSize: "12px", color: "#666" }}>
+              {student.class_name}
+            </div>
           </div>
+        ) : (
+          <div>ID: {record.student_id?.slice(-6).toUpperCase() ?? "N/A"}</div>
         );
       },
     },
     {
-      title: 'Phụ huynh',
-      key: 'parent',
-      render: (_, record: MedicineRequest) => (
-        <div>
-          <div>ID: {record.parent_id ? record.parent_id.slice(-6).toUpperCase() : 'N/A'}</div>
-        </div>
-      ),
-    },
-    {
-      title: 'Thời gian sử dụng',
-      key: 'duration',
-      render: (_, record: MedicineRequest) => {
-        const startDate = record.start_date || record.startDate;
-        const endDate = record.end_date || record.endDate;
-        return (
-          <div>
-            <div>{startDate ? moment(startDate).format('DD/MM/YYYY') : 'N/A'}</div>
-            <div>{endDate ? moment(endDate).format('DD/MM/YYYY') : 'N/A'}</div>
-            <Tag color={getUrgencyColor(endDate)}>
-              {record.duration || 'N/A'}
-            </Tag>
-          </div>
-        );
-      },
-    },
-    {
-      title: 'Trạng thái',
-      dataIndex: 'status',
-      key: 'status',
+      title: "Trạng thái",
+      dataIndex: "status",
+      key: "status",
+      align: "center",
       render: (status: string) => getStatusTag(status),
     },
     {
-      title: 'Ngày tạo',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      render: (date: string) => moment(date).format('DD/MM/YYYY HH:mm'),
+      title: "Ngày tạo",
+      dataIndex: "createdAt",
+      key: "createdAt",
+      align: "center",
+      render: (date: string) => moment(date).format("DD/MM/YYYY HH:mm"),
     },
     {
-      title: 'Thao tác',
-      key: 'actions',
-      render: (_, record: MedicineRequest) => (
+      title: "Thao tác",
+      key: "actions",
+      align: "center",
+      render: (_, record) => (
         <Space>
           <Button
             icon={<EyeOutlined />}
-            onClick={() => handleViewRequest(record)}
+            onClick={() => setSelectedRequest(record)}
             title="Xem chi tiết"
           />
-          {(!record.status || record.status === 'pending') && (
+          {(!record.status || record.status === "pending") && (
             <Button
               type="primary"
               onClick={() => handleProcessRequest(record)}
@@ -238,24 +250,19 @@ const MedicineRequestsPage: React.FC = () => {
     },
   ];
 
-  const pendingCount = requests.filter(r => !r.status || r.status === 'pending').length;
-  const approvedCount = requests.filter(r => r.status === 'approved').length;
-  const rejectedCount = requests.filter(r => r.status === 'rejected').length;
+  const pendingCount = requests?.filter((r) => r.status === "pending").length;
+  const approvedCount = requests?.filter((r) => r.status === "approved").length;
+  const rejectedCount = requests?.filter((r) => r.status === "rejected").length;
 
   return (
     <div className="p-6">
-      <Row justify="space-between" align="middle" className="mb-6">
-        <Col>
-          <Title level={2}>Quản lý Yêu cầu Thuốc</Title>
-        </Col>
-      </Row>
-
-      {/* Statistics */}
       <Row gutter={16} className="mb-6">
         <Col span={6}>
           <Card>
             <div className="text-center">
-              <div className="text-2xl font-bold text-orange-500">{pendingCount}</div>
+              <div className="text-2xl font-bold text-orange-500">
+                {pendingCount}
+              </div>
               <div className="text-gray-600">Chờ duyệt</div>
             </div>
           </Card>
@@ -263,7 +270,9 @@ const MedicineRequestsPage: React.FC = () => {
         <Col span={6}>
           <Card>
             <div className="text-center">
-              <div className="text-2xl font-bold text-green-500">{approvedCount}</div>
+              <div className="text-2xl font-bold text-green-500">
+                {approvedCount}
+              </div>
               <div className="text-gray-600">Đã duyệt</div>
             </div>
           </Card>
@@ -271,7 +280,9 @@ const MedicineRequestsPage: React.FC = () => {
         <Col span={6}>
           <Card>
             <div className="text-center">
-              <div className="text-2xl font-bold text-red-500">{rejectedCount}</div>
+              <div className="text-2xl font-bold text-red-500">
+                {rejectedCount}
+              </div>
               <div className="text-gray-600">Từ chối</div>
             </div>
           </Card>
@@ -279,21 +290,45 @@ const MedicineRequestsPage: React.FC = () => {
         <Col span={6}>
           <Card>
             <div className="text-center">
-              <div className="text-2xl font-bold text-blue-500">{requests.length}</div>
+              <div className="text-2xl font-bold text-blue-500">
+                {requests.length}
+              </div>
               <div className="text-gray-600">Tổng cộng</div>
             </div>
           </Card>
         </Col>
       </Row>
-
-      {pendingCount > 0 && (
-        <Alert
-          message={`Có ${pendingCount} yêu cầu thuốc đang chờ duyệt`}
-          type="warning"
-          icon={<ExclamationCircleOutlined />}
-          className="mb-4"
-        />
-      )}
+      <Card className="mb-4">
+        <Form
+          layout="inline"
+          onFinish={loadRequests}
+          initialValues={{
+            status: "",
+          }}
+        >
+          <Form.Item name="dateRange" label="Khoảng ngày">
+            <RangePicker format="DD/MM/YYYY" />
+          </Form.Item>
+          <Form.Item name="status" label="Trạng thái">
+            <Select style={{ width: 160 }} allowClear placeholder="Tất cả">
+              <Option value="pending">Chờ duyệt</Option>
+              <Option value="approved">Đã duyệt</Option>
+              <Option value="rejected">Từ chối</Option>
+              <Option value="completed">Hoàn thành</Option>
+            </Select>
+          </Form.Item>
+          <Form.Item>
+            <Button type="primary" htmlType="submit">
+              Lọc
+            </Button>
+          </Form.Item>
+          <Form.Item>
+            <Button htmlType="button" onClick={() => handleClearFilters()}>
+              Xóa lọc
+            </Button>
+          </Form.Item>
+        </Form>
+      </Card>
 
       <Card>
         <Table
@@ -310,194 +345,134 @@ const MedicineRequestsPage: React.FC = () => {
         />
       </Card>
 
-      {/* Detail Drawer */}
-      <Drawer
-        title="Chi tiết yêu cầu thuốc"
-        placement="right"
-        onClose={() => setIsDetailDrawerVisible(false)}
-        open={isDetailDrawerVisible}
-        width={600}
-      >
-        {selectedRequest && (
-          <div>
-            <Descriptions column={1} bordered>
-              <Descriptions.Item label="Mã yêu cầu">
-                {selectedRequest._id.slice(-8).toUpperCase()}
-              </Descriptions.Item>
-              
-              {/* Student Information */}
-              {selectedRequest.student ? (
-                <>
-                  <Descriptions.Item label="Học sinh">
-                    {selectedRequest.student.first_name} {selectedRequest.student.last_name}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Lớp">
-                    {selectedRequest.student.class_name}
-                  </Descriptions.Item>
-                </>
-              ) : (
-                <Descriptions.Item label="ID học sinh">
-                  {selectedRequest.student_id ? selectedRequest.student_id.slice(-6).toUpperCase() : 'N/A'}
-                </Descriptions.Item>
-              )}
-
-              {/* Medicine Information */}
-              {selectedRequest.medicines && selectedRequest.medicines.length > 0 ? (
-                <>
-                  <Descriptions.Item label="Tên thuốc">
-                    <strong>{selectedRequest.medicines[0].name}</strong>
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Liều lượng">
-                    {selectedRequest.medicines[0].dosage}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Tần suất">
-                    {selectedRequest.medicines[0].frequency}
-                  </Descriptions.Item>
-                  {selectedRequest.medicines[0].notes && (
-                    <Descriptions.Item label="Ghi chú thuốc">
-                      {selectedRequest.medicines[0].notes}
-                    </Descriptions.Item>
-                  )}
-                </>
-              ) : (
-                <>
-                  <Descriptions.Item label="Tên thuốc">
-                    <strong>{selectedRequest.medicine_name || 'N/A'}</strong>
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Liều lượng">
-                    {selectedRequest.dosage || 'N/A'}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Tần suất">
-                    {selectedRequest.frequency || 'N/A'}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Thời gian">
-                    {selectedRequest.duration || 'N/A'}
-                  </Descriptions.Item>
-                </>
-              )}
-              
-              <Descriptions.Item label="Ngày bắt đầu">
-                {selectedRequest.start_date || selectedRequest.startDate ? 
-                  moment(selectedRequest.start_date || selectedRequest.startDate).format('DD/MM/YYYY') : 'N/A'}
-              </Descriptions.Item>
-              <Descriptions.Item label="Ngày kết thúc">
-                {selectedRequest.end_date || selectedRequest.endDate ? 
-                  moment(selectedRequest.end_date || selectedRequest.endDate).format('DD/MM/YYYY') : 'N/A'}
-              </Descriptions.Item>
-              
-              {selectedRequest.instructions && (
-                <Descriptions.Item label="Hướng dẫn sử dụng">
-                  {selectedRequest.instructions}
-                </Descriptions.Item>
-              )}
-              
-              <Descriptions.Item label="Trạng thái">
-                {getStatusTag(selectedRequest.status)}
-              </Descriptions.Item>
-              
-              {selectedRequest.notes && (
-                <Descriptions.Item label="Ghi chú">
-                  {selectedRequest.notes}
-                </Descriptions.Item>
-              )}
-              
-              <Descriptions.Item label="Ngày tạo">
-                {moment(selectedRequest.createdAt).format('DD/MM/YYYY HH:mm')}
-              </Descriptions.Item>
-            </Descriptions>
-
-            {selectedRequest.approved_by && (
-              <div className="mt-4">
-                <Title level={4}>Thông tin phê duyệt</Title>
-                <Descriptions column={1} bordered>
-                  <Descriptions.Item label="Người phê duyệt">
-                    {selectedRequest.approved_by}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Ngày phê duyệt">
-                    {moment(selectedRequest.approved_at).format('DD/MM/YYYY HH:mm')}
-                  </Descriptions.Item>
-                </Descriptions>
-              </div>
-            )}
-
-            <div className="mt-4">
-              <Timeline>
-                <Timeline.Item color="blue">
-                  <div>
-                    <strong>Yêu cầu được tạo</strong>
-                    <div>{moment(selectedRequest.createdAt).format('DD/MM/YYYY HH:mm')}</div>
-                  </div>
-                </Timeline.Item>
-                {selectedRequest.approved_at && (
-                  <Timeline.Item color="green">
-                    <div>
-                      <strong>Yêu cầu được phê duyệt</strong>
-                      <div>{moment(selectedRequest.approved_at).format('DD/MM/YYYY HH:mm')}</div>
-                      <div>Bởi: {selectedRequest.approved_by}</div>
-                    </div>
-                  </Timeline.Item>
-                )}
-              </Timeline>
-            </div>
-          </div>
-        )}
-      </Drawer>
-
-      {/* Status Update Modal */}
+      {/* Modal cập nhật trạng thái */}
       <Modal
-        title="Xử lý yêu cầu thuốc"
+        title="Cập nhật trạng thái yêu cầu"
         open={isStatusModalVisible}
         onCancel={() => setIsStatusModalVisible(false)}
         footer={null}
-        width={500}
+        width={600}
       >
         {processingRequest && (
-          <div>
-            <Alert
-              message={`Yêu cầu: ${processingRequest.medicine_name || 'N/A'}`}
-              description={`Học sinh ID: ${processingRequest.student_id ? processingRequest.student_id.slice(-6).toUpperCase() : 'N/A'}`}
-              type="info"
-              className="mb-4"
-            />
-            
-            <Form
-              form={form}
-              layout="vertical"
-              onFinish={handleUpdateStatus}
-            >
-              <Form.Item
-                name="status"
-                label="Trạng thái"
-                rules={[{ required: true, message: 'Vui lòng chọn trạng thái' }]}
-              >
-                <Select placeholder="Chọn trạng thái">
-                  <Option value="approved">Duyệt</Option>
-                  <Option value="rejected">Từ chối</Option>
-                  <Option value="completed">Hoàn thành</Option>
-                </Select>
-              </Form.Item>
-
-              <Form.Item
-                name="notes"
-                label="Ghi chú"
-              >
-                <TextArea rows={3} placeholder="Nhập ghi chú (tùy chọn)" />
-              </Form.Item>
-
-              <Form.Item>
-                <Space>
-                  <Button type="primary" htmlType="submit">
-                    Cập nhật
-                  </Button>
-                  <Button onClick={() => setIsStatusModalVisible(false)}>
-                    Hủy
-                  </Button>
-                </Space>
-              </Form.Item>
-            </Form>
+          <div style={{ marginBottom: 16 }}>
+            <p>
+              <strong>Học sinh:</strong> {processingRequest.student?.first_name}{" "}
+              {processingRequest.student?.last_name} (
+              {processingRequest.student?.class_name})
+            </p>
+            <p>
+              <strong>Thời gian sử dụng:</strong>{" "}
+              {moment(processingRequest.startDate).format("DD/MM/YYYY")} -{" "}
+              {moment(processingRequest.endDate).format("DD/MM/YYYY")}
+            </p>
+            <p>
+              <strong>Thuốc:</strong>
+              <ul style={{ paddingLeft: 20 }}>
+                {processingRequest?.medicines &&
+                  processingRequest.medicines.length > 0 && (
+                    <p>
+                      <strong>Thuốc:</strong>
+                      <ul style={{ paddingLeft: 20 }}>
+                        {processingRequest.medicines.map((med, idx) => (
+                          <li key={idx}>
+                            <strong>{med.name}</strong>: {med.dosage},{" "}
+                            {med.frequency}
+                            {med.notes && (
+                              <>
+                                {" "}
+                                — <em>{med.notes}</em>
+                              </>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </p>
+                  )}
+              </ul>
+            </p>
           </div>
         )}
+
+        <Form form={form} layout="vertical" onFinish={handleUpdateStatus}>
+          <Form.Item
+            name="status"
+            label="Trạng thái"
+            rules={[{ required: true, message: "Vui lòng chọn trạng thái" }]}
+          >
+            <Select placeholder="Chọn trạng thái">
+              <Option value="approved">Duyệt</Option>
+              <Option value="rejected">Từ chối</Option>
+              <Option value="completed">Hoàn thành</Option>
+            </Select>
+          </Form.Item>
+
+          <Form.Item name="notes" label="Ghi chú">
+            <TextArea rows={3} placeholder="Nhập ghi chú (tùy chọn)" />
+          </Form.Item>
+
+          <Form.Item>
+            <Space>
+              <Button type="primary" htmlType="submit">
+                Cập nhật
+              </Button>
+              <Button onClick={() => setIsStatusModalVisible(false)}>
+                Hủy
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
       </Modal>
+      <Drawer
+        title="Chi tiết yêu cầu thuốc"
+        open={!!selectedRequest}
+        onClose={() => setSelectedRequest(null)}
+        size="large"
+      >
+        {selectedRequest && (
+          <Descriptions bordered column={1} size="small">
+            <Descriptions.Item label="Mã yêu cầu">
+              {selectedRequest._id.slice(-8).toUpperCase()}
+            </Descriptions.Item>
+            <Descriptions.Item label="Học sinh">
+              {selectedRequest.student
+                ? `${selectedRequest.student.first_name} ${selectedRequest.student.last_name}`
+                : `ID: ${selectedRequest.student_id?.slice(-6).toUpperCase()}`}
+            </Descriptions.Item>
+            <Descriptions.Item label="Lớp">
+              {selectedRequest.student?.class_name || "Không có"}
+            </Descriptions.Item>
+            <Descriptions.Item label="Ngày tạo">
+              {moment(selectedRequest.createdAt).format("DD/MM/YYYY HH:mm")}
+            </Descriptions.Item>
+            <Descriptions.Item label="Trạng thái">
+              {getStatusTag(selectedRequest.status)}
+            </Descriptions.Item>
+            <Descriptions.Item label="Thuốc yêu cầu">
+              {selectedRequest.medicines?.length ? (
+                <ul style={{ paddingLeft: 20 }}>
+                  {selectedRequest.medicines.map((med, idx) => (
+                    <li key={idx}>
+                      <strong>{med.name}</strong>: {med.dosage} —{" "}
+                      {med.frequency}
+                      {med.notes && (
+                        <>
+                          {" "}
+                          — <em>{med.notes}</em>
+                        </>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                "Không có"
+              )}
+            </Descriptions.Item>
+            <Descriptions.Item label="Ghi chú">
+              {selectedRequest.notes || "Không có"}
+            </Descriptions.Item>
+          </Descriptions>
+        )}
+      </Drawer>
     </div>
   );
 };

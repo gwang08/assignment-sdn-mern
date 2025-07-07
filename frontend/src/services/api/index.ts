@@ -1,12 +1,13 @@
 // Import all services first
-import authService from './authService';
 import adminService from './adminService';
+import authService from './authService';
 import nurseService from './nurseService';
 import parentService from './parentService';
+import studentService from './studentService';
 
 // Export all services
-export { default as authService } from './authService';
 export { default as adminService } from './adminService';
+export { default as authService } from './authService';
 export { default as nurseService } from './nurseService';
 export { default as parentService } from './parentService';
 
@@ -40,6 +41,7 @@ class ApiService {
   createMedicalEvent = nurseService.createMedicalEvent.bind(nurseService);
   updateMedicalEvent = nurseService.updateMedicalEvent.bind(nurseService);
   getMedicineRequests = nurseService.getMedicineRequests.bind(nurseService);
+  getNurseMedicineRequests = nurseService.getNurseMedicineRequests.bind(nurseService);
   updateMedicineRequestStatus = nurseService.updateMedicineRequestStatus.bind(nurseService);
   getCampaigns = nurseService.getCampaigns.bind(nurseService);
   getHealthCheckCampaigns = nurseService.getHealthCheckCampaigns.bind(nurseService);
@@ -63,9 +65,13 @@ class ApiService {
   getVaccinationStatistics = nurseService.getVaccinationStatistics.bind(nurseService);
   getMedicalStaffForVaccination = nurseService.getMedicalStaff.bind(nurseService);
 
+  // Student methods
+  getStudentSelfHealthProfile  = studentService.getStudentSelfHealthProfile.bind(studentService);
+  getStudentSelfMedicalEvents = studentService.getMedicalEvents.bind(studentService);
+
+
   // Student Management for Nurses
   getNurseStudents = nurseService.getStudents.bind(nurseService);
-  
   // Student-Parent Relations for Nurses
   getNurseStudentParentRelations = nurseService.getStudentParentRelations.bind(nurseService);
 
