@@ -449,6 +449,7 @@ router.get("/student-parent-relations", authenticateMedicalStaff, NurseControlle
 
 /* Student Health Records Management Routes */
 router.get("/students", authenticateMedicalStaff, NurseController.getStudents);
+router.get("/students/health-profile", authenticateMedicalStaff, NurseController.getAllStudentHealthProfiles);
 router.get(
   "/students/:studentId/health-profile",
   NurseController.getStudentHealthProfile

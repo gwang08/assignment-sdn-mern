@@ -14,7 +14,14 @@ import {
 import BaseApiClient from "./baseApi";
 
 class NurseService extends BaseApiClient {
+
   // Health Profile
+  async getAllHealthProfiles(): Promise<ApiResponse<HealthProfile[]>> {
+    const response: AxiosResponse<ApiResponse<HealthProfile[]>> =
+      await this.api.get("/nurse/students/health-profile");
+    return response.data;
+  }
+
   async getHealthProfile(
     studentId: string
   ): Promise<ApiResponse<HealthProfile>> {

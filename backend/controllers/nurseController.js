@@ -1587,6 +1587,24 @@ class NurseController {
   }
 
   // Student Health Profile Management
+  static async getAllStudentHealthProfiles(req, res, next) {
+  try {
+    const healthProfiles = await HealthProfile.find()
+      .populate("student", "first_name last_name class_name");
+
+    res.json({
+      success: true,
+      data: healthProfiles,
+    });
+  } catch (error) {
+    console.error("Error fetching health profiles:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch health profiles",
+    });
+  }
+}
+
   static async getStudentHealthProfile(req, res, next) {
     try {
       const { studentId } = req.params;
