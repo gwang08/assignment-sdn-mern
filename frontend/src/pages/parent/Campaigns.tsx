@@ -63,14 +63,33 @@ const ParentCampaigns: React.FC = () => {
     try {
       setLoading(true);
       
-      const [campaignsResponse, studentsResponse, consentsResponse] = await Promise.all([
+      const [campaignsResponse, studentsResponse] = await Promise.all([
         apiService.getParentCampaigns(),
-        apiService.getParentStudents(),
-        apiService.getParentCampaignConsents()
+        apiService.getParentStudents()
       ]);
 
       if (campaignsResponse.success && campaignsResponse.data) {
         setCampaigns(campaignsResponse.data);
+        
+        // Extract consent data from campaigns
+        const allConsents: CampaignConsent[] = [];
+        campaignsResponse.data.forEach((campaign: any) => {
+          if (campaign.students) {
+            campaign.students.forEach((studentConsent: any) => {
+              allConsents.push({
+                _id: `${campaign._id}-${studentConsent.student._id}`,
+                campaign: campaign._id,
+                student: studentConsent.student._id,
+                status: studentConsent.status,
+                answered_by: undefined,
+                notes: '',
+                createdAt: studentConsent.date || new Date().toISOString(),
+                updatedAt: studentConsent.date || new Date().toISOString()
+              });
+            });
+          }
+        });
+        setConsents(allConsents);
       }
 
       if (studentsResponse.success && studentsResponse.data) {
@@ -104,11 +123,6 @@ const ParentCampaigns: React.FC = () => {
         }
         setVaccinationResults(allResults);
         setExaminationResults(allExaminationResults);
-      }
-
-      if (consentsResponse.success && consentsResponse.data) {
-        console.log('Loaded consents:', consentsResponse.data);
-        setConsents(consentsResponse.data);
       }
     } catch (error) {
       console.error('Error loading data:', error);

@@ -23,7 +23,6 @@ const Campaign = require("./models/campaign/campaign");
 const CampaignResult = require("./models/campaign/campaignResult");
 const CampaignConsent = require("./models/campaign/campaignConsent");
 const ConsultationSchedule = require("./models/campaign/consultationSchedule");
-const { seedSampleData } = require("../backend/seeders/sampleDataSeeder");
 
 const mongoUrl =
   process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/assigment-sdn";
@@ -37,7 +36,6 @@ mongoose
 
     // Initialize admin manager
     await initializeAdmin();
-    await seedSampleData();
 
   })
   .catch((err) => {

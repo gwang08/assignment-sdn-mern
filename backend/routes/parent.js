@@ -10,10 +10,27 @@ const { authenticateParent } = require("../middleware/auth"); // Import the pare
  * All parent routes should be protected with authenticateParent middleware.
  * This ensures that only authenticated parents can access these endpoints.
  *
- * All routes use JWT authentication instead of parent ID in URL. The parent ID is
- * automatically extracted from the JWT token in the authentication middleware.
+ * All routes use JWT authentication instead of parent ID in URL. The parent ID i/**
+ * @swagger
+ * /api/parent/campaign-consents:
+ *   get:
+ *     summary: Get campaign consents for a parent
+ *     tags: [Parent]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Campaign consents retrieved successfully
+ *       401:
+ *         description: Unauthorized
  */
-
+// COMMENTED OUT: getParentCampaignConsents function does not exist in parentController
+// router.get(
+//   "/campaign-consents",
+//   authenticateParent,
+//   parentController.getParentCampaignConsents
+// ); extracted from the JWT token in the authentication middleware.
+ 
 /**
  * @swagger
  * components:
@@ -553,10 +570,10 @@ router.get(
  *       401:
  *         description: Unauthorized
  */
-router.get(
-  "/campaign-consents",
-  authenticateParent,
-  parentController.getParentCampaignConsents
-);
+// router.get(
+//   "/campaign-consents",
+//   authenticateParent,
+//   parentController.getParentCampaignConsents
+// );
 
 module.exports = router;

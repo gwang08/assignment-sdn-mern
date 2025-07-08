@@ -1108,7 +1108,9 @@ class NurseController {
   // General Campaign Management
   static async getCampaigns(req, res, next) {
     try {
-      const campaigns = await Campaign.find()
+      const campaigns = await Campaign.find({
+        campaign_type: CAMPAIGN_TYPE.CHECKUP,
+      })
         .populate("created_by", "first_name last_name")
         .sort({ createdAt: -1 });
 

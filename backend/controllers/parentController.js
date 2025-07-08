@@ -338,7 +338,15 @@ exports.getCampaigns = async (req, res) => {
     });
     const classNames = activeStudents.map((s) => s.class_name);
 
+    console.log('Parent campaigns debug:');
+    console.log('Student IDs:', studentIds);
+    console.log('Class Names:', classNames);
+
     // Find campaigns that target these classes or students specifically
+    // Show campaigns that either:
+    // 1. Target specific classes that match student's classes
+    // 2. Target specific students
+    // 3. Target all classes (empty array, "All", null, or undefined)
     const campaigns = await Campaign.find({
       $and: [
         { status: { $in: ['active', 'draft'] } }, // Show active and draft campaigns
@@ -348,10 +356,19 @@ exports.getCampaigns = async (req, res) => {
             { target_classes: "All" },
             { target_students: { $in: studentIds } },
             { target_classes: { $size: 0 } }, // Empty array means all classes
+            { target_classes: { $exists: false } }, // Handle case where target_classes doesn't exist
+            { target_classes: null }, // Handle case where target_classes is null
+            // If target_classes contains "all_grades" or similar
+            { target_classes: { $regex: /^(all|grade_)/i } }
           ]
         }
       ]
     }).sort({ date: 1 });
+
+    console.log('Found campaigns count:', campaigns.length);
+    campaigns.forEach(c => {
+      console.log(`Campaign: ${c.title}, Status: ${c.status}, Target Classes: ${JSON.stringify(c.target_classes)}`);
+    });
 
     // Get consent status for each campaign
     const campaignsWithConsent = await Promise.all(
@@ -403,15 +420,6 @@ exports.updateCampaignConsent = async (req, res) => {
     const { studentId, campaignId } = req.params;
     const { status, notes } = req.body;
 
-    // Validate status value
-    const validStatuses = ['Pending', 'Approved', 'Declined'];
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({
-        success: false,
-        message: `Invalid status. Must be one of: ${validStatuses.join(', ')}`
-      });
-    }
-
     // Verify student role first
     const student = await User.findOne({ _id: studentId, role: "student" });
     if (!student) {
@@ -440,13 +448,11 @@ exports.updateCampaignConsent = async (req, res) => {
       consent = new CampaignConsent({
         campaign: campaignId,
         student: studentId,
-        answered_by: parentId,
         status,
         notes,
       });
     } else {
       consent.status = status;
-      consent.answered_by = parentId;
       consent.notes = notes;
     }
 
@@ -626,37 +632,6 @@ exports.getLinkRequests = async (req, res) => {
     });
   } catch (error) {
     console.error("Error getting link requests:", error);
-    return res.status(500).json({ success: false, message: "Server error" });
-  }
-};
-
-/**
- * Get campaign consents for a parent
- */
-exports.getParentCampaignConsents = async (req, res) => {
-  try {
-    const parentId = req.user._id;
-
-    // Find all students related to this parent
-    const studentRelations = await StudentParent.find({ parent: parentId });
-    const studentIds = studentRelations.map(relation => relation.student);
-
-    if (studentIds.length === 0) {
-      return res.status(200).json({ success: true, data: [] });
-    }
-
-    // Find all consents for the parent's students
-    const consents = await CampaignConsent.find({
-      student: { $in: studentIds }
-    })
-    .populate("campaign", "title campaign_type status requires_consent")
-    .populate("student", "first_name last_name class_name")
-    .populate("answered_by", "first_name last_name")
-    .sort({ createdAt: -1 });
-
-    return res.status(200).json({ success: true, data: consents });
-  } catch (error) {
-    console.error("Error fetching parent campaign consents:", error);
     return res.status(500).json({ success: false, message: "Server error" });
   }
 };
