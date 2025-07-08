@@ -14,14 +14,21 @@ import {
   Space,
   List,
   Statistic,
-  Select
+  Select,
+  Form,
+  Input,
+  InputNumber,
+  Divider
 } from 'antd';
 import {
   UserOutlined,
   EyeOutlined,
   HeartOutlined,
   MedicineBoxOutlined,
-  FileTextOutlined
+  FileTextOutlined,
+  EditOutlined,
+  PlusOutlined,
+  MinusCircleOutlined
 } from '@ant-design/icons';
 import { Student, HealthProfile } from '../../types';
 import apiService from '../../services/api';
@@ -35,7 +42,10 @@ const ParentHealthProfiles: React.FC = () => {
   const [healthProfiles, setHealthProfiles] = useState<HealthProfile[]>([]);
   const [selectedProfile, setSelectedProfile] = useState<HealthProfile | null>(null);
   const [isDetailModalVisible, setIsDetailModalVisible] = useState(false);
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [editingProfile, setEditingProfile] = useState<HealthProfile | null>(null);
   const [selectedStudent, setSelectedStudent] = useState<string>('all');
+  const [form] = Form.useForm();
 
   useEffect(() => {
     // Kiểm tra token trước khi gọi API
@@ -112,9 +122,92 @@ const ParentHealthProfiles: React.FC = () => {
     }
   };
 
+  const getHearingStatusText = (status: string) => {
+    switch (status) {
+      case 'Normal': return 'Bình thường';
+      case 'Mild Loss': return 'Suy giảm nhẹ';
+      case 'Moderate Loss': return 'Suy giảm trung bình';
+      case 'Severe Loss': return 'Suy giảm nặng';
+      default: return status;
+    }
+  };
+
   const handleViewDetail = (profile: HealthProfile) => {
     setSelectedProfile(profile);
     setIsDetailModalVisible(true);
+  };
+
+  const handleEdit = (profile: HealthProfile) => {
+    setEditingProfile(profile);
+    
+    // Populate form with current data
+    const formData = {
+      allergies: profile.allergies || [],
+      chronicDiseases: profile.chronic_conditions || profile.chronicDiseases || [],
+      vision: {
+        leftEye: profile.vision?.leftEye || 0,
+        rightEye: profile.vision?.rightEye || 0
+      },
+      hearing: {
+        leftEar: profile.hearing?.leftEar || 'Normal',
+        rightEar: profile.hearing?.rightEar || 'Normal'
+      }
+    };
+    
+    form.setFieldsValue(formData);
+    setIsEditModalVisible(true);
+  };
+
+  const handleSaveEdit = async () => {
+    try {
+      const formValues = await form.validateFields();
+      const studentId = editingProfile?.student_id || editingProfile?.student;
+      
+      if (!studentId) {
+        message.error('Không tìm thấy thông tin học sinh');
+        return;
+      }
+
+      setLoading(true);
+      
+      const updateData = {
+        student: studentId,
+        allergies: formValues.allergies || [],
+        chronicDiseases: formValues.chronicDiseases || [],
+        vision: {
+          leftEye: formValues.vision?.leftEye || 0,
+          rightEye: formValues.vision?.rightEye || 0
+        },
+        hearing: {
+          leftEar: formValues.hearing?.leftEar || 'Normal',
+          rightEar: formValues.hearing?.rightEar || 'Normal'
+        }
+      };
+
+      const response = await apiService.updateStudentHealthProfile(studentId, updateData);
+      
+      if (response.success) {
+        message.success('Cập nhật hồ sơ sức khỏe thành công');
+        setIsEditModalVisible(false);
+        setEditingProfile(null);
+        form.resetFields();
+        await loadData(); // Reload data
+      } else {
+        message.error(response.message || 'Có lỗi xảy ra khi cập nhật hồ sơ');
+      }
+    } catch (error: any) {
+      console.error('Error updating health profile:', error);
+      if (error.response?.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        message.error('Phiên đăng nhập đã hết hạn');
+        window.location.href = '/login';
+        return;
+      }
+      message.error('Có lỗi xảy ra khi cập nhật hồ sơ');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const filteredProfiles = healthProfiles.filter(profile => {
@@ -237,6 +330,14 @@ const ParentHealthProfiles: React.FC = () => {
             onClick={() => handleViewDetail(record)}
           >
             Xem chi tiết
+          </Button>
+          <Button
+            type="default"
+            icon={<EditOutlined />}
+            size="small"
+            onClick={() => handleEdit(record)}
+          >
+            Chỉnh sửa
           </Button>
         </Space>
       )
@@ -366,8 +467,8 @@ const ParentHealthProfiles: React.FC = () => {
                   </Tag>
                 ) : selectedProfile.hearing ? (
                   <div>
-                    <div>Tai trái: {selectedProfile.hearing.leftEar || 'N/A'}</div>
-                    <div>Tai phải: {selectedProfile.hearing.rightEar || 'N/A'}</div>
+                    <div>Tai trái: {getHearingStatusText(selectedProfile.hearing.leftEar || 'N/A')}</div>
+                    <div>Tai phải: {getHearingStatusText(selectedProfile.hearing.rightEar || 'N/A')}</div>
                   </div>
                 ) : 'Chưa có thông tin'}
               </Descriptions.Item>
@@ -488,6 +589,204 @@ const ParentHealthProfiles: React.FC = () => {
               )}
             </Card>
           </div>
+        )}
+      </Modal>
+
+      {/* Edit Modal */}
+      <Modal
+        title="Chỉnh sửa hồ sơ sức khỏe"
+        open={isEditModalVisible}
+        onCancel={() => {
+          setIsEditModalVisible(false);
+          setEditingProfile(null);
+          form.resetFields();
+        }}
+        onOk={handleSaveEdit}
+        okText="Lưu thay đổi"
+        cancelText="Hủy"
+        width={800}
+        confirmLoading={loading}
+      >
+        {editingProfile && (
+          <Form
+            form={form}
+            layout="vertical"
+            style={{ marginTop: '20px' }}
+          >
+            <Divider orientation="left">Thông tin cơ bản</Divider>
+            <Form.Item label="Học sinh">
+              <Input 
+                value={getStudentName(editingProfile)}
+                disabled
+              />
+            </Form.Item>
+
+            <Divider orientation="left">Thị lực</Divider>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item 
+                  name={['vision', 'leftEye']} 
+                  label="Mắt trái (độ thị lực)"
+                  rules={[{ type: 'number', min: 0, max: 10 }]}
+                >
+                  <InputNumber 
+                    min={0} 
+                    max={10} 
+                    step={0.1}
+                    style={{ width: '100%' }}
+                    placeholder="Ví dụ: 1.0"
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item 
+                  name={['vision', 'rightEye']} 
+                  label="Mắt phải (độ thị lực)"
+                  rules={[{ type: 'number', min: 0, max: 10 }]}
+                >
+                  <InputNumber 
+                    min={0} 
+                    max={10} 
+                    step={0.1}
+                    style={{ width: '100%' }}
+                    placeholder="Ví dụ: 1.0"
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Divider orientation="left">Thính giác</Divider>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item 
+                  name={['hearing', 'leftEar']} 
+                  label="Tai trái"
+                  rules={[{ required: true, message: 'Vui lòng chọn trạng thái thính giác' }]}
+                >
+                  <Select placeholder="Chọn trạng thái">
+                    <Option value="Normal">Bình thường</Option>
+                    <Option value="Mild Loss">Suy giảm nhẹ</Option>
+                    <Option value="Moderate Loss">Suy giảm trung bình</Option>
+                    <Option value="Severe Loss">Suy giảm nặng</Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item 
+                  name={['hearing', 'rightEar']} 
+                  label="Tai phải"
+                  rules={[{ required: true, message: 'Vui lòng chọn trạng thái thính giác' }]}
+                >
+                  <Select placeholder="Chọn trạng thái">
+                    <Option value="Normal">Bình thường</Option>
+                    <Option value="Mild Loss">Suy giảm nhẹ</Option>
+                    <Option value="Moderate Loss">Suy giảm trung bình</Option>
+                    <Option value="Severe Loss">Suy giảm nặng</Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Divider orientation="left">Dị ứng</Divider>
+            <Form.List name="allergies">
+              {(fields, { add, remove }) => (
+                <>
+                  {fields.map(({ key, name, ...restField }) => (
+                    <Row key={key} gutter={16} align="middle">
+                      <Col span={8}>
+                        <Form.Item
+                          {...restField}
+                          name={[name, 'name']}
+                          rules={[{ required: true, message: 'Vui lòng nhập tên dị ứng' }]}
+                        >
+                          <Input placeholder="Tên dị ứng" />
+                        </Form.Item>
+                      </Col>
+                      <Col span={6}>
+                        <Form.Item
+                          {...restField}
+                          name={[name, 'severity']}
+                          rules={[{ required: true, message: 'Chọn mức độ' }]}
+                        >
+                          <Select placeholder="Mức độ">
+                            <Option value="Mild">Nhẹ</Option>
+                            <Option value="Moderate">Trung bình</Option>
+                            <Option value="Severe">Nặng</Option>
+                          </Select>
+                        </Form.Item>
+                      </Col>
+                      <Col span={8}>
+                        <Form.Item
+                          {...restField}
+                          name={[name, 'notes']}
+                        >
+                          <Input placeholder="Ghi chú" />
+                        </Form.Item>
+                      </Col>
+                      <Col span={2}>
+                        <MinusCircleOutlined onClick={() => remove(name)} />
+                      </Col>
+                    </Row>
+                  ))}
+                  <Form.Item>
+                    <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
+                      Thêm dị ứng
+                    </Button>
+                  </Form.Item>
+                </>
+              )}
+            </Form.List>
+
+            <Divider orientation="left">Bệnh mãn tính</Divider>
+            <Form.List name="chronicDiseases">
+              {(fields, { add, remove }) => (
+                <>
+                  {fields.map(({ key, name, ...restField }) => (
+                    <Row key={key} gutter={16} align="middle">
+                      <Col span={8}>
+                        <Form.Item
+                          {...restField}
+                          name={[name, 'name']}
+                          rules={[{ required: true, message: 'Vui lòng nhập tên bệnh' }]}
+                        >
+                          <Input placeholder="Tên bệnh" />
+                        </Form.Item>
+                      </Col>
+                      <Col span={6}>
+                        <Form.Item
+                          {...restField}
+                          name={[name, 'status']}
+                          rules={[{ required: true, message: 'Chọn trạng thái' }]}
+                        >
+                          <Select placeholder="Trạng thái">
+                            <Option value="Active">Đang điều trị</Option>
+                            <Option value="Managed">Đã kiểm soát</Option>
+                            <Option value="Resolved">Đã khỏi</Option>
+                          </Select>
+                        </Form.Item>
+                      </Col>
+                      <Col span={8}>
+                        <Form.Item
+                          {...restField}
+                          name={[name, 'notes']}
+                        >
+                          <Input placeholder="Ghi chú" />
+                        </Form.Item>
+                      </Col>
+                      <Col span={2}>
+                        <MinusCircleOutlined onClick={() => remove(name)} />
+                      </Col>
+                    </Row>
+                  ))}
+                  <Form.Item>
+                    <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
+                      Thêm bệnh mãn tính
+                    </Button>
+                  </Form.Item>
+                </>
+              )}
+            </Form.List>
+          </Form>
         )}
       </Modal>
     </div>
