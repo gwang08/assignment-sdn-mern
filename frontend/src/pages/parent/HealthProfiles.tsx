@@ -242,10 +242,33 @@ const ParentHealthProfiles: React.FC = () => {
       title: 'Trạng thái thị lực',
       key: 'vision_status',
       render: (_: any, record: HealthProfile) => {
-        const visionStatus = record.vision_status || 
-          (record.vision ? 
-            (record.vision.leftEye === 1 && record.vision.rightEye === 1 ? 'good' : 'fair') : 
-            'unknown');
+        let visionStatus = record.vision_status;
+        
+        // Nếu không có vision_status, tính toán dựa trên vision
+        if (!visionStatus && record.vision) {
+          const leftEye = record.vision.leftEye || 0;
+          const rightEye = record.vision.rightEye || 0;
+          
+          // Đánh giá theo mắt kém hơn (min) vì đây là điểm yếu cần chú ý
+          const minVision = Math.min(leftEye, rightEye);
+          
+          // Logic thị lực: 1.0 = 10/10, 0.6 = 6/10, etc.
+          // Chuyển đổi: nếu giá trị > 1 thì chia cho 10 (ví dụ: 6 -> 0.6, 10 -> 1.0)
+          const normalizedVision = minVision > 1 ? minVision / 10 : minVision;
+          
+          if (normalizedVision >= 0.8) {
+            visionStatus = 'good';      // 8/10 trở lên là tốt
+          } else if (normalizedVision >= 0.5) {
+            visionStatus = 'fair';      // 5/10 - 7/10 là trung bình
+          } else {
+            visionStatus = 'poor';      // Dưới 5/10 là kém
+          }
+        }
+        
+        if (!visionStatus) {
+          visionStatus = 'unknown';
+        }
+        
         return (
           <Tag color={getHealthStatusColor(visionStatus)}>
             {visionStatus === 'good' ? 'Tốt' : visionStatus === 'fair' ? 'Trung bình' : visionStatus === 'poor' ? 'Kém' : 'Chưa rõ'}
@@ -257,10 +280,26 @@ const ParentHealthProfiles: React.FC = () => {
       title: 'Trạng thái thính giác',
       key: 'hearing_status',
       render: (_: any, record: HealthProfile) => {
-        const hearingStatus = record.hearing_status || 
-          (record.hearing ? 
-            (record.hearing.leftEar === 'Normal' && record.hearing.rightEar === 'Normal' ? 'good' : 'fair') : 
-            'unknown');
+        let hearingStatus = record.hearing_status;
+        
+        // Nếu không có hearing_status, tính toán dựa trên hearing
+        if (!hearingStatus && record.hearing) {
+          const leftEar = record.hearing.leftEar || 'Normal';
+          const rightEar = record.hearing.rightEar || 'Normal';
+          
+          if (leftEar === 'Normal' && rightEar === 'Normal') {
+            hearingStatus = 'good';
+          } else if (leftEar === 'Severe Loss' || rightEar === 'Severe Loss') {
+            hearingStatus = 'poor';
+          } else {
+            hearingStatus = 'fair';
+          }
+        }
+        
+        if (!hearingStatus) {
+          hearingStatus = 'unknown';
+        }
+        
         return (
           <Tag color={getHealthStatusColor(hearingStatus)}>
             {hearingStatus === 'good' ? 'Tốt' : hearingStatus === 'fair' ? 'Trung bình' : hearingStatus === 'poor' ? 'Kém' : 'Chưa rõ'}

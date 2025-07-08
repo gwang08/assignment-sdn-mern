@@ -36,7 +36,6 @@ import { Student, MedicineRequest } from '../../types';
 import apiService from '../../services/api';
 
 const { Title, Text } = Typography;
-const { TextArea } = Input;
 const { Option } = Select;
 
 const ParentMedicineRequests: React.FC = () => {
@@ -47,6 +46,7 @@ const ParentMedicineRequests: React.FC = () => {
   const [isDetailModalVisible, setIsDetailModalVisible] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<MedicineRequest | null>(null);
   const [editingRequest, setEditingRequest] = useState<MedicineRequest | null>(null);
+  const [medicines, setMedicines] = useState([{ name: '', dosage: '', frequency: '', notes: '' }]);
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -128,19 +128,20 @@ const ParentMedicineRequests: React.FC = () => {
       const requestData = {
         startDate: values.start_date.format('YYYY-MM-DD'),
         endDate: values.end_date.format('YYYY-MM-DD'),
-        medicines: [{
-          name: values.medicine_name,
-          dosage: values.dosage,
-          frequency: values.frequency,
-          notes: values.instructions
-        }]
+        medicines: medicines.filter(med => med.name && med.dosage && med.frequency)
       };
+
+      if (requestData.medicines.length === 0) {
+        message.error('Vui lòng điền thông tin ít nhất một loại thuốc');
+        return;
+      }
 
       const response = await apiService.createMedicineRequestForStudent(values.student_id, requestData);
       
       if (response.success) {
         message.success('Gửi yêu cầu thuốc thành công');
         setIsModalVisible(false);
+        setMedicines([{ name: '', dosage: '', frequency: '', notes: '' }]);
         form.resetFields();
         loadData(); // Reload data to refresh the list
       }
@@ -159,10 +160,28 @@ const ParentMedicineRequests: React.FC = () => {
       message.info('Không thể chỉnh sửa yêu cầu đã gửi. Vui lòng tạo yêu cầu mới nếu cần.');
       setIsModalVisible(false);
       setEditingRequest(null);
+      setMedicines([{ name: '', dosage: '', frequency: '', notes: '' }]);
       form.resetFields();
     } catch (error) {
       message.error('Có lỗi xảy ra khi cập nhật yêu cầu thuốc');
     }
+  };
+
+  const addMedicine = () => {
+    setMedicines([...medicines, { name: '', dosage: '', frequency: '', notes: '' }]);
+  };
+
+  const removeMedicine = (index: number) => {
+    if (medicines.length > 1) {
+      const newMedicines = medicines.filter((_, i) => i !== index);
+      setMedicines(newMedicines);
+    }
+  };
+
+  const updateMedicine = (index: number, field: string, value: string) => {
+    const newMedicines = [...medicines];
+    newMedicines[index] = { ...newMedicines[index], [field]: value };
+    setMedicines(newMedicines);
   };
 
   const handleDeleteRequest = async (requestId: string) => {
@@ -212,36 +231,25 @@ const ParentMedicineRequests: React.FC = () => {
     {
       title: 'Tên thuốc',
       key: 'medicine_name',
-      width: 150,
+      width: 200,
       render: (_: any, record: MedicineRequest) => {
-        const medicineName = record.medicine_name || 
-          (record.medicines && record.medicines.length > 0 ? record.medicines[0].name : 'N/A');
+        if (record.medicines && record.medicines.length > 0) {
+          return (
+            <div>
+              {record.medicines.map((med, idx) => (
+                <div key={idx} style={{ marginBottom: '4px' }}>
+                  <div style={{ fontWeight: 500, fontSize: '14px' }}>{med.name}</div>
+                  <Text style={{ fontSize: '12px', color: '#666' }}>
+                    {med.dosage} - {med.frequency}
+                  </Text>
+                </div>
+              ))}
+            </div>
+          );
+        }
+        const medicineName = record.medicine_name || 'N/A';
         return (
           <div style={{ fontWeight: 500, fontSize: '14px' }}>{medicineName}</div>
-        );
-      }
-    },
-    {
-      title: 'Liều dùng',
-      key: 'dosage',
-      width: 100,
-      render: (_: any, record: MedicineRequest) => {
-        const dosage = record.dosage || 
-          (record.medicines && record.medicines.length > 0 ? record.medicines[0].dosage : 'N/A');
-        return (
-          <div style={{ fontSize: '13px' }}>{dosage}</div>
-        );
-      }
-    },
-    {
-      title: 'Tần suất',
-      key: 'frequency',
-      width: 100,
-      render: (_: any, record: MedicineRequest) => {
-        const frequency = record.frequency || 
-          (record.medicines && record.medicines.length > 0 ? record.medicines[0].frequency : 'N/A');
-        return (
-          <div style={{ fontSize: '13px' }}>{frequency}</div>
         );
       }
     },
@@ -462,6 +470,7 @@ const ParentMedicineRequests: React.FC = () => {
           icon={<PlusOutlined />}
           onClick={() => {
             setEditingRequest(null);
+            setMedicines([{ name: '', dosage: '', frequency: '', notes: '' }]);
             form.resetFields();
             setIsModalVisible(true);
           }}
@@ -584,6 +593,7 @@ const ParentMedicineRequests: React.FC = () => {
         onCancel={() => {
           setIsModalVisible(false);
           setEditingRequest(null);
+          setMedicines([{ name: '', dosage: '', frequency: '', notes: '' }]);
           form.resetFields();
         }}
         width={600}
@@ -609,47 +619,86 @@ const ParentMedicineRequests: React.FC = () => {
             </Select>
           </Form.Item>
 
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="medicine_name"
-                label="Tên thuốc"
-                rules={[{ required: true, message: 'Vui lòng nhập tên thuốc' }]}
+          <div style={{ marginBottom: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <Text strong>Danh sách thuốc</Text>
+              <Button type="dashed" onClick={addMedicine} icon={<PlusOutlined />}>
+                Thêm thuốc
+              </Button>
+            </div>
+            
+            {medicines.map((medicine, index) => (
+              <Card 
+                key={index} 
+                size="small" 
+                style={{ marginBottom: '12px' }}
+                title={`Thuốc ${index + 1}`}
+                extra={
+                  medicines.length > 1 && (
+                    <Button 
+                      type="text" 
+                      danger 
+                      icon={<DeleteOutlined />} 
+                      onClick={() => removeMedicine(index)}
+                    />
+                  )
+                }
               >
-                <Input placeholder="Nhập tên thuốc" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="dosage"
-                label="Liều dùng"
-                rules={[{ required: true, message: 'Vui lòng nhập liều dùng' }]}
-              >
-                <Input placeholder="Ví dụ: 500mg" />
-              </Form.Item>
-            </Col>
-          </Row>
+                <Row gutter={16}>
+                  <Col span={12}>
+                    <Form.Item
+                      label="Tên thuốc"
+                      required
+                    >
+                      <Input 
+                        placeholder="Nhập tên thuốc" 
+                        value={medicine.name}
+                        onChange={(e) => updateMedicine(index, 'name', e.target.value)}
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col span={12}>
+                    <Form.Item
+                      label="Liều dùng"
+                      required
+                    >
+                      <Input 
+                        placeholder="Ví dụ: 1 viên" 
+                        value={medicine.dosage}
+                        onChange={(e) => updateMedicine(index, 'dosage', e.target.value)}
+                      />
+                    </Form.Item>
+                  </Col>
+                </Row>
 
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="frequency"
-                label="Tần suất sử dụng"
-                rules={[{ required: true, message: 'Vui lòng nhập tần suất' }]}
-              >
-                <Input placeholder="Ví dụ: 2 lần/ngày" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="duration"
-                label="Thời gian điều trị"
-                rules={[{ required: true, message: 'Vui lòng nhập thời gian' }]}
-              >
-                <Input placeholder="Ví dụ: 7 ngày" />
-              </Form.Item>
-            </Col>
-          </Row>
+                <Row gutter={16}>
+                  <Col span={12}>
+                    <Form.Item
+                      label="Tần suất sử dụng"
+                      required
+                    >
+                      <Input 
+                        placeholder="Ví dụ: 2 lần/ngày" 
+                        value={medicine.frequency}
+                        onChange={(e) => updateMedicine(index, 'frequency', e.target.value)}
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col span={12}>
+                    <Form.Item
+                      label="Ghi chú"
+                    >
+                      <Input 
+                        placeholder="Ghi chú thêm" 
+                        value={medicine.notes}
+                        onChange={(e) => updateMedicine(index, 'notes', e.target.value)}
+                      />
+                    </Form.Item>
+                  </Col>
+                </Row>
+              </Card>
+            ))}
+          </div>
 
           <Row gutter={16}>
             <Col span={12}>
@@ -671,21 +720,6 @@ const ParentMedicineRequests: React.FC = () => {
               </Form.Item>
             </Col>
           </Row>
-
-          <Form.Item
-            name="instructions"
-            label="Hướng dẫn sử dụng"
-            rules={[{ required: true, message: 'Vui lòng nhập hướng dẫn' }]}
-          >
-            <TextArea rows={3} placeholder="Nhập hướng dẫn chi tiết về cách sử dụng thuốc" />
-          </Form.Item>
-
-          <Form.Item
-            name="notes"
-            label="Ghi chú thêm"
-          >
-            <TextArea rows={2} placeholder="Ghi chú thêm (nếu có)" />
-          </Form.Item>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
             <Button onClick={() => setIsModalVisible(false)}>
