@@ -7,6 +7,7 @@ const vaccineDetailsSchema = new Schema(
     brand: { type: String, required: true },
     batchNumber: { type: String, required: true },
     dosage: { type: String, required: true },
+    expiry_date: { type: Date, required: true },
   },
   { _id: false }
 );
@@ -19,12 +20,7 @@ const campaignSchema = new Schema(
     },
     campaign_type: {
       type: String,
-      enum: ['vaccination', 'health_check', 'screening', 'other'],
-      required: true,
-    },
-    type: {
-      type: String,
-      enum: Object.values(CAMPAIGN_TYPE),
+      enum: ["vaccination", "health_check", "screening", "other"],
       required: true,
     },
     vaccineDetails: {
@@ -36,13 +32,11 @@ const campaignSchema = new Schema(
     description: {
       type: String,
     },
-    target_classes: [{
-      type: String,
-    }],
-    target_students: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-    }],
+    target_classes: [
+      {
+        type: String,
+      },
+    ],
     start_date: {
       type: Date,
       required: true,
@@ -51,19 +45,15 @@ const campaignSchema = new Schema(
       type: Date,
       required: true,
     },
-    date: {
-      type: Date,
-      required: true,
-    },
     created_by: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
     },
     status: {
       type: String,
-      enum: ['draft', 'active', 'completed', 'cancelled'],
-      default: 'draft',
+      enum: ["draft", "active", "completed", "cancelled"],
+      default: "draft",
     },
     requires_consent: {
       type: Boolean,
@@ -81,4 +71,4 @@ const campaignSchema = new Schema(
   }
 );
 
-module.exports = mongoose.model("Campaign", campaignSchema);
+module.exports = mongoose.model("Campaign", campaignSchema)

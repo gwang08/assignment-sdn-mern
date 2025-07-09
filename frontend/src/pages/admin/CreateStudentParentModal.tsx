@@ -5,13 +5,13 @@ import {
   Select,
   Input,
   Checkbox,
-  message,
   Row,
   Col,
   Button,
 } from "antd";
 import apiService from "../../services/api";
 import { Student, Parent } from "../../types";
+import { toast } from "react-toastify";
 
 const { Option } = Select;
 
@@ -50,7 +50,7 @@ const CreateStudentParentModal: React.FC<Props> = ({
       }
     } catch (err) {
       console.error("Lỗi khi tải danh sách học sinh / phụ huynh:", err);
-      message.error("Không thể tải danh sách học sinh / phụ huynh");
+      toast.error("Không thể tải danh sách học sinh / phụ huynh");
     }
   };
 
@@ -65,16 +65,16 @@ const CreateStudentParentModal: React.FC<Props> = ({
       });
 
       if (response.success) {
-        message.success("Tạo liên kết thành công");
+        toast.success("Tạo liên kết thành công");
         form.resetFields();
         onSuccess();
         onClose();
       } else {
-        message.error(response.message || "Tạo liên kết thất bại");
+        toast.error(response.message || "Tạo liên kết thất bại");
       }
     } catch (err) {
       console.error("Lỗi khi tạo liên kết:", err);
-      message.error("Lỗi hệ thống khi tạo liên kết");
+      toast.error("Lỗi hệ thống khi tạo liên kết");
     } finally {
       setLoading(false);
     }

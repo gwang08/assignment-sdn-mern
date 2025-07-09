@@ -10,7 +10,6 @@ import {
   Form,
   Input,
   Select,
-  message,
   Typography,
   Tabs,
   Tag,
@@ -23,6 +22,7 @@ import apiService from "../../services/api/adminService";
 import { Student, MedicalStaff } from "../../types";
 import StudentParentRelations from "./StudentParentRelations";
 import PendingLinkRequests from "./PendingLinkRequests";
+import { toast } from "react-toastify";
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -85,7 +85,7 @@ const AdminDashboard: React.FC = () => {
       }
     } catch (error) {
       console.error("Error loading data:", error);
-      message.error("Có lỗi xảy ra khi tải dữ liệu");
+      toast.error("Có lỗi xảy ra khi tải dữ liệu");
     } finally {
       setLoading(false);
     }
@@ -128,7 +128,7 @@ const AdminDashboard: React.FC = () => {
       }
 
       if (response.success) {
-        message.success(
+        toast.success(
           isEditing ? "Cập nhật học sinh thành công" : "Tạo học sinh thành công"
         );
         setIsStudentModalVisible(false);
@@ -136,25 +136,25 @@ const AdminDashboard: React.FC = () => {
         setEditingStudent(null);
         loadData();
       } else {
-        message.error(response.message || "Có lỗi xảy ra");
+        toast.error(response.message || "Có lỗi xảy ra");
       }
     } catch (error) {
       console.error("Error submitting student:", error);
-      message.error("Có lỗi xảy ra khi lưu thông tin học sinh");
+      toast.error("Có lỗi xảy ra khi lưu thông tin học sinh");
     }
   };
   const handleDeactivateStudent = async (studentId: string) => {
     try {
       const response = await apiService.deactivateStudent(studentId);
       if (response.success) {
-        message.success("Đã vô hiệu hóa học sinh");
+        toast.success("Đã vô hiệu hóa học sinh");
         loadData();
       } else {
-        message.error(response.message || "Thao tác thất bại");
+        toast.error(response.message || "Thao tác thất bại");
       }
     } catch (error) {
       console.error("Error deactivating student:", error);
-      message.error("Lỗi khi vô hiệu hóa học sinh");
+      toast.error("Lỗi khi vô hiệu hóa học sinh");
     }
   };
   // Medical staff management functions
@@ -193,7 +193,7 @@ const AdminDashboard: React.FC = () => {
       }
 
       if (response.success) {
-        message.success(
+        toast.success(
           isEditing
             ? "Cập nhật nhân viên thành công"
             : "Tạo nhân viên thành công"
@@ -203,11 +203,11 @@ const AdminDashboard: React.FC = () => {
         setEditingMedicalStaff(null);
         loadData();
       } else {
-        message.error(response.message || "Có lỗi xảy ra");
+        toast.error(response.message || "Có lỗi xảy ra");
       }
     } catch (error) {
       console.error("Error submitting medical staff:", error);
-      message.error("Có lỗi xảy ra khi lưu thông tin nhân viên y tế");
+      toast.error("Có lỗi xảy ra khi lưu thông tin nhân viên y tế");
     }
   };
 
@@ -215,14 +215,14 @@ const AdminDashboard: React.FC = () => {
     try {
       const response = await apiService.deactivateMedicalStaff(staffId);
       if (response.success) {
-        message.success("Đã vô hiệu hóa nhân viên y tế");
+        toast.success("Đã vô hiệu hóa nhân viên y tế");
         loadData();
       } else {
-        message.error(response.message || "Thao tác thất bại");
+        toast.error(response.message || "Thao tác thất bại");
       }
     } catch (error) {
       console.error("Error deactivating staff:", error);
-      message.error("Lỗi khi vô hiệu hóa nhân viên y tế");
+      toast.error("Lỗi khi vô hiệu hóa nhân viên y tế");
     }
   };
 

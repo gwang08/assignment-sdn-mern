@@ -354,7 +354,6 @@ exports.getCampaigns = async (req, res) => {
           $or: [
             { target_classes: { $in: classNames } },
             { target_classes: "All" },
-            { target_students: { $in: studentIds } },
             { target_classes: { $size: 0 } }, // Empty array means all classes
             { target_classes: { $exists: false } }, // Handle case where target_classes doesn't exist
             { target_classes: null }, // Handle case where target_classes is null
