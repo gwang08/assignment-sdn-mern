@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import {
   Table,
   Typography,
-  message,
   Button,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
@@ -11,6 +10,7 @@ import { PlusOutlined } from "@ant-design/icons";
 import CreateStudentParentModal from "./CreateStudentParentModal";
 import "./StudentParentRelations.css"; 
 import { StudentParentRelation } from "../../types";
+import { toast } from "react-toastify";
 
 const { Title } = Typography;
 
@@ -30,11 +30,11 @@ const StudentParentRelations: React.FC = () => {
       if (response.success && response.data) {
         setRelations(response.data);
       } else {
-        message.error(response.message || "Không thể tải dữ liệu quan hệ.");
+        toast.error(response.message || "Không thể tải dữ liệu quan hệ.");
       }
     } catch (error) {
       console.error("Lỗi khi tải quan hệ phụ huynh – học sinh:", error);
-      message.error("Lỗi hệ thống.");
+      toast.error("Lỗi hệ thống.");
     } finally {
       setLoading(false);
     }
