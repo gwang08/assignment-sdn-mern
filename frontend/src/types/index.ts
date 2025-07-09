@@ -377,11 +377,21 @@ export interface DashboardStats {
   total_students: number;
   total_medical_events: number;
   active_campaigns: number;
+  activeEvents: number;
+  pendingRequests: number;
   pending_medicine_requests: number;
-  recent_events: MedicalEvent[];
+  recent_events: MedicalEventNurse[];
   upcoming_campaigns: Campaign[];
 }
-
+export interface DashboardApiResponse {
+  nurseInfo: any;
+  recentEvents: MedicalEventNurse[];
+  recentRequests: MedicineRequest[];
+  dashboardStats: {
+    activeEvents: number;
+    pendingRequests: number;
+  };
+}
 export interface StudentParentRelation {
   _id: string;
   student: Student;

@@ -1,393 +1,259 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Row, 
-  Col, 
-  Card, 
-  Statistic, 
-  Table, 
-  Tag, 
-  Button, 
-  Typography, 
-  Space,
-  List,
-  Avatar,
-  Calendar,
-  Badge,
-  Alert
-} from 'antd';
+import { Bar } from "@ant-design/charts";
 import {
-  MedicineBoxOutlined,
-  TeamOutlined,
+  BarChartOutlined,
   CalendarOutlined,
-  AlertOutlined,
-  ArrowUpOutlined,
-  ArrowDownOutlined,
-  UserOutlined,
   ClockCircleOutlined,
-  CheckCircleOutlined,
-} from '@ant-design/icons';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import apiService from '../../services/api';
-import { MedicalEvent, Campaign, MedicineRequest, DashboardStats } from '../../types';
+  FileDoneOutlined,
+  MedicineBoxOutlined,
+} from "@ant-design/icons";
+import { Card, Col, Row, Space, Statistic, Table, Tag, Typography } from "antd";
+import { useEffect, useState } from "react";
+import nurseService from "../../services/api/nurseService";
 
-const { Title, Text } = Typography;
+const { Title } = Typography;
 
-const NurseDashboard: React.FC = () => {
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [recentEvents, setRecentEvents] = useState<MedicalEvent[]>([]);
-  const [upcomingCampaigns, setUpcomingCampaigns] = useState<Campaign[]>([]);
-  const [pendingRequests, setPendingRequests] = useState<MedicineRequest[]>([]);
+const NurseDashboard = () => {
+  const [data, setData] = useState<any>(null);
 
   useEffect(() => {
-    loadDashboardData();
+    const fetchData = async () => {
+      const res = await nurseService.getDashboardStats();
+      if (res.success) {
+        setData(res.data);
+      }
+    };
+    fetchData();
   }, []);
 
-  const loadDashboardData = async () => {
-    try {
-      setLoading(true);
-      
-      // Load dashboard stats
-      const statsResponse = await apiService.getDashboardStats();
-      if (statsResponse.success && statsResponse.data) {
-        setStats(statsResponse.data);
-        setRecentEvents(statsResponse.data.recent_events);
-        setUpcomingCampaigns(statsResponse.data.upcoming_campaigns);
-      }
+  const chartData = [
+    {
+      name: "Sự kiện y tế",
+      value: data?.dashboardStats?.totalMedicalEvents || 0,
+    },
+    {
+      name: "Chiến dịch",
+      value: data?.dashboardStats?.totalCampaigns || 0,
+    },
+    {
+      name: "Chiến dịch đang diễn ra",
+      value: data?.dashboardStats?.activeCampaigns || 0,
+    },
+    {
+      name: "Yêu cầu thuốc",
+      value: data?.dashboardStats?.pendingRequests || 0,
+    },
+    {
+      name: "Sự kiện đang hoạt động",
+      value: data?.dashboardStats?.activeEvents || 0,
+    },
+  ];
 
-      // Load pending medicine requests
-      const requestsResponse = await apiService.getMedicineRequests();
-      if (requestsResponse.success && requestsResponse.data) {
-        const pending = requestsResponse.data.filter(req => req.status === 'pending');
-        setPendingRequests(pending);
+  const chartConfig = {
+    data: chartData,
+    xField: "value",
+    yField: "name",
+    seriesField: "name",
+    legend: false,
+    color: ({ name }: any) => {
+      switch (name) {
+        case "Sự kiện y tế":
+          return "#5B8FF9";
+        case "Chiến dịch":
+          return "#61DDAA";
+        case "Chiến dịch đang diễn ra":
+          return "#65789B";
+        case "Yêu cầu thuốc":
+          return "#F6BD16";
+        case "Sự kiện đang hoạt động":
+          return "#FF9D4D";
+        default:
+          return "#ccc";
       }
-    } catch (error) {
-      console.error('Error loading dashboard data:', error);
-    } finally {
-      setLoading(false);
-    }
+    },
+    height: 250,
+    barWidthRatio: 0.6,
   };
 
-  // Sample data for charts
-  const eventTrendData = [
-    { name: 'T2', events: 4 },
-    { name: 'T3', events: 7 },
-    { name: 'T4', events: 5 },
-    { name: 'T5', events: 8 },
-    { name: 'T6', events: 6 },
-    { name: 'T7', events: 3 },
-    { name: 'CN', events: 2 }
-  ];
-
-  const eventTypeData = [
-    { name: 'Tai nạn', value: 35, color: '#ff4d4f' },
-    { name: 'Ốm đau', value: 45, color: '#1890ff' },
-    { name: 'Khám định kỳ', value: 20, color: '#52c41a' }
-  ];
-
-  const eventColumns = [
+  const columnsEvents = [
     {
-      title: 'Thời gian',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      render: (date: string) => new Date(date).toLocaleString('vi-VN')
+      title: "Học sinh",
+      dataIndex: "student",
+      key: "student",
+      render: (student: any) => `${student.last_name} ${student.first_name}`,
     },
     {
-      title: 'Học sinh',
-      dataIndex: 'student_id',
-      key: 'student_id',
-      render: (studentId: string) => `HS-${studentId.slice(-6)}`
+      title: "Lớp",
+      dataIndex: ["student", "class_name"],
+      key: "class_name",
     },
     {
-      title: 'Loại sự kiện',
-      dataIndex: 'event_type',
-      key: 'event_type',
-      render: (type: string) => {
-        const colors = {
-          accident: 'red',
-          illness: 'blue',
-          injury: 'orange',
-          emergency: 'magenta',
-          other: 'default'
-        };
-        return <Tag color={colors[type as keyof typeof colors]}>{type}</Tag>;
-      }
+      title: "Loại",
+      dataIndex: "event_type",
+      key: "event_type",
     },
     {
-      title: 'Mức độ',
-      dataIndex: 'severity',
-      key: 'severity',
-      render: (severity: string) => {
-        const colors = {
-          low: 'green',
-          medium: 'yellow',
-          high: 'orange',
-          critical: 'red'
-        };
-        return <Tag color={colors[severity as keyof typeof colors]}>{severity}</Tag>;
-      }
-    },
-    {
-      title: 'Trạng thái',
-      dataIndex: 'status',
-      key: 'status',
+      title: "Tình trạng",
+      dataIndex: "status",
+      key: "status",
+      align: "center" as "center",
       render: (status: string) => {
-        const colors = {
-          open: 'red',
-          in_progress: 'blue',
-          resolved: 'green',
-          referred: 'purple'
-        };
-        return <Tag color={colors[status as keyof typeof colors]}>{status}</Tag>;
-      }
-    }
+        let color = "";
+        switch (status) {
+          case "Resolved":
+            color = "green";
+            break;
+          case "In Progress":
+            color = "blue";
+            break;
+          case "Open":
+            color = "orange";
+            break;
+          default:
+            color = "default";
+        }
+        return <Tag color={color}>{status}</Tag>;
+      },
+    },
   ];
 
-  const getCalendarData = (value: any) => {
-    // Sample calendar data
-    const today = new Date();
-    if (value.date() === today.getDate()) {
-      return [
-        { type: 'warning', content: '3 ca khám' },
-        { type: 'success', content: '2 chiến dịch' }
-      ];
-    }
-    return [];
-  };
+  const columnsRequests = [
+    {
+      title: "Học sinh",
+      dataIndex: "student",
+      key: "student",
+      render: (student: any) => `${student.last_name} ${student.first_name}`,
+    },
+    {
+      title: "Lớp",
+      dataIndex: ["student", "class_name"],
+      key: "class_name",
+    },
+    {
+      title: "Trạng thái",
+      dataIndex: "status",
+      key: "status",
+      align: "center" as "center",
+      render: (status: string) => {
+        let color = "";
+        switch (status) {
+          case "pending":
+            color = "orange";
+            break;
+          case "approved":
+            color = "green";
+            break;
+          case "rejected":
+            color = "red";
+            break;
+          default:
+            color = "default";
+        }
+        return <Tag color={color}>{status.toUpperCase()}</Tag>;
+      },
+    },
+  ];
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <Title level={2} className="m-0">Dashboard Y tế</Title>
-          <Text type="secondary">Tổng quan hoạt động y tế học đường</Text>
-        </div>
-        <Button type="primary" onClick={loadDashboardData} loading={loading}>
-          Làm mới dữ liệu
-        </Button>
-      </div>
+    <div>
+      <Card
+        style={{
+          marginBottom: 20,
+          padding: "0 16px",
+          height: 60,
+          background: "#f0f5ff",
+          borderRadius: 12,
+          boxShadow: "0 2px 2px rgba(0,0,0,0.05)",
+          display: "flex",
+          alignItems: "center",
+        }}
+      >
+        <Space
+          align="center"
+          style={{ display: "flex", alignItems: "center", gap: 8 }}
+        >
+          <h4 style={{ margin: 0, fontStyle: "italic" }}>👋 Xin chào:</h4>
+          <Title
+            level={4}
+            style={{ marginBottom: 4, fontSize: 20, color: "#1d39c4" }}
+          >
+            {data?.nurseInfo?.last_name} {data?.nurseInfo?.first_name}
+          </Title>
+        </Space>
+      </Card>
 
-      {/* Alert for urgent items */}
-      {pendingRequests.length > 0 && (
-        <Alert
-          message={`Có ${pendingRequests.length} yêu cầu thuốc đang chờ duyệt`}
-          type="warning"
-          showIcon
-          action={
-            <Button size="small" type="primary">
-              Xem ngay
-            </Button>
-          }
-          closable
-        />
-      )}
-
-      {/* Key Statistics */}
-      <Row gutter={[16, 16]}>
-        <Col xs={12} sm={6}>
+      <Row gutter={16}>
+        <Col span={8}>
           <Card>
             <Statistic
-              title="Tổng học sinh"
-              value={stats?.total_students || 0}
-              valueStyle={{ color: '#3f8600' }}
-              prefix={<TeamOutlined />}
-              suffix={
-                <span className="text-sm">
-                  <ArrowUpOutlined className="text-green-500" /> 2.3%
-                </span>
-              }
+              title="Tổng sự kiện y tế"
+              value={data?.dashboardStats?.totalMedicalEvents || 0}
+              prefix={<FileDoneOutlined />}
             />
           </Card>
         </Col>
-        <Col xs={12} sm={6}>
+        <Col span={8}>
           <Card>
             <Statistic
-              title="Sự kiện y tế"
-              value={stats?.total_medical_events || 0}
-              valueStyle={{ color: '#cf1322' }}
-              prefix={<MedicineBoxOutlined />}
-              suffix={
-                <span className="text-sm">
-                  <ArrowDownOutlined className="text-red-500" /> 1.2%
-                </span>
-              }
-            />
-          </Card>
-        </Col>
-        <Col xs={12} sm={6}>
-          <Card>
-            <Statistic
-              title="Chiến dịch đang diễn ra"
-              value={stats?.active_campaigns || 0}
-              valueStyle={{ color: '#1890ff' }}
+              title="Tổng chiến dịch"
+              value={data?.dashboardStats?.totalCampaigns || 0}
               prefix={<CalendarOutlined />}
             />
           </Card>
         </Col>
-        <Col xs={12} sm={6}>
+        <Col span={8}>
+          <Card>
+            <Statistic
+              title="Chiến dịch đang diễn ra"
+              value={data?.dashboardStats?.activeCampaigns || 0}
+              prefix={<ClockCircleOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col span={8}>
           <Card>
             <Statistic
               title="Yêu cầu thuốc chờ duyệt"
-              value={stats?.pending_medicine_requests || 0}
-              valueStyle={{ color: '#fa8c16' }}
-              prefix={<AlertOutlined />}
+              value={data?.dashboardStats?.pendingRequests || 0}
+              prefix={<MedicineBoxOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col span={8}>
+          <Card>
+            <Statistic
+              title="Sự kiện đang hoạt động"
+              value={data?.dashboardStats?.activeEvents || 0}
+              prefix={<BarChartOutlined />}
             />
           </Card>
         </Col>
       </Row>
 
-      {/* Charts */}
-      <Row gutter={[16, 16]}>
-        <Col xs={24} lg={16}>
-          <Card title="Xu hướng sự kiện y tế (7 ngày qua)">
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={eventTrendData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Line type="monotone" dataKey="events" stroke="#1890ff" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
-          </Card>
-        </Col>
-        <Col xs={24} lg={8}>
-          <Card title="Phân loại sự kiện y tế">
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={eventTypeData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  dataKey="value"
-                >
-                  {eventTypeData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="space-y-2 mt-4">
-              {eventTypeData.map((item, index) => (
-                <div key={index} className="flex justify-between items-center">
-                  <div className="flex items-center space-x-2">
-                    <div 
-                      className="w-3 h-3 rounded-full" 
-                      style={{ backgroundColor: item.color }}
-                    />
-                    <Text>{item.name}</Text>
-                  </div>
-                  <Text strong>{item.value}%</Text>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </Col>
-      </Row>
+      <Card style={{ marginTop: 24 }}>
+        <Title level={4}>Thống kê tổng quan</Title>
+        <Bar {...chartConfig} />
+      </Card>
 
-      {/* Recent Activities and Calendar */}
-      <Row gutter={[16, 16]}>
-        <Col xs={24} lg={12}>
-          <Card title="Sự kiện y tế gần đây" extra={<Button type="link">Xem tất cả</Button>}>
+      <Row gutter={24} style={{ marginTop: 24 }}>
+        <Col span={12}>
+          <Card title="Sự kiện y tế gần đây">
             <Table
-              dataSource={recentEvents}
-              columns={eventColumns}
-              pagination={{ pageSize: 5 }}
+              dataSource={data?.recentEvents || []}
+              columns={columnsEvents}
+              rowKey="_id"
+              pagination={false}
               size="small"
-              loading={loading}
             />
           </Card>
         </Col>
-        <Col xs={24} lg={12}>
-          <Card title="Lịch công việc">
-            <Calendar
-              fullscreen={false}
-              cellRender={(value) => {
-                const listData = getCalendarData(value);
-                return (
-                  <ul className="events">
-                    {listData.map((item, index) => (
-                      <li key={index}>
-                        <Badge status={item.type as any} text={item.content} />
-                      </li>
-                    ))}
-                  </ul>
-                );
-              }}
-            />
-          </Card>
-        </Col>
-      </Row>
-
-      {/* Quick Actions and Upcoming Campaigns */}
-      <Row gutter={[16, 16]}>
-        <Col xs={24} lg={8}>
-          <Card title="Thao tác nhanh">
-            <Space direction="vertical" className="w-full" size="middle">
-              <Button block icon={<MedicineBoxOutlined />} type="primary">
-                Tạo sự kiện y tế mới
-              </Button>
-              <Button block icon={<CalendarOutlined />}>
-                Lên lịch chiến dịch
-              </Button>
-              <Button block icon={<UserOutlined />}>
-                Cập nhật hồ sơ sức khỏe
-              </Button>
-              <Button block icon={<CheckCircleOutlined />}>
-                Duyệt yêu cầu thuốc
-              </Button>
-            </Space>
-          </Card>
-        </Col>
-        
-        <Col xs={24} lg={16}>
-          <Card title="Chiến dịch sắp tới" extra={<Button type="link">Xem tất cả</Button>}>
-            <List
-              dataSource={upcomingCampaigns}
-              renderItem={(campaign) => (
-                <List.Item
-                  actions={[
-                    <Button type="link" key="view">Xem chi tiết</Button>,
-                    <Button type="link" key="edit">Chỉnh sửa</Button>
-                  ]}
-                >
-                  <List.Item.Meta
-                    avatar={
-                      <Avatar 
-                        icon={<CalendarOutlined />} 
-                        className={
-                          campaign.campaign_type === 'vaccination' ? 'bg-blue-500' :
-                          campaign.campaign_type === 'health_check' ? 'bg-green-500' : 'bg-purple-500'
-                        }
-                      />
-                    }
-                    title={campaign.title}
-                    description={
-                      <Space direction="vertical" size="small">
-                        <Text type="secondary">{campaign.description}</Text>
-                        <div className="flex items-center space-x-4">
-                          <div className="flex items-center space-x-1">
-                            <ClockCircleOutlined className="text-gray-400" />
-                            <Text className="text-sm">
-                              {new Date(campaign.start_date).toLocaleDateString('vi-VN')}
-                            </Text>
-                          </div>
-                          <Tag color={
-                            campaign.status === 'active' ? 'green' :
-                            campaign.status === 'draft' ? 'blue' : 'default'
-                          }>
-                            {campaign.status}
-                          </Tag>
-                        </div>
-                      </Space>
-                    }
-                  />
-                </List.Item>
-              )}
+        <Col span={12}>
+          <Card title="Yêu cầu thuốc gần đây">
+            <Table
+              dataSource={data?.recentRequests || []}
+              columns={columnsRequests}
+              rowKey="_id"
+              pagination={false}
+              size="small"
             />
           </Card>
         </Col>
