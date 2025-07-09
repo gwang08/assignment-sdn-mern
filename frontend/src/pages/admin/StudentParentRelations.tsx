@@ -1,16 +1,12 @@
-import React, { useEffect, useState } from "react";
-import {
-  Table,
-  Typography,
-  Button,
-} from "antd";
-import type { ColumnsType } from "antd/es/table";
-import apiService from "../../services/api/adminService";
 import { PlusOutlined } from "@ant-design/icons";
-import CreateStudentParentModal from "./CreateStudentParentModal";
-import "./StudentParentRelations.css"; 
-import { StudentParentRelation } from "../../types";
+import { Button, Table, Typography } from "antd";
+import type { ColumnsType } from "antd/es/table";
+import React, { useEffect, useState } from "react";
 import { toast } from "react-toastify";
+import apiService from "../../services/api/adminService";
+import { StudentParentRelation } from "../../types";
+import CreateStudentParentModal from "./CreateStudentParentModal";
+import "./StudentParentRelations.css";
 
 const { Title } = Typography;
 
