@@ -43,10 +43,12 @@ const MedicineRequestsPage: React.FC = () => {
   const [processingRequest, setProcessingRequest] =
     useState<MedicineRequest | null>(null);
   const [form] = Form.useForm();
+  const [filterForm] = Form.useForm(); // Thêm form riêng cho filter
   const [filters, setFilters] = useState<{
     status?: string;
     dateRange?: [moment.Moment, moment.Moment];
   }>({});
+  const [appliedFilters, setAppliedFilters] = useState<typeof filters>({});
 
   useEffect(() => {
     loadRequests();
@@ -62,25 +64,29 @@ const MedicineRequestsPage: React.FC = () => {
       }
 
       const data = await apiService.getNurseMedicineRequests();
+      console.log("getNurseMedicineRequests", data);
       let filteredData = data ?? [];
 
+      // Sử dụng filters hiện tại hoặc formValues mới
+      const currentFilters = formValues || filters;
+
       // Áp dụng lọc theo status
-      if (formValues?.status) {
+      if (currentFilters?.status) {
         filteredData = filteredData.filter(
-          (req) => req.status === formValues.status
+          (req) => req.status === currentFilters.status
         );
       }
 
       // Áp dụng lọc theo ngày tạo
-      if (formValues?.dateRange?.[0] && formValues?.dateRange?.[1]) {
-        const [start, end] = formValues.dateRange;
+      if (currentFilters?.dateRange?.[0] && currentFilters?.dateRange?.[1]) {
+        const [start, end] = currentFilters.dateRange;
         filteredData = filteredData.filter((req) => {
           const created = moment(req.createdAt);
-          return created.isBetween(
-            start.startOf("day"),
-            end.endOf("day"),
-            null,
-            "[]"
+          const startDate = moment(start).startOf("day");
+          const endDate = moment(end).endOf("day");
+
+          return (
+            created.isSameOrAfter(startDate) && created.isSameOrBefore(endDate)
           );
         });
       }
@@ -117,7 +123,7 @@ const MedicineRequestsPage: React.FC = () => {
         message.success("Cập nhật trạng thái thành công");
         setIsStatusModalVisible(false);
         form.resetFields();
-        loadRequests();
+        loadRequests(); // Reload với filters hiện tại
       } else {
         message.error(response.message || "Có lỗi xảy ra");
       }
@@ -129,7 +135,17 @@ const MedicineRequestsPage: React.FC = () => {
 
   const handleClearFilters = () => {
     setFilters({});
-    loadRequests();
+    filterForm.resetFields(); // Reset form filter
+    loadRequests({}); // Truyền object rỗng để clear filters
+  };
+
+  const handleFilterSubmit = (values: any) => {
+    const formattedValues = {
+      ...values,
+      dateRange: values.dateRange || undefined,
+    };
+    setAppliedFilters(formattedValues);
+    loadRequests(formattedValues);
   };
 
   const getStatusTag = (status?: string) => {
@@ -171,11 +187,10 @@ const MedicineRequestsPage: React.FC = () => {
 
   const columns: ColumnsType<MedicineRequest> = [
     {
-      title: "Mã yêu cầu",
-      dataIndex: "_id",
-      key: "_id",
+      title: "STT",
+      key: "index",
       align: "center",
-      render: (id: string) => id.slice(-8).toUpperCase(),
+      render: (_: any, __: any, index: number) => index + 1,
     },
     {
       title: "Tên thuốc",
@@ -185,9 +200,9 @@ const MedicineRequestsPage: React.FC = () => {
         return (
           <div>
             <strong>{medicine?.name ?? "N/A"}</strong>
-            <div style={{ fontSize: "12px", color: "#666" }}>
+            {/* <div style={{ fontSize: "12px", color: "#666" }}>
               {medicine?.dosage ?? "N/A"} - {medicine?.frequency ?? "N/A"}
-            </div>
+            </div> */}
           </div>
         );
       },
@@ -212,18 +227,32 @@ const MedicineRequestsPage: React.FC = () => {
       },
     },
     {
-      title: "Trạng thái",
-      dataIndex: "status",
-      key: "status",
-      align: "center",
-      render: (status: string) => getStatusTag(status),
-    },
-    {
       title: "Ngày tạo",
       dataIndex: "createdAt",
       key: "createdAt",
       align: "center",
       render: (date: string) => moment(date).format("DD/MM/YYYY HH:mm"),
+    },
+    {
+      title: "Ngày bắt đầu",
+      dataIndex: "startDate",
+      key: "startDate",
+      align: "center",
+      render: (date: string) => moment(date).format("DD/MM/YYYY"),
+    },
+    {
+      title: "Ngày kết thúc",
+      dataIndex: "endDate",
+      key: "endDate",
+      align: "center",
+      render: (date: string) => moment(date).format("DD/MM/YYYY"),
+    },
+    {
+      title: "Trạng thái",
+      dataIndex: "status",
+      key: "status",
+      align: "center",
+      render: (status: string) => getStatusTag(status),
     },
     {
       title: "Thao tác",
@@ -236,11 +265,12 @@ const MedicineRequestsPage: React.FC = () => {
             onClick={() => setSelectedRequest(record)}
             title="Xem chi tiết"
           />
-          {(!record.status || record.status === "pending") && (
+          {["pending", "approved"].includes(record.status as string) && (
             <Button
               type="primary"
               onClick={() => handleProcessRequest(record)}
               title="Xử lý yêu cầu"
+              disabled={(record.status as string) === "approved"}
             >
               Xử lý
             </Button>
@@ -257,6 +287,16 @@ const MedicineRequestsPage: React.FC = () => {
   return (
     <div className="p-6">
       <Row gutter={16} className="mb-6">
+        <Col span={6}>
+          <Card>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-500">
+                {requests.length}
+              </div>
+              <div className="text-gray-600">Tổng cộng</div>
+            </div>
+          </Card>
+        </Col>
         <Col span={6}>
           <Card>
             <div className="text-center">
@@ -287,34 +327,30 @@ const MedicineRequestsPage: React.FC = () => {
             </div>
           </Card>
         </Col>
-        <Col span={6}>
-          <Card>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-500">
-                {requests.length}
-              </div>
-              <div className="text-gray-600">Tổng cộng</div>
-            </div>
-          </Card>
-        </Col>
       </Row>
       <Card className="mb-4">
         <Form
+          form={filterForm}
           layout="inline"
-          onFinish={loadRequests}
+          onFinish={handleFilterSubmit}
           initialValues={{
-            status: "",
+            status: undefined,
+            dateRange: undefined,
           }}
         >
-          <Form.Item name="dateRange" label="Khoảng ngày">
-            <RangePicker format="DD/MM/YYYY" />
+          <Form.Item name="dateRange" label="Khoảng ngày tạo">
+            <RangePicker
+              format="DD/MM/YYYY"
+              placeholder={["Từ ngày", "Đến ngày"]}
+              style={{ width: 250 }}
+            />
           </Form.Item>
           <Form.Item name="status" label="Trạng thái">
             <Select style={{ width: 160 }} allowClear placeholder="Tất cả">
               <Option value="pending">Chờ duyệt</Option>
               <Option value="approved">Đã duyệt</Option>
-              <Option value="rejected">Từ chối</Option>
               <Option value="completed">Hoàn thành</Option>
+              <Option value="rejected">Từ chối</Option>
             </Select>
           </Form.Item>
           <Form.Item>
@@ -323,11 +359,47 @@ const MedicineRequestsPage: React.FC = () => {
             </Button>
           </Form.Item>
           <Form.Item>
-            <Button htmlType="button" onClick={() => handleClearFilters()}>
+            <Button htmlType="button" onClick={handleClearFilters}>
               Xóa lọc
             </Button>
           </Form.Item>
         </Form>
+
+        {/* Hiển thị thông tin filter hiện tại */}
+        {(filters.dateRange || filters.status) && (
+          <div
+            style={{
+              marginTop: 16,
+              padding: 12,
+              background: "#f5f5f5",
+              borderRadius: 6,
+            }}
+          >
+            <span style={{ fontWeight: "bold", marginRight: 8 }}>
+              Đang lọc:
+            </span>
+            {filters.dateRange && (
+              <Tag color="blue">
+                Ngày tạo: {moment(filters.dateRange[0]).format("DD/MM/YYYY")} -{" "}
+                {moment(filters.dateRange[1]).format("DD/MM/YYYY")}
+              </Tag>
+            )}
+            {filters.status && (
+              <Tag color="green">
+                Trạng thái:{" "}
+                {filters.status === "pending"
+                  ? "Chờ duyệt"
+                  : filters.status === "approved"
+                  ? "Đã duyệt"
+                  : filters.status === "rejected"
+                  ? "Từ chối"
+                  : filters.status === "completed"
+                  ? "Hoàn thành"
+                  : filters.status}
+              </Tag>
+            )}
+          </div>
+        )}
       </Card>
 
       <Card>
@@ -371,7 +443,6 @@ const MedicineRequestsPage: React.FC = () => {
                 {processingRequest?.medicines &&
                   processingRequest.medicines.length > 0 && (
                     <p>
-                      <strong>Thuốc:</strong>
                       <ul style={{ paddingLeft: 20 }}>
                         {processingRequest.medicines.map((med, idx) => (
                           <li key={idx}>
@@ -399,7 +470,8 @@ const MedicineRequestsPage: React.FC = () => {
             label="Trạng thái"
             rules={[{ required: true, message: "Vui lòng chọn trạng thái" }]}
           >
-            <Select placeholder="Chọn trạng thái">
+            <Select placeholder="Chọn trạng thái" defaultValue={"pending"}>
+              <Option value="pending">Chờ duyệt</Option>
               <Option value="approved">Duyệt</Option>
               <Option value="rejected">Từ chối</Option>
               <Option value="completed">Hoàn thành</Option>

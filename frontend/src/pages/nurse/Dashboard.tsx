@@ -18,6 +18,7 @@ const NurseDashboard = () => {
   useEffect(() => {
     const fetchData = async () => {
       const res = await nurseService.getDashboardStats();
+      console.log("getDashboardStats", res);
       if (res.success) {
         setData(res.data);
       }
@@ -213,7 +214,11 @@ const NurseDashboard = () => {
           <Card>
             <Statistic
               title="Yêu cầu thuốc chờ duyệt"
-              value={data?.dashboardStats?.pendingRequests || 0}
+              value={
+                data?.recentRequests?.filter(
+                  (req: any) => req.status === "pending"
+                ).length || 0
+              }
               prefix={<MedicineBoxOutlined />}
             />
           </Card>

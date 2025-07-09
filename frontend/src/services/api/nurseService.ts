@@ -202,7 +202,6 @@ class NurseService extends BaseApiClient {
   async getDashboardStats(): Promise<ApiResponse<DashboardStats>> {
     const response: AxiosResponse<ApiResponse<DashboardStats>> =
       await this.api.get("/nurse");
-      console.log("getDashboardStats", response)
     return response.data;
   }
 

@@ -1,37 +1,37 @@
-import React, { useState, useEffect } from 'react';
 import {
-  Row,
-  Col,
-  Card,
-  Button,
-  Table,
-  Tag,
-  Typography,
+  EditOutlined,
+  EyeOutlined,
+  FileTextOutlined,
+  HeartOutlined,
+  MedicineBoxOutlined,
+  MinusCircleOutlined,
+  PlusOutlined,
+  UserOutlined
+} from '@ant-design/icons';
+import {
   Avatar,
-  message,
-  Modal,
+  Button,
+  Card,
+  Col,
   Descriptions,
-  Space,
-  List,
-  Statistic,
-  Select,
+  Divider,
   Form,
   Input,
   InputNumber,
-  Divider
+  List,
+  message,
+  Modal,
+  Row,
+  Select,
+  Space,
+  Statistic,
+  Table,
+  Tag,
+  Typography
 } from 'antd';
-import {
-  UserOutlined,
-  EyeOutlined,
-  HeartOutlined,
-  MedicineBoxOutlined,
-  FileTextOutlined,
-  EditOutlined,
-  PlusOutlined,
-  MinusCircleOutlined
-} from '@ant-design/icons';
-import { Student, HealthProfile } from '../../types';
+import React, { useEffect, useState } from 'react';
 import apiService from '../../services/api';
+import { HealthProfile, Student } from '../../types';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
