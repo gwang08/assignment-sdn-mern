@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import {
   Table,
   Typography,
-  message,
   Tag,
   Space,
   Button,
@@ -12,6 +11,7 @@ import {
 import type { ColumnsType } from "antd/es/table";
 import apiService from "../../services/api";
 import { StudentParentRelation } from "../../types";
+import { toast } from "react-toastify";
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -35,11 +35,11 @@ const PendingLinkRequests: React.FC = () => {
       if (response.success && response.data) {
         setRequests(response.data);
       } else {
-        message.error(response.message || "Không thể tải yêu cầu liên kết.");
+        toast.error(response.message || "Không thể tải yêu cầu liên kết.");
       }
     } catch (error) {
       console.error("Lỗi tải yêu cầu liên kết:", error);
-      message.error("Lỗi hệ thống.");
+      toast.error("Lỗi hệ thống.");
     } finally {
       setLoading(false);
     }
@@ -58,15 +58,15 @@ const PendingLinkRequests: React.FC = () => {
     try {
       const res = await apiService.respondToLinkRequest(selectedRequestId, selectedStatus, notes); 
       if (res.success) {
-        message.success(`Đã ${selectedStatus === "approved" ? "phê duyệt" : "từ chối"} yêu cầu`);
+        toast.success(`Đã ${selectedStatus === "approved" ? "phê duyệt" : "từ chối"} yêu cầu`);
         fetchPendingRequests();
         setModalVisible(false);
       } else {
-        message.error(res.message || "Thao tác thất bại.");
+        toast.error(res.message || "Thao tác thất bại.");
       }
     } catch (err) {
       console.error("Lỗi xử lý yêu cầu:", err);
-      message.error("Lỗi khi xử lý yêu cầu.");
+      toast.error("Lỗi khi xử lý yêu cầu.");
     }
   };
 
