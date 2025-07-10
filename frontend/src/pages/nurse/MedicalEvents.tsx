@@ -33,7 +33,7 @@ import {
   Student,
 } from "../../types";
 
-const { Title, Text } = Typography;
+const { Title } = Typography;
 const { TextArea } = Input;
 const { Option } = Select;
 
@@ -158,10 +158,11 @@ const MedicalEventsPage: React.FC = () => {
     };
 
     try {
-      const response = editingEvent
-        ? await nurseService.updateMedicalEvent(editingEvent._id, eventData)
-        : await nurseService.createMedicalEvent(eventData);
-
+      if (editingEvent) {
+        await nurseService.updateMedicalEvent(editingEvent._id, eventData);
+      } else {
+        await nurseService.createMedicalEvent(eventData);
+      }
       // Check HTTP status code or just assume success if no error thrown
       message.success(
         editingEvent ? "Cập nhật thành công" : "Tạo mới thành công"

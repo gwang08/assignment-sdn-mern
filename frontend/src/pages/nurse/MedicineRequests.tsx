@@ -20,16 +20,14 @@ import {
   Space,
   Table,
   Tag,
-  Typography,
   message,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import moment from "moment";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import apiService from "../../services/api";
 import { MedicineRequest } from "../../types";
 
-const { Title } = Typography;
 const { Option } = Select;
 const { TextArea } = Input;
 const { RangePicker } = DatePicker;
@@ -50,56 +48,49 @@ const MedicineRequestsPage: React.FC = () => {
   }>({});
   const [appliedFilters, setAppliedFilters] = useState<typeof filters>({});
 
+  const loadRequests = useCallback(
+    async (formValues?: any) => {
+      try {
+        setLoading(true);
+        if (formValues) {
+          setFilters(formValues);
+        }
+
+        const data = await apiService.getNurseMedicineRequests();
+        let filteredData = data ?? [];
+        const currentFilters = formValues || filters;
+
+        if (currentFilters?.status) {
+          filteredData = filteredData.filter(
+            (req) => req.status === currentFilters.status
+          );
+        }
+
+        if (currentFilters?.dateRange?.[0] && currentFilters?.dateRange?.[1]) {
+          const [start, end] = currentFilters.dateRange;
+          filteredData = filteredData.filter((req) => {
+            const created = moment(req.createdAt);
+            return (
+              created.isSameOrAfter(moment(start).startOf("day")) &&
+              created.isSameOrBefore(moment(end).endOf("day"))
+            );
+          });
+        }
+
+        setRequests(filteredData);
+      } catch (error) {
+        console.error("Error loading medicine requests:", error);
+        message.error("Có lỗi xảy ra khi tải danh sách yêu cầu thuốc");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [filters]
+  );
+
   useEffect(() => {
     loadRequests();
-  }, []);
-
-  const loadRequests = async (formValues?: any) => {
-    try {
-      setLoading(true);
-
-      // Cập nhật bộ lọc nếu có
-      if (formValues) {
-        setFilters(formValues);
-      }
-
-      const data = await apiService.getNurseMedicineRequests();
-      console.log("getNurseMedicineRequests", data);
-      let filteredData = data ?? [];
-
-      // Sử dụng filters hiện tại hoặc formValues mới
-      const currentFilters = formValues || filters;
-
-      // Áp dụng lọc theo status
-      if (currentFilters?.status) {
-        filteredData = filteredData.filter(
-          (req) => req.status === currentFilters.status
-        );
-      }
-
-      // Áp dụng lọc theo ngày tạo
-      if (currentFilters?.dateRange?.[0] && currentFilters?.dateRange?.[1]) {
-        const [start, end] = currentFilters.dateRange;
-        filteredData = filteredData.filter((req) => {
-          const created = moment(req.createdAt);
-          const startDate = moment(start).startOf("day");
-          const endDate = moment(end).endOf("day");
-
-          return (
-            created.isSameOrAfter(startDate) && created.isSameOrBefore(endDate)
-          );
-        });
-      }
-
-      setRequests(filteredData);
-    } catch (error) {
-      console.error("Error loading medicine requests:", error);
-      setRequests([]);
-      message.error("Có lỗi xảy ra khi tải danh sách yêu cầu thuốc");
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [loadRequests]);
 
   const handleProcessRequest = (request: MedicineRequest) => {
     setProcessingRequest(request);
