@@ -38,6 +38,16 @@ const campaignResultSchema = new Schema(
       vaccinated_at: {
         type: Date,
       },
+      vaccine_details: {
+        brand: String,
+        batch_number: String,
+        dose_number: {
+          type: Number,
+          min: 1,
+          max: 10
+        },
+        expiry_date: Date
+      },
       administered_by: String,
       side_effects: [
         {

@@ -8,6 +8,8 @@ const CampaignConsent = require("../models/campaign/campaignConsent");
 const ConsultationSchedule = require("../models/campaign/consultationSchedule");
 const { CAMPAIGN_TYPE, CAMPAIGN_CONSENT_STATUS } = require("../utils/enums");
 const StudentParent = require("../models/user/studentParent");
+const { CONSULTATION_STATUS } = require('../utils/enums');
+
 
 // Helper function to validate a student ID
 const validateStudentRole = async (studentId) => {
@@ -443,108 +445,130 @@ class NurseController {
   }
 
   static async updateCampaignStatus(req, res, next) {
-    try {
-      const campaignId = req.params.campaignId;
-      const { status } = req.body;
+  try {
+    const campaignId = req.params.campaignId;
+    const { status } = req.body;
 
-      // Validate status
-      const validStatuses = ["draft", "active", "completed", "cancelled"];
-      if (!validStatuses.includes(status)) {
-        return res.status(400).json({
-          success: false,
-          error:
-            "Invalid status. Must be one of: draft, active, completed, cancelled",
-        });
-      }
-
-      const campaign = await Campaign.findByIdAndUpdate(
-        campaignId,
-        { status },
-        { new: true }
-      ).populate("created_by", "first_name last_name");
-
-      if (!campaign) {
-        return res.status(404).json({
-          success: false,
-          error: "Campaign not found",
-        });
-      }
-
-      // Nếu chuyển sang active và cần consent thì tạo consent notifications
-      if (status === "active" && campaign.requires_consent) {
-        await NurseController.createConsentNotifications(campaign);
-      }
-
-      res.json({
-        success: true,
-        data: campaign,
-      });
-    } catch (error) {
-      console.error("Error updating campaign status:", error);
-      res.status(400).json({
+    // Validate status
+    const validStatuses = ["draft", "active", "completed", "cancelled"];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
         success: false,
-        error: "Failed to update campaign status",
+        error:
+          "Invalid status. Must be one of: draft, active, completed, cancelled",
       });
     }
+
+    // Tìm chiến dịch hiện tại
+    const campaign = await Campaign.findById(campaignId);
+    if (!campaign) {
+      return res.status(404).json({
+        success: false,
+        error: "Campaign not found",
+      });
+    }
+
+    // Xóa các bản ghi CampaignConsent nếu trạng thái là draft
+    if (campaign.status === "draft" || status === "draft") {
+      await CampaignConsent.deleteMany({ campaign: campaignId });
+      console.log(`Deleted existing consents for draft campaign ${campaignId}`);
+    }
+
+    // Cập nhật trạng thái chiến dịch
+    const updatedCampaign = await Campaign.findByIdAndUpdate(
+      campaignId,
+      { status },
+      { new: true }
+    ).populate("created_by", "first_name last_name");
+
+    if (!updatedCampaign) {
+      return res.status(404).json({
+        success: false,
+        error: "Campaign not found",
+      });
+    }
+
+    // Nếu chuyển sang active và cần consent thì tạo consent notifications
+    if (status === "active" && updatedCampaign.requires_consent) {
+      await NurseController.createConsentNotifications(updatedCampaign);
+    }
+
+    res.json({
+      success: true,
+      data: updatedCampaign,
+    });
+  } catch (error) {
+    console.error("Error updating campaign status:", error);
+    res.status(400).json({
+      success: false,
+      error: "Failed to update campaign status",
+    });
   }
+}
 
   // Helper method to create consent notifications for eligible students
   static async createConsentNotifications(campaign) {
-    try {
-      console.log(
-        `Creating consent notifications for campaign: ${campaign.title}`
-      );
+  try {
+    console.log(`Creating consent notifications for campaign: ${campaign.title}`);
 
-      // Find all eligible students based on target classes
-      const eligibleStudents = await User.find({
-        role: "student",
-        class_name: { $in: campaign.target_classes },
-      }).select("_id first_name last_name class_name");
-
-      console.log(`Found ${eligibleStudents.length} eligible students`);
-
-      // Check if consents already exist for this campaign
-      const existingConsents = await CampaignConsent.find({
-        campaign: campaign._id,
-      });
-
-      const existingStudentIds = existingConsents.map((consent) =>
-        consent.student.toString()
-      );
-
-      // Filter students who don't have consent records yet
-      const studentsNeedingConsent = eligibleStudents.filter(
-        (student) => !existingStudentIds.includes(student._id.toString())
-      );
-
-      console.log(
-        `${studentsNeedingConsent.length} students need new consent notifications`
-      );
-
-      // Create consent notifications for students who don't have them
-      if (studentsNeedingConsent.length > 0) {
-        const consentNotifications = studentsNeedingConsent.map((student) => ({
-          campaign: campaign._id,
-          student: student._id,
-          status: CAMPAIGN_CONSENT_STATUS.PENDING,
-        }));
-
-        await CampaignConsent.insertMany(consentNotifications);
-        console.log(
-          `Created ${consentNotifications.length} consent notifications`
-        );
-      }
-
+    // Kiểm tra trạng thái chiến dịch
+    if (campaign.status !== "active") {
+      console.log(`Skipping consent notifications for non-active campaign: ${campaign.title}`);
       return {
         success: true,
-        created: studentsNeedingConsent.length,
-        total: eligibleStudents.length,
+        created: 0,
+        total: 0,
       };
-    } catch (error) {
-      console.error("Error creating consent notifications:", error);
-      throw error;
     }
+
+    // Find all eligible students based on target classes
+    const eligibleStudents = await User.find({
+      role: "student",
+      class_name: { $in: campaign.target_classes },
+    }).select("_id first_name last_name class_name");
+
+    console.log(`Found ${eligibleStudents.length} eligible students`);
+
+    // Check if consents already exist for this campaign
+    const existingConsents = await CampaignConsent.find({
+      campaign: campaign._id,
+    });
+
+    const existingStudentIds = existingConsents.map((consent) =>
+      consent.student.toString()
+    );
+
+    // Filter students who don't have consent records yet
+    const studentsNeedingConsent = eligibleStudents.filter(
+      (student) => !existingStudentIds.includes(student._id.toString())
+    );
+
+    console.log(
+      `${studentsNeedingConsent.length} students need new consent notifications`
+    );
+
+    // Create consent notifications for students who don't have them
+    if (studentsNeedingConsent.length > 0) {
+      const consentNotifications = studentsNeedingConsent.map((student) => ({
+        campaign: campaign._id,
+        student: student._id,
+        status: CAMPAIGN_CONSENT_STATUS.PENDING,
+      }));
+
+      await CampaignConsent.insertMany(consentNotifications);
+      console.log(`Created ${consentNotifications.length} consent notifications`);
+    }
+
+    return {
+      success: true,
+      created: studentsNeedingConsent.length,
+      total: eligibleStudents.length,
+    };
+  } catch (error) {
+    console.error("Error creating consent notifications:", error);
+    throw error;
   }
+}
 
   // Manual method to create consent notifications for a campaign
   static async createConsentNotificationsForCampaign(req, res, next) {
@@ -590,67 +614,88 @@ class NurseController {
   }
 
   static async getVaccinationList(req, res, next) {
-    try {
-      const campaignId = req.params.campaignId;
+  try {
+    const campaignId = req.params.campaignId;
 
-      // Get campaign details
-      const campaign = await Campaign.findById(campaignId);
-      if (!campaign) {
-        return res.status(404).json({ error: "Campaign not found" });
-      }
-
-      // Get eligible students (based on target classes)
-      const eligibleStudents = await User.find({
-        role: "student",
-        class_name: { $in: campaign.target_classes },
-      }).select("first_name last_name class_name dateOfBirth gender");
-
-      // Get consent status
-      const consents = await CampaignConsent.find({
-        campaign: campaignId,
-      })
-        .populate("student", "first_name last_name")
-        .populate("answered_by", "first_name last_name");
-
-      // Get vaccination results
-      const results = await CampaignResult.find({
-        campaign: campaignId,
-      })
-        .populate("student", "first_name last_name class_name")
-        .populate("created_by", "first_name last_name");
-
-      // Calculate consent summary
-      const consentSummary = {
-        total: consents.length,
-        approved: consents.filter((c) => c.status === "Approved").length,
-        declined: consents.filter((c) => c.status === "Declined").length,
-        pending: consents.filter((c) => c.status === "Pending").length,
-      };
-
-      res.json({
-        success: true,
-        data: {
-          campaign,
-          eligible_students: eligibleStudents,
-          consents,
-          vaccination_results: results,
-          consent_summary: consentSummary,
-          statistics: {
-            total_eligible: eligibleStudents.length,
-            vaccinated: results.length,
-            pending: eligibleStudents.length - results.length,
-          },
-        },
-      });
-    } catch (error) {
-      console.error("Error getting vaccination list:", error);
-      res.status(500).json({
-        success: false,
-        error: "Failed to fetch vaccination list",
-      });
+    // Get campaign details
+    const campaign = await Campaign.findById(campaignId);
+    if (!campaign) {
+      return res.status(404).json({ error: "Campaign not found" });
     }
-  }
 
+    // Process target_classes to get specific class names
+    let processedTargetClasses = campaign.target_classes;
+    if (campaign.target_classes.includes("all_grades")) {
+      // Get all available classes from the system (you may need to fetch this from a config or another collection)
+      const allClasses = await User.distinct("class_name", { role: "student" }); // Fetch all unique class names
+      processedTargetClasses = allClasses;
+    } else {
+      const gradeSelections = campaign.target_classes.filter((cls) => cls.startsWith("grade_"));
+      if (gradeSelections.length > 0) {
+        processedTargetClasses = campaign.target_classes.filter((cls) => !cls.startsWith("grade_"));
+        for (const grade of gradeSelections) {
+          const gradeNumber = grade.replace("grade_", "");
+          const gradeClasses = await User.distinct("class_name", {
+            role: "student",
+            class_name: new RegExp(`^${gradeNumber}`), // Match classes starting with the grade number
+          });
+          processedTargetClasses = [...processedTargetClasses, ...gradeClasses];
+        }
+      }
+    }
+    processedTargetClasses = [...new Set(processedTargetClasses)]; // Remove duplicates
+
+    // Get eligible students based on processed target classes
+    const eligibleStudents = await User.find({
+      role: "student",
+      class_name: { $in: processedTargetClasses },
+    }).select("first_name last_name class_name dateOfBirth gender");
+
+    // Get consent status
+    const consents = await CampaignConsent.find({
+      campaign: campaignId,
+    })
+      .populate("student", "first_name last_name")
+      .populate("answered_by", "first_name last_name");
+
+    // Get vaccination results
+    const results = await CampaignResult.find({
+      campaign: campaignId,
+    })
+      .populate("student", "first_name last_name class_name")
+      .populate("created_by", "first_name last_name");
+
+    // Calculate consent summary
+    const consentSummary = {
+      total: consents.length,
+      approved: consents.filter((c) => c.status === "Approved").length,
+      declined: consents.filter((c) => c.status === "Declined").length,
+      pending: consents.filter((c) => c.status === "Pending").length,
+    };
+
+    res.json({
+      success: true,
+      data: {
+        campaign,
+        eligible_students: eligibleStudents,
+        consents,
+        vaccination_results: results,
+        consent_summary: consentSummary,
+        statistics: {
+          total_eligible: eligibleStudents.length,
+          vaccinated: results.length,
+          pending: eligibleStudents.length - results.length,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error getting vaccination list:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch vaccination list",
+    });
+  }
+}
   static async recordVaccination(req, res, next) {
     try {
       const { campaignId } = req.params;
@@ -1225,28 +1270,43 @@ class NurseController {
   }
 
   static async getCampaignConsents(req, res, next) {
-    try {
-      const { campaignId } = req.params;
+  try {
+    const { campaignId } = req.params;
 
-      const consents = await CampaignConsent.find({
-        campaign: campaignId,
-      })
-        .populate("student", "first_name last_name class_name")
-        .populate("answered_by", "first_name last_name")
-        .sort({ createdAt: -1 });
-
-      res.json({
-        success: true,
-        data: consents,
-      });
-    } catch (error) {
-      console.error("Error fetching campaign consents:", error);
-      res.status(500).json({
+    // Kiểm tra trạng thái của chiến dịch
+    const campaign = await Campaign.findById(campaignId);
+    if (!campaign) {
+      return res.status(404).json({
         success: false,
-        error: "Failed to fetch campaign consents",
+        error: "Campaign not found",
       });
     }
+    if (campaign.status !== "active") {
+      return res.json({
+        success: true,
+        data: [], // Trả về mảng rỗng nếu không phải active
+      });
+    }
+
+    const consents = await CampaignConsent.find({
+      campaign: campaignId,
+    })
+      .populate("student", "first_name last_name class_name")
+      .populate("answered_by", "first_name last_name")
+      .sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      data: consents,
+    });
+  } catch (error) {
+    console.error("Error fetching campaign consents:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch campaign consents",
+    });
   }
+}
 
   static async getCampaignResults(req, res, next) {
     try {
@@ -1735,6 +1795,64 @@ class NurseController {
       });
     }
   }
+
+  static async cancelConsultationSchedule(req, res, next) {
+  try {
+    const { consultationId } = req.params;
+    const { cancelReason } = req.body;
+
+    if (!cancelReason) {
+      return res.status(400).json({
+        success: false,
+        error: "Lý do hủy là bắt buộc",
+      });
+    }
+
+    const consultation = await ConsultationSchedule.findById(consultationId);
+    if (!consultation) {
+      return res.status(404).json({
+        success: false,
+        error: "Lịch tư vấn không tồn tại",
+      });
+    }
+
+    console.log("👉 Status hiện tại:", consultation.status);
+console.log("🔍 Enum chuẩn:", CONSULTATION_STATUS.SCHEDULED);
+
+if (consultation.status !== CONSULTATION_STATUS.SCHEDULED) {
+  return res.status(400).json({
+    success: false,
+    error: `Chỉ có thể hủy lịch ở trạng thái Scheduled (hiện tại là ${consultation.status})`,
+  });
+}
+
+    consultation.status = CONSULTATION_STATUS.CANCELLED;
+    consultation.cancelReason = cancelReason;
+    await consultation.save();
+
+    try {
+  await consultation
+    .populate('campaignResult')
+    .populate('student', 'first_name last_name class_name')
+    .populate('attending_parent', 'first_name last_name')
+    .populate('medicalStaff', 'first_name last_name');
+} catch (populateError) {
+  console.error("❌ Lỗi populate:", populateError);
+}
+
+    res.json({
+      success: true,
+      data: consultation,
+      message: "Lịch tư vấn đã được hủy thành công",
+    });
+  } catch (error) {
+    console.error("Error canceling consultation schedule:", error);
+    res.status(500).json({
+      success: false,
+      error: "Không thể hủy lịch tư vấn",
+    });
+  }
+}
 }
 
 module.exports = NurseController;

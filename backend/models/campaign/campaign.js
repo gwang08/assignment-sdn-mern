@@ -7,7 +7,7 @@ const vaccineDetailsSchema = new Schema(
     brand: { type: String, required: true },
     batchNumber: { type: String, required: true },
     dosage: { type: String, required: true },
-    expiry_date: { type: Date, required: true },
+    
   },
   { _id: false }
 );

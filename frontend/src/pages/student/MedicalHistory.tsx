@@ -36,7 +36,7 @@ import { useAuth } from "../../context/AuthContext";
 import apiService from "../../services/api";
 import "./StudentMedicalHistory.css";
 import { MedicalEvent } from "../../types";
-
+import { useCallback } from "react";
 const { Title, Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
 
@@ -46,11 +46,9 @@ const StudentMedicalHistory: React.FC = () => {
   const [medicalEvents, setMedicalEvents] = useState<MedicalEvent[]>([]);
   const [activeTab, setActiveTab] = useState("overview");
 
-  useEffect(() => {
-    loadMedicalHistory();
-  }, []);
+ 
 
-  const loadMedicalHistory = async () => {
+  const loadMedicalHistory = useCallback(async () => {
     try {
       setLoading(true);
       const response = await apiService.getStudentSelfMedicalEvents();
@@ -66,7 +64,11 @@ const StudentMedicalHistory: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?._id]);
+  
+  useEffect(() => {
+    loadMedicalHistory();
+  }, [loadMedicalHistory]);
 
   const getEventTypeColor = (type: string) => {
     const colors: { [key: string]: string } = {

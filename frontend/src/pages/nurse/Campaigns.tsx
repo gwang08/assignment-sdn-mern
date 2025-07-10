@@ -36,7 +36,8 @@ import {
   SendOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
-  ExclamationCircleOutlined
+  ExclamationCircleOutlined,
+  CloseOutlined
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { nurseService } from '../../services/api';
@@ -62,16 +63,12 @@ const CampaignsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('campaigns');
   const [form] = Form.useForm();
   const requiresConsent = Form.useWatch('requires_consent', form);
-const dateRange = Form.useWatch('date_range', form);
+  const dateRange = Form.useWatch('date_range', form);
   const [availableClasses, setAvailableClasses] = useState<string[]>([]);
   const [loadingClasses, setLoadingClasses] = useState(false);
   const [isConsultationScheduleModalVisible, setIsConsultationScheduleModalVisible] = useState(false);
-const [consultationSchedules, setConsultationSchedules] = useState<any[]>([]);
-
-  // Consultation progress state for each campaign
+  const [consultationSchedules, setConsultationSchedules] = useState<any[]>([]);
   const [consultationProgress, setConsultationProgress] = useState<{ [key: string]: { completed: number, total: number, percentage: number } }>({});
-
-  // Workflow states
   const [isNotificationModalVisible, setIsNotificationModalVisible] = useState(false);
   const [isStudentListModalVisible, setIsStudentListModalVisible] = useState(false);
   const [isExamResultModalVisible, setIsExamResultModalVisible] = useState(false);
@@ -93,7 +90,7 @@ const [consultationSchedules, setConsultationSchedules] = useState<any[]>([]);
   useEffect(() => {
     const loadData = async () => {
       await loadCampaigns();
-      loadAvailableClasses(true); // Pass true to indicate initial load (silent)
+      loadAvailableClasses(true);
     };
     loadData();
   }, []);
@@ -105,7 +102,6 @@ const [consultationSchedules, setConsultationSchedules] = useState<any[]>([]);
   try {
     const res = await nurseService.getConsultationSchedules();
     let data = Array.isArray(res) ? res : res?.data || [];
-    // Lọc lịch tư vấn thuộc campaign này
     data = data.filter((item: any) => {
       if (item.campaignResult && typeof item.campaignResult === 'object' && item.campaignResult.campaign) {
         return (typeof item.campaignResult.campaign === 'object'
@@ -114,9 +110,20 @@ const [consultationSchedules, setConsultationSchedules] = useState<any[]>([]);
       }
       return false;
     });
+    // Thêm status mặc định là 'SCHEDULED' nếu không có
+    data = data.map((item: any) => {
+  const finalStatus = item.status || 'SCHEDULED';
+  console.log(`[DEBUG] Consultation ${item._id} => status: ${finalStatus}`);
+  return {
+    ...item,
+    status: finalStatus,
+  };
+});
+    console.log('Consultation Schedules Data:', data); // Kiểm tra dữ liệu đã cập nhật
     setConsultationSchedules(data);
   } catch (e) {
     setConsultationSchedules([]);
+    console.error('Error fetching consultation schedules:', e);
   }
   setLoading(false);
 };
@@ -126,12 +133,9 @@ const [consultationSchedules, setConsultationSchedules] = useState<any[]>([]);
       setLoadingClasses(true);
       const response = await nurseService.getStudents();
       if (response.success && response.data) {
-        // Extract unique class names from students
         const classNames = Array.from(new Set(response.data.map((student: any) => student.class_name))).filter(Boolean);
-        // Sort class names for better user experience
         const sortedClasses = classNames.sort();
         setAvailableClasses(sortedClasses);
-
         if (!silent) {
           if (sortedClasses.length > 0) {
             message.success(`Đã tải ${sortedClasses.length} lớp học từ hệ thống`);
@@ -140,14 +144,12 @@ const [consultationSchedules, setConsultationSchedules] = useState<any[]>([]);
           }
         }
       } else {
-        // Fallback to some default classes if API fails
         setAvailableClasses(['10A1', '10A2', '11B1', '11B2', '12C1', '12C2']);
         if (!silent) {
           message.warning('Không thể tải danh sách lớp, sử dụng danh sách mặc định');
         }
       }
     } catch (error) {
-      // Fallback to some default classes if API fails
       setAvailableClasses(['10A1', '10A2', '11B1', '11B2', '12C1', '12C2']);
       if (!silent) {
         message.error('Có lỗi khi tải danh sách lớp, sử dụng danh sách mặc định');
@@ -158,30 +160,35 @@ const [consultationSchedules, setConsultationSchedules] = useState<any[]>([]);
   };
 
   const getTargetClassOptions = () => {
-    const options = [
-      { label: 'Tất cả các lớp', value: 'all_grades' }
-    ];
-
-    if (availableClasses.length > 0) {
-      // Extract grade levels from class names (e.g., "10A1" -> "10")
-      const grades = Array.from(new Set(availableClasses.map(className => {
-        const match = className.match(/^(\d+)/);
-        return match ? match[1] : null;
-      }).filter(Boolean)));
-
-      // Add grade-level options
-      grades.sort().forEach(grade => {
-        options.push({ label: `Khối ${grade}`, value: `grade_${grade}` });
-      });
-
-      // Add individual class options
-      availableClasses.forEach(className => {
-        options.push({ label: `Lớp ${className}`, value: className });
-      });
-    }
-
+  const options = [{ label: 'Tất cả các lớp', value: 'all_grades' }];
+  
+  // Nếu không có availableClasses thì chỉ trả về option "Tất cả các lớp"
+  if (availableClasses.length === 0) {
     return options;
-  };
+  }
+
+  // Thêm các khối lớp
+  const grades = Array.from(new Set(availableClasses.map(className => {
+    const match = className.match(/^(\d+)/);
+    return match ? match[1] : null;
+  }).filter(Boolean)));
+  
+  grades.sort().forEach(grade => {
+    options.push({ label: `Khối ${grade}`, value: `grade_${grade}` });
+  });
+
+  // Thêm các lớp cụ thể
+  availableClasses.forEach(className => {
+    options.push({ label: `Lớp ${className}`, value: className });
+  });
+
+  return options;
+};
+
+// Thêm hàm kiểm tra xem có chọn "Tất cả các lớp" không
+const hasAllGradesSelected = (values: any) => {
+  return values?.target_classes?.includes('all_grades');
+};
 
   const loadCampaigns = async () => {
     try {
@@ -189,20 +196,15 @@ const [consultationSchedules, setConsultationSchedules] = useState<any[]>([]);
       const response = await nurseService.getHealthCheckCampaigns();
       if (response.success && response.data) {
         setCampaigns(response.data);
-
-        // Load consultation progress for each campaign
         const progressPromises = response.data.map(async (campaign: Campaign) => {
           const progress = await calculateConsultationProgress(campaign._id);
           return { campaignId: campaign._id, progress };
         });
-
         const progressResults = await Promise.all(progressPromises);
         const progressMap: { [key: string]: { completed: number, total: number, percentage: number } } = {};
-
         progressResults.forEach(({ campaignId, progress }) => {
           progressMap[campaignId] = progress;
         });
-
         setConsultationProgress(progressMap);
       } else {
         message.error('Không thể tải danh sách chiến dịch');
@@ -216,29 +218,19 @@ const [consultationSchedules, setConsultationSchedules] = useState<any[]>([]);
 
   const loadCampaignDetails = async (campaignId: string) => {
     try {
-
-
       const [consentsResponse, resultsResponse] = await Promise.all([
         nurseService.getCampaignConsents(campaignId),
         nurseService.getCampaignResults(campaignId)
       ]);
-
-
-
-
       if (consentsResponse.success && consentsResponse.data) {
         setConsents(consentsResponse.data);
       } else {
-
-        setConsents([]); // Set empty array if no data
+        setConsents([]);
       }
-
       if (resultsResponse.success && resultsResponse.data) {
         setResults(resultsResponse.data);
-
       } else {
-
-        setResults([]); // Set empty array if no data
+        setResults([]);
       }
     } catch (error) {
       setConsents([]);
@@ -247,93 +239,153 @@ const [consultationSchedules, setConsultationSchedules] = useState<any[]>([]);
     }
   };
 
-  const handleCreateCampaign = () => {
-  setEditingCampaign(null);
-  form.resetFields();
-  setIsModalVisible(true);
+  const [isCancelModalVisible, setIsCancelModalVisible] = useState(false);
+  const [selectedConsultationId, setSelectedConsultationId] = useState<string | null>(null);
+  const [cancelForm] = Form.useForm();
 
-  // Set default values after modal open
-  setTimeout(() => {
-    form.setFieldsValue({
-      campaign_type: 'health_check',
-      status: 'draft',
-      requires_consent: true,
-      target_classes: [],
-      date_range: [moment().add(1, 'day'), moment().add(7, 'days')]
+  const handleCancelConsultation = (consultationId: string) => {
+    setSelectedConsultationId(consultationId);
+    setIsCancelModalVisible(true);
+  };
+
+  const handleSubmitCancel = async (values: { cancelReason: string }) => {
+  if (!selectedConsultationId) return;
+
+  try {
+    const response = await nurseService.cancelConsultationSchedule(selectedConsultationId, {
+      cancelReason: values.cancelReason,
     });
-  }, 0);
+
+    if (response.success) {
+      notification.success({
+        message: 'Thành công',
+        description: 'Đã hủy lịch tư vấn thành công.',
+      });
+      setIsCancelModalVisible(false);
+      cancelForm.resetFields();
+
+      // ✅ Làm mới danh sách lịch tư vấn
+      if (selectedCampaign) {
+        const res = await nurseService.getConsultationSchedules();
+        let data = Array.isArray(res) ? res : res?.data || [];
+
+        data = data.filter((item: any) => {
+          if (
+            item.campaignResult &&
+            typeof item.campaignResult === 'object' &&
+            item.campaignResult.campaign
+          ) {
+            return (
+              (typeof item.campaignResult.campaign === 'object'
+                ? item.campaignResult.campaign._id
+                : item.campaignResult.campaign) === selectedCampaign._id
+            );
+          }
+          return false;
+        });
+
+        // ✅ Normalize status nếu thiếu
+        data = data.map((item: any) => ({
+          ...item,
+          status: item.status || 'Scheduled',
+        }));
+
+        setConsultationSchedules(data);
+      }
+    } else {
+      notification.error({
+        message: 'Lỗi',
+        description: response.message || 'Có lỗi xảy ra khi hủy lịch tư vấn.',
+      });
+    }
+  } catch (error) {
+    notification.error({
+      message: 'Lỗi hệ thống',
+      description: 'Có lỗi xảy ra khi kết nối với máy chủ.',
+    });
+  }
 };
 
+
+  const handleCreateCampaign = () => {
+    setEditingCampaign(null);
+    form.resetFields();
+    setIsModalVisible(true);
+    setTimeout(() => {
+      form.setFieldsValue({
+        campaign_type: 'health_check',
+        status: 'draft',
+        requires_consent: true,
+        target_classes: [],
+        date_range: [moment().add(1, 'day'), moment().add(7, 'days')]
+      });
+    }, 0);
+  };
 
   const handleEditCampaign = (campaign: Campaign) => {
   setEditingCampaign(campaign);
-  form.setFieldsValue({
-  ...campaign,
-  date_range: campaign.start_date && campaign.end_date
-    ? [moment(campaign.start_date), moment(campaign.end_date)]
-    : null,
-  consent_deadline: campaign.consent_deadline ? moment(campaign.consent_deadline) : null,
-  target_groups: campaign.target_classes
-});
-  setIsModalVisible(true);
-  // Bắt validate lại hạn đồng ý
+  setIsModalVisible(true); // 👉 Hiển thị modal trước
+
   setTimeout(() => {
+    const options = getTargetClassOptions();
+    const normalizedTargetClasses = campaign.target_classes?.map(group => {
+      const option = options.find(opt => opt.label === group);
+      return option ? option.value : group;
+    });
+
+    form.setFieldsValue({
+      ...campaign,
+      date_range: campaign.start_date && campaign.end_date
+        ? [dayjs(campaign.start_date), dayjs(campaign.end_date)]
+        : undefined,
+      consent_deadline: campaign.consent_deadline ? dayjs(campaign.consent_deadline) : undefined,
+      target_classes: normalizedTargetClasses || campaign.target_classes
+    });
+
     form.validateFields(['consent_deadline']);
-  }, 0);
+  }, 0); // Đợi Form được render xong
 };
 
+
   const handleViewCampaign = async (campaign: Campaign) => {
-    setSelectedCampaign(campaign);
-    await loadCampaignDetails(campaign._id);
-    await form.validateFields();
-    setIsDetailDrawerVisible(true);
-  };
+  setSelectedCampaign(campaign);
+  await loadCampaignDetails(campaign._id);
+  await form.validateFields();
+  setActiveTab('info'); // Đặt tab mặc định là 'Thông tin chung'
+  setIsDetailDrawerVisible(true);
+};
 
   const handleSubmit = async (values: any) => {
     try {
-       await form.validateFields(); // Bắt validate lại toàn bộ form, kể cả khi chưa thay đổi trường nào
-    const values = form.getFieldsValue();
-      // Validate date range
+      await form.validateFields();
+      const values = form.getFieldsValue();
       if (!values.date_range || values.date_range.length !== 2) {
         message.error('Vui lòng chọn khoảng thời gian hợp lệ');
         return;
       }
-
-      // Validate start date is not in the past (for new campaigns)
       if (!editingCampaign && values.date_range[0].isBefore(moment().startOf('day'))) {
         message.error('Ngày bắt đầu không thể là ngày trong quá khứ');
         return;
       }
-
-      // Validate end date is after start date
       if (values.date_range[1].isBefore(values.date_range[0])) {
         message.error('Ngày kết thúc phải sau ngày bắt đầu');
         return;
       }
-
       const campaignData = {
         ...values,
         start_date: values.date_range[0].toDate(),
         end_date: values.date_range[1].toDate(),
-        campaign_type: values.campaign_type || 'health_check', // Default to health_check
-        requires_consent: values.requires_consent !== false, // Default to true
-        status: values.status || 'draft' // Default to draft
+        campaign_type: values.campaign_type || 'health_check',
+        requires_consent: values.requires_consent !== false,
+        status: values.status || 'draft'
       };
-
-      // Remove the date_range field as it's processed
       delete campaignData.date_range;
-
-
-
       let response;
       if (editingCampaign) {
         response = await nurseService.updateCampaign(editingCampaign._id, campaignData);
       } else {
         response = await nurseService.createCampaign(campaignData);
       }
-
-
-
       if (response.success) {
         notification.success({
           message: 'Thành công',
@@ -343,7 +395,7 @@ const [consultationSchedules, setConsultationSchedules] = useState<any[]>([]);
         setIsModalVisible(false);
         form.resetFields();
         setEditingCampaign(null);
-        await loadCampaigns(); // Reload the campaigns list
+        await loadCampaigns();
       } else {
         notification.error({
           message: 'Lỗi',
@@ -415,18 +467,26 @@ const [consultationSchedules, setConsultationSchedules] = useState<any[]>([]);
       key: 'status',
       render: (status: string) => getStatusTag(status),
     },
-    {
-      title: 'Nhóm đối tượng',
-      dataIndex: 'target_classes',
-      key: 'target_classes',
-      render: (groups: string[]) => (
-        <div>
-          {groups?.map((group: string) => (
-            <Tag key={group} color="default">{group}</Tag>
-          ))}
-        </div>
-      ),
-    },
+  {
+  title: 'Nhóm đối tượng',
+  dataIndex: 'target_classes',
+  key: 'target_classes',
+  render: (groups: string[]) => {
+    const options = getTargetClassOptions();
+    return (
+      <div>
+        {groups?.map((group: string) => {
+          const option = options.find(opt => opt.value === group);
+          return (
+            <Tag key={group} color="default">
+              {option ? option.label : group}
+            </Tag>
+          );
+        })}
+      </div>
+    );
+  },
+},
     {
       title: 'Tiến độ tư vấn',
       key: 'consultation_progress',
@@ -435,11 +495,9 @@ const [consultationSchedules, setConsultationSchedules] = useState<any[]>([]);
         if (!progress) {
           return <Text type="secondary">Đang tải...</Text>;
         }
-
         if (progress.total === 0) {
           return <Text type="secondary">Không cần tư vấn</Text>;
         }
-
         return (
           <div style={{ minWidth: '120px' }}>
             <div style={{ marginBottom: '4px' }}>
@@ -456,33 +514,34 @@ const [consultationSchedules, setConsultationSchedules] = useState<any[]>([]);
       },
     },
     {
-      title: 'Thao tác',
-      key: 'actions',
-      render: (_, record: Campaign) => (
-        <Space direction="vertical" size="small">
-          <Space>
-            <Button
-              icon={<EyeOutlined />}
-              onClick={() => handleViewCampaign(record)}
-              title="Xem chi tiết"
-              size="small"
-            />
-            <Button
-              icon={<EditOutlined />}
-              onClick={() => handleEditCampaign(record)}
-              title="Chỉnh sửa"
-              size="small"
-            />
-          </Space>
+  title: 'Thao tác',
+  key: 'actions',
+  render: (_, record: Campaign) => {
+    const isDraft = record.status === 'draft';
+    const progress = consultationProgress[record._id] || { total: 0 }; // Lấy progress, mặc định total = 0 nếu chưa có
+    const isNoConsultationNeeded = progress.total === 0; // Kiểm tra không có ai cần tư vấn
 
-          {/* Health Check Workflow Actions */}
+    return (
+      <Space direction="vertical" size="small">
+        <Space>
+          <Button
+            icon={<EyeOutlined />}
+            onClick={() => handleViewCampaign(record)}
+            title="Xem chi tiết"
+            size="small"
+          />
+          <Button
+            icon={<EditOutlined />}
+            onClick={() => handleEditCampaign(record)}
+            title="Chỉnh sửa"
+            size="small"
+          />
+        </Space>
+        {!isDraft && (
           <Space wrap>
             <Button
               icon={<UserOutlined />}
-              onClick={() => {
-
-                handlePrepareStudentList(record);
-              }}
+              onClick={() => handlePrepareStudentList(record)}
               title="Danh sách học sinh"
               size="small"
             >
@@ -490,10 +549,7 @@ const [consultationSchedules, setConsultationSchedules] = useState<any[]>([]);
             </Button>
             <Button
               icon={<FileTextOutlined />}
-              onClick={() => {
-
-                handleRecordExamResults(record);
-              }}
+              onClick={() => handleRecordExamResults(record)}
               title="Ghi kết quả khám"
               size="small"
             >
@@ -501,108 +557,73 @@ const [consultationSchedules, setConsultationSchedules] = useState<any[]>([]);
             </Button>
             <Button
               icon={<CalendarOutlined />}
-              onClick={() => {
-
-                handleSendResultsAndSchedule(record);
-              }}
+              onClick={() => handleSendResultsAndSchedule(record)}
               title="Gửi KQ & đặt lịch"
               size="small"
               type="primary"
+              disabled={isNoConsultationNeeded} // Vô hiệu hóa nếu không có ai cần tư vấn
             >
               Gửi & Hẹn
             </Button>
             <Button
-  icon={<EyeOutlined />}
-  onClick={() => handleViewConsultationSchedules(record)}
-  title="Xem lịch tư vấn"
-  size="small"
-  style={{ marginLeft: 4 }}
->
-  Xem lịch tư vấn
-</Button>
+              icon={<EyeOutlined />}
+              onClick={() => handleViewConsultationSchedules(record)}
+              title="Xem lịch tư vấn"
+              size="small"
+              style={{ marginLeft: 4 }}
+            >
+              Xem lịch tư vấn
+            </Button>
           </Space>
-        </Space>
-      ),
-    },
+        )}
+      </Space>
+    );
+  },
+},
   ];
 
   const calculateProgress = (campaign: Campaign) => {
     if (!consents.length || !eligibleStudents.length) return 0;
     const approvedConsents = consents.filter(c => c.status === 'Approved').length;
-    // Calculate based on total eligible students, not just those who responded
     return Math.round((approvedConsents / eligibleStudents.length) * 100);
   };
 
-  // Calculate consultation progress for a specific campaign
   const calculateConsultationProgress = async (campaignId: string) => {
     try {
       const [resultsResponse, consultationResponse] = await Promise.all([
         nurseService.getCampaignResults(campaignId),
         nurseService.getConsultationSchedules()
       ]);
-
-
-
-
       if (!resultsResponse.success || !resultsResponse.data) {
-
         return { completed: 0, total: 0, percentage: 0 };
       }
-
-      // Handle different response formats for consultation data
       let consultationData: any[] = [];
-
       if (Array.isArray(consultationResponse)) {
-        // If the response is directly an array
         consultationData = consultationResponse;
-
       } else if (consultationResponse && consultationResponse.data) {
-        // If the response has a data property
         consultationData = consultationResponse.data;
-
       } else if (consultationResponse && consultationResponse.success && consultationResponse.data) {
-        // If the response has success and data properties
         consultationData = consultationResponse.data;
-
       }
-
       if (!Array.isArray(consultationData)) {
-
         consultationData = [];
       }
-
-
-
-      // Get abnormal results that require consultation
       const abnormalResults = resultsResponse.data.filter((result: any) =>
         result.checkupDetails && result.checkupDetails.requiresConsultation
       );
-
-
       if (abnormalResults.length === 0) {
-
-        return { completed: 0, total: 0, percentage: 100 }; // No consultations needed
+        return { completed: 0, total: 0, percentage: 100 };
       }
-
-      // Get existing consultation schedules
       let scheduledStudentIds = new Set();
-
-      // Create a mapping of campaign result IDs to student IDs for better matching
       const resultIdToStudentId = new Map();
       abnormalResults.forEach((result: any) => {
         const studentId = typeof result.student === 'object' ? (result.student as any)._id : result.student;
         resultIdToStudentId.set(result._id, studentId);
       });
-
-
-
       consultationData.forEach((consultation: any) => {
-        // Check if this consultation belongs to the current campaign
         let belongsToCurrentCampaign = false;
         let campaignResultId = null;
         let consultationStudentId: string | null = null;
-
-        // Get consultation student ID first
         if (consultation.student) {
           if (typeof consultation.student === 'object' && consultation.student._id) {
             consultationStudentId = consultation.student._id;
@@ -610,15 +631,8 @@ const [consultationSchedules, setConsultationSchedules] = useState<any[]>([]);
             consultationStudentId = consultation.student;
           }
         }
-
-
-
-        // Method 1: Check via campaignResult object if it exists
         if (consultation.campaignResult && typeof consultation.campaignResult === 'object') {
           campaignResultId = consultation.campaignResult._id;
-
-
-          // Check if the campaign result belongs to the current campaign via campaign field
           if (consultation.campaignResult.campaign) {
             let consultationCampaignId = null;
             if (typeof consultation.campaignResult.campaign === 'object') {
@@ -626,71 +640,47 @@ const [consultationSchedules, setConsultationSchedules] = useState<any[]>([]);
             } else if (typeof consultation.campaignResult.campaign === 'string') {
               consultationCampaignId = consultation.campaignResult.campaign;
             }
-
             if (consultationCampaignId === campaignId) {
               belongsToCurrentCampaign = true;
             }
           }
-
-          // Also check if the campaignResult ID matches any of our campaign results
           if (!belongsToCurrentCampaign && campaignResultId && resultIdToStudentId.has(campaignResultId)) {
             belongsToCurrentCampaign = true;
           }
         }
-
-        // Method 2: If campaignResult is a string, check if it matches
         if (!belongsToCurrentCampaign && consultation.campaignResult && typeof consultation.campaignResult === 'string') {
           campaignResultId = consultation.campaignResult;
-
-
           if (resultIdToStudentId.has(campaignResultId)) {
             belongsToCurrentCampaign = true;
           }
         }
-
-        // Method 3: Cross-reference student in consultation with students in campaignResult
         if (!belongsToCurrentCampaign && consultationStudentId) {
-          // Check if this student has any abnormal result in current campaign
           const matchingResult = abnormalResults.find((result: any) => {
             const resultStudentId = typeof result.student === 'object' ? result.student._id : result.student;
             return resultStudentId === consultationStudentId;
           });
-
           if (matchingResult) {
-            // Additional validation: check if student in campaignResult matches consultation student
             let campaignResultStudentId = null;
             if (consultation.campaignResult && typeof consultation.campaignResult === 'object' && consultation.campaignResult.student) {
               campaignResultStudentId = consultation.campaignResult.student;
             }
-
             if (campaignResultStudentId === consultationStudentId) {
               belongsToCurrentCampaign = true;
               campaignResultId = matchingResult._id;
             }
           }
         }
-
-
-
-        // Process consultation if it belongs to current campaign
         if (belongsToCurrentCampaign && consultationStudentId) {
           scheduledStudentIds.add(consultationStudentId);
         }
       });
-
-      // Count how many abnormal results have scheduled consultations
       const scheduledCount = abnormalResults.filter((result: any) => {
         const studentId = typeof result.student === 'object'
           ? (result.student as any)._id
           : result.student;
-        const hasSchedule = scheduledStudentIds.has(studentId);
-
-        return hasSchedule;
+        return scheduledStudentIds.has(studentId);
       }).length;
-
       const percentage = Math.round((scheduledCount / abnormalResults.length) * 100);
-
-
       return {
         completed: scheduledCount,
         total: abnormalResults.length,
@@ -701,8 +691,6 @@ const [consultationSchedules, setConsultationSchedules] = useState<any[]>([]);
     }
   };
 
-  // Workflow Step 1: Send Notification
-  // Note: This function is currently not used in the UI but kept for future use
   const handleSendNotification = async (campaign: Campaign) => {
     setSelectedCampaign(campaign);
     notificationForm.setFieldsValue({
@@ -727,493 +715,385 @@ Y tế trường học`
     setIsNotificationModalVisible(true);
   };
 
-  // Workflow Step 2: Prepare Student List
   const handlePrepareStudentList = async (campaign: Campaign) => {
     setIsStudentListModalVisible(true);
-
     try {
       setSelectedCampaign(campaign);
       setLoading(true);
-
-
-
-      // Fetch eligible students and consent data in parallel
       const [studentsResponse, consentsResponse] = await Promise.all([
         nurseService.getStudents(),
         nurseService.getCampaignConsents(campaign._id)
       ]);
-
-
-
-
       if (studentsResponse.success && studentsResponse.data) {
-        // Filter students by target classes
         const allStudents = studentsResponse.data.filter((student: any) => {
-          // If "all_grades" is selected, include all students
           if (campaign.target_classes?.includes('all_grades')) {
             return true;
           }
-
-          // Check if student's exact class is in target classes
           if (campaign.target_classes?.includes(student.class_name)) {
             return true;
           }
-
-          // Check if student's grade level is in target classes
-          const studentGrade = student.class_name?.substring(0, 2); // Extract grade like "10", "11", "12"
+          const studentGrade = student.class_name?.substring(0, 2);
           const gradeTarget = `grade_${studentGrade}`;
           if (campaign.target_classes?.includes(gradeTarget)) {
             return true;
           }
-
           return false;
         });
-
-        // Get consent data if available
         let consentData: any[] = [];
         if (consentsResponse.success && consentsResponse.data) {
           consentData = consentsResponse.data;
         }
-
-        // Map students with their real consent status
         const studentsWithConsentStatus = allStudents.map((student: any) => {
-          let consentStatus = 'none'; // none, pending, approved, declined
-
+          let consentStatus = 'none';
           if (campaign.requires_consent) {
-            // Find consent for this student
             const consent = consentData.find((c: any) => {
               const studentId = typeof c.student === 'object' ? c.student._id : c.student;
               return studentId === student._id;
             });
-
             if (consent) {
               consentStatus = consent.status === 'Approved' ? 'approved' :
                 consent.status === 'Declined' ? 'declined' : 'pending';
             } else {
-              consentStatus = 'pending'; // No consent record means pending
+              consentStatus = 'pending';
             }
           } else {
-            consentStatus = 'approved'; // No consent required means approved
+            consentStatus = 'approved';
           }
-
           return {
             ...student,
             consentStatus,
             confirmed: consentStatus === 'approved'
           };
         });
-
         setEligibleStudents(studentsWithConsentStatus);
-
         setIsStudentListModalVisible(true);
-
-
         const approvedCount = studentsWithConsentStatus.filter(s => s.confirmed).length;
         message.success(`Tìm thấy ${allStudents.length} học sinh đủ điều kiện, ${approvedCount} đã được phụ huynh đồng ý`);
       } else {
         message.error('Không thể tải danh sách học sinh');
-
       }
     } catch (error) {
       message.error('Có lỗi xảy ra khi tải danh sách học sinh');
-
     } finally {
       setLoading(false);
     }
   };
 
-  // Workflow Step 3: Record Exam Results
   const handleRecordExamResults = async (campaign: Campaign) => {
+  setIsExamResultModalVisible(true);
+  try {
+    setSelectedCampaign(campaign);
+    setLoading(true);
+    const [studentsResponse, resultsResponse, consentsResponse] = await Promise.all([
+      nurseService.getStudents(),
+      nurseService.getCampaignResults(campaign._id),
+      nurseService.getCampaignConsents(campaign._id)
+    ]);
+
+    // Kiểm tra dữ liệu API
+    if (!studentsResponse.success || !studentsResponse.data) {
+      message.error('Không thể tải danh sách học sinh từ hệ thống');
+      setEligibleStudents([]);
+      return;
+    }
+
+    // Lấy danh sách học sinh
+    const allStudents = studentsResponse.data.filter((student: any) => {
+      // Kiểm tra class_name có tồn tại
+      if (!student.class_name) {
+        console.warn(`Học sinh ${student._id} không có class_name`);
+        return false;
+      }
+
+      // Xử lý target_classes linh hoạt
+      if (campaign.target_classes?.includes('all_grades')) {
+        return true;
+      }
+      if (campaign.target_classes?.includes(student.class_name)) {
+        return true;
+      }
+
+      // Lấy khối lớp bằng regex
+      const gradeMatch = student.class_name.match(/^(\d+)/);
+      const studentGrade = gradeMatch ? gradeMatch[1] : null;
+      if (studentGrade) {
+        const gradeTarget = `grade_${studentGrade}`;
+        if (campaign.target_classes?.includes(gradeTarget)) {
+          return true;
+        }
+      }
+
+      return false;
+    });
+
+    // Kiểm tra danh sách học sinh
+    console.log('Danh sách học sinh đủ điều kiện:', allStudents.length, allStudents);
+
+    // Lấy dữ liệu đồng ý
+    let consentData: any[] = [];
+    if (consentsResponse.success && consentsResponse.data) {
+      consentData = consentsResponse.data;
+    } else {
+      console.warn('Không lấy được dữ liệu đồng ý, sử dụng mặc định rỗng');
+    }
+
+    // Lọc học sinh được phụ huynh đồng ý
+    const approvedStudents = allStudents.filter((student: any) => {
+      if (!campaign.requires_consent) {
+        return true;
+      }
+      const consent = consentData.find((c: any) => {
+        const studentId = typeof c.student === 'object' ? c.student._id : c.student;
+        return studentId === student._id;
+      });
+      return consent && consent.status === 'Approved';
+    });
+
+    console.log('Học sinh được phụ huynh đồng ý:', approvedStudents.length, approvedStudents);
+
+    // Lọc học sinh chưa khám
+    const examinedStudentIds = new Set();
+    if (resultsResponse.success && resultsResponse.data) {
+      resultsResponse.data.forEach((result: CampaignResult) => {
+        const studentId = typeof result.student === 'object' ? (result.student as any)._id : result.student;
+        examinedStudentIds.add(studentId);
+      });
+    }
+
+    const unexaminedApprovedStudents = approvedStudents.filter((student: any) =>
+      !examinedStudentIds.has(student._id)
+    );
+
+    console.log('Học sinh chưa khám:', unexaminedApprovedStudents.length, unexaminedApprovedStudents);
+
+    // Cập nhật state
+    setEligibleStudents(unexaminedApprovedStudents);
     setIsExamResultModalVisible(true);
 
-    try {
-      setSelectedCampaign(campaign);
-      setLoading(true);
-
-
-
-      // Fetch eligible students, campaign results, and consent data in parallel
-      const [studentsResponse, resultsResponse, consentsResponse] = await Promise.all([
-        nurseService.getStudents(),
-        nurseService.getCampaignResults(campaign._id),
-        nurseService.getCampaignConsents(campaign._id)
-      ]);
-
-
-
-
-
-      if (studentsResponse.success && studentsResponse.data) {
-        // Filter students by target classes
-        const eligibleStudents = studentsResponse.data.filter((student: any) => {
-          // If "all_grades" is selected, include all students
-          if (campaign.target_classes?.includes('all_grades')) {
-            return true;
-          }
-
-          // Check if student's exact class is in target classes
-          if (campaign.target_classes?.includes(student.class_name)) {
-            return true;
-          }
-
-          // Check if student's grade level is in target classes
-          const studentGrade = student.class_name?.substring(0, 2); // Extract grade like "10", "11", "12"
-          const gradeTarget = `grade_${studentGrade}`;
-          if (campaign.target_classes?.includes(gradeTarget)) {
-            return true;
-          }
-
-          return false;
-        });
-
-        // Get consent data if available
-        let consentData: any[] = [];
-        if (consentsResponse.success && consentsResponse.data) {
-          consentData = consentsResponse.data;
-        }
-
-        // Filter students who have approved consent (or no consent required)
-        const approvedStudents = eligibleStudents.filter((student: any) => {
-          if (!campaign.requires_consent) {
-            return true; // If no consent required, all eligible students are approved
-          }
-
-          // Find consent for this student
-          const consent = consentData.find((c: any) => {
-            const studentId = typeof c.student === 'object' ? c.student._id : c.student;
-            return studentId === student._id;
-          });
-
-          // Only include students with approved consent
-          return consent && consent.status === 'Approved';
-        });
-
-        // Get list of students who already have results
-        const examinedStudentIds = new Set();
-        if (resultsResponse.success && resultsResponse.data) {
-          resultsResponse.data.forEach((result: CampaignResult) => {
-            const studentId = typeof result.student === 'object'
-              ? (result.student as any)._id
-              : result.student;
-            examinedStudentIds.add(studentId);
-          });
-        }
-
-        // Filter out students who have already been examined
-        const unexaminedApprovedStudents = approvedStudents.filter((student: any) =>
-          !examinedStudentIds.has(student._id)
-        );
-
-        setEligibleStudents(unexaminedApprovedStudents);
-
-        setIsExamResultModalVisible(true);
-
-
-        if (unexaminedApprovedStudents.length === 0) {
-          if (approvedStudents.length === 0) {
-            message.info('Chưa có học sinh nào được phụ huynh đồng ý tham gia khám');
-          } else {
-            message.info('Tất cả học sinh đã được phụ huynh đồng ý đều đã được khám');
-          }
-        } else {
-          message.success(`Còn ${unexaminedApprovedStudents.length} học sinh đã được đồng ý chưa được khám`);
-        }
+    // Thông báo kết quả
+    if (unexaminedApprovedStudents.length === 0) {
+      if (approvedStudents.length === 0) {
+        message.info('Chưa có học sinh nào được phụ huynh đồng ý tham gia khám');
       } else {
-        message.error('Không thể tải danh sách học sinh');
-
+        message.info('Tất cả học sinh đã được phụ huynh đồng ý đều đã được khám');
       }
-    } catch (error) {
-      message.error('Có lỗi xảy ra khi tải danh sách học sinh');
-
-    } finally {
-      setLoading(false);
+    } else {
+      message.success(`Còn ${unexaminedApprovedStudents.length} học sinh đã được đồng ý chưa được khám`);
     }
-  };
+  } catch (error) {
+    console.error('Lỗi khi tải danh sách học sinh:', error);
+    message.error('Có lỗi xảy ra khi tải danh sách học sinh');
+    setEligibleStudents([]);
+  } finally {
+    setLoading(false);
+  }
+};
 
-  // Workflow Step 4: Send Results and Schedule Consultation
   const handleSendResultsAndSchedule = async (campaign: Campaign) => {
-    setSelectedCampaign(campaign);
-
-    try {
-      setLoading(true);
-
-      // Get current campaign results and student-parent relations from the API
-      const [resultsResponse, relationsResponse] = await Promise.all([
-        nurseService.getCampaignResults(campaign._id),
-        nurseService.getStudentParentRelations()
-      ]);
-
-      if (!resultsResponse.success || !resultsResponse.data) {
-        message.error('Không thể tải kết quả khám');
-        return;
-      }
-
-      // Create a map of student ID to parent information
-      const studentParentMap = new Map();
-      if (relationsResponse.success && relationsResponse.data) {
-        relationsResponse.data.forEach((relation: any) => {
-          const studentId = typeof relation.student === 'object' ? relation.student._id : relation.student;
-          const parentId = typeof relation.parent === 'object' ? relation.parent._id : relation.parent;
-          const parentName = typeof relation.parent === 'object' 
-            ? `${relation.parent.first_name || ''} ${relation.parent.last_name || ''}`.trim()
-            : 'Unknown Parent';
-          
-          studentParentMap.set(studentId, {
-            parentId,
-            parentName,
-            relationship: relation.relationship
-          });
-        });
-      }
-
-      // Filter results that require consultation
-      const abnormalResults = resultsResponse.data.filter((result: CampaignResult) =>
-        result.checkupDetails && result.checkupDetails.requiresConsultation
-      );
-
-      if (abnormalResults.length > 0) {
-        // Fetch existing consultation schedules to avoid duplicates
-        let existingConsultations: any[] = [];
-        try {
-          const consultationResponse = await nurseService.getConsultationSchedules();
-
-
-          // Handle different response formats for consultation data (same as calculateConsultationProgress)
-          if (Array.isArray(consultationResponse)) {
-            existingConsultations = consultationResponse;
-          } else if (consultationResponse && consultationResponse.data) {
-            existingConsultations = consultationResponse.data;
-          } else if (consultationResponse && consultationResponse.success && consultationResponse.data) {
-            existingConsultations = consultationResponse.data;
-          }
-
-          if (!Array.isArray(existingConsultations)) {
-            existingConsultations = [];
-          }
-        } catch (error) {
-          // Silent fail - use empty array as fallback
-        }
-
-        // Create a mapping of campaign result IDs to student IDs for better matching
-        const resultIdToStudentId = new Map();
-        abnormalResults.forEach((result: CampaignResult) => {
-          const studentId = typeof result.student === 'object' ? (result.student as any)._id : result.student;
-          resultIdToStudentId.set(result._id, studentId);
-        });
-
-        // Create a set of students who already have consultation schedules for THIS campaign
-        const studentsWithConsultations = new Set();
-        existingConsultations.forEach((consultation: any) => {
-          // Use the same robust matching logic as calculateConsultationProgress
-          let belongsToCurrentCampaign = false;
-          let campaignResultId = null;
-          let consultationStudentId: string | null = null;
-
-          // Get consultation student ID
-          if (consultation.student) {
-            if (typeof consultation.student === 'object' && consultation.student._id) {
-              consultationStudentId = consultation.student._id;
-            } else if (typeof consultation.student === 'string') {
-              consultationStudentId = consultation.student;
-            }
-          }
-
-          // Method 1: Check via campaignResult object if it exists
-          if (consultation.campaignResult && typeof consultation.campaignResult === 'object') {
-            campaignResultId = consultation.campaignResult._id;
-
-            // Check if the campaign result belongs to the current campaign via campaign field
-            if (consultation.campaignResult.campaign) {
-              let consultationCampaignId = null;
-              if (typeof consultation.campaignResult.campaign === 'object') {
-                consultationCampaignId = consultation.campaignResult.campaign._id;
-              } else if (typeof consultation.campaignResult.campaign === 'string') {
-                consultationCampaignId = consultation.campaignResult.campaign;
-              }
-
-              if (consultationCampaignId === campaign._id) {
-                belongsToCurrentCampaign = true;
-              }
-            }
-
-            // Also check if the campaignResult ID matches any of our campaign results
-            if (!belongsToCurrentCampaign && campaignResultId && resultIdToStudentId.has(campaignResultId)) {
-              belongsToCurrentCampaign = true;
-            }
-          }
-
-          // Method 2: If campaignResult is a string, check if it matches
-          if (!belongsToCurrentCampaign && consultation.campaignResult && typeof consultation.campaignResult === 'string') {
-            campaignResultId = consultation.campaignResult;
-
-
-            if (resultIdToStudentId.has(campaignResultId)) {
-              belongsToCurrentCampaign = true;
-            }
-          }
-
-          // Method 3: Cross-reference student in consultation with students in campaignResult
-          if (!belongsToCurrentCampaign && consultationStudentId) {
-            // Check if this student has any abnormal result in current campaign
-            const matchingResult = abnormalResults.find((result: CampaignResult) => {
-              const resultStudentId = typeof result.student === 'object' ? (result.student as any)._id : result.student;
-              return resultStudentId === consultationStudentId;
-            });
-
-            if (matchingResult) {
-              belongsToCurrentCampaign = true;
-            }
-          }
-
-          // If this consultation belongs to the current campaign, add the student to the set
-          if (belongsToCurrentCampaign && consultationStudentId) {
-            studentsWithConsultations.add(consultationStudentId);
-          }
-        });
-
-        // Filter out students who already have consultation schedules for THIS campaign
-        const scheduledResultIds = new Set();
-existingConsultations.forEach((consultation: any) => {
-  let campaignResultId = null;
-  if (consultation.campaignResult && typeof consultation.campaignResult === 'object') {
-    campaignResultId = consultation.campaignResult._id;
-  } else if (typeof consultation.campaignResult === 'string') {
-    campaignResultId = consultation.campaignResult;
-  }
-  if (campaignResultId) {
-    scheduledResultIds.add(campaignResultId);
-  }
-});
-
-// Lọc ra các kết quả khám bất thường chưa có lịch tư vấn (theo campaignResult)
-const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResult) => {
-  return !scheduledResultIds.has(result._id);
-});
-
-
-
-        // Create a list of existing consultations for this campaign
-        const existingConsultationsForCampaign = existingConsultations.filter((consultation: any) => {
-          // Use the same matching logic to find consultations for this campaign
-          let belongsToCurrentCampaign = false;
-          let campaignResultId = null;
-
-          if (consultation.campaignResult && typeof consultation.campaignResult === 'object') {
-            campaignResultId = consultation.campaignResult._id;
-
-            if (consultation.campaignResult.campaign) {
-              let consultationCampaignId = null;
-              if (typeof consultation.campaignResult.campaign === 'object') {
-                consultationCampaignId = consultation.campaignResult.campaign._id;
-              } else if (typeof consultation.campaignResult.campaign === 'string') {
-                consultationCampaignId = consultation.campaignResult.campaign;
-              }
-
-              if (consultationCampaignId === campaign._id) {
-                belongsToCurrentCampaign = true;
-              }
-            }
-
-            if (!belongsToCurrentCampaign && campaignResultId && resultIdToStudentId.has(campaignResultId)) {
-              belongsToCurrentCampaign = true;
-            }
-          } else if (consultation.campaignResult && typeof consultation.campaignResult === 'string') {
-            campaignResultId = consultation.campaignResult;
-            if (resultIdToStudentId.has(campaignResultId)) {
-              belongsToCurrentCampaign = true;
-            }
-          }
-
-          return belongsToCurrentCampaign;
-        });
-
-        // Only include students who need to book a consultation (unscheduled students)
-        const studentsNeedingConsultation: Array<{ 
-          studentId: string; 
-          studentName: string; 
-          reason: string; 
-          isScheduled: boolean;
-          parentId?: string;
-          parentName?: string;
-          resultId?: string;
-        }> = [];
-
-        // Only add unscheduled students who need booking
-        unscheduledAbnormalResults.forEach((result: CampaignResult) => {
-          const studentId = typeof result.student === 'object' ? (result.student as any)._id : result.student;
-          const studentName = typeof result.student === 'object'
-            ? `${(result.student as any).first_name || ''} ${(result.student as any).last_name || ''}`.trim()
-            : 'Unknown Student';
-
-          // Get parent info from our map
-          const parentInfo = studentParentMap.get(studentId);
-
-          studentsNeedingConsultation.push({
-            studentId,
-            studentName,
-            reason: result.checkupDetails?.recommendations || 'Cần tư vấn thêm sau khám sức khỏe',
-            isScheduled: false,
-            parentId: parentInfo?.parentId,
-            parentName: parentInfo?.parentName,
-            resultId: result._id
-          });
-        });
-
-        // Create the modal content with properly captured variables
-        const scheduledCount = existingConsultationsForCampaign.length;
-        const unscheduledCount = unscheduledAbnormalResults.length;
-
-
-
-        // Log to confirm the code is reached
-
-
-        setConsultationCandidates(studentsNeedingConsultation.map((student, index) => ({
-          id: index,
-          studentId: student.studentId,
-          studentName: student.studentName,
-          reason: student.reason,
-          isScheduled: student.isScheduled,
-          parentId: student.parentId,
-          parentName: student.parentName,
-          resultId: student.resultId
-        })));
-        setConsultationStats({
-          totalAbnormal: studentsNeedingConsultation.length,
-          alreadyScheduled: 0, // Not displayed anymore, only students needing booking are shown
-          needsScheduling: studentsNeedingConsultation.length
-        });
-        setIsConsultationModalVisible(true);
-        return;
-      } else {
-        notification.success({
-          message: 'Thành công',
-          description: 'Tất cả học sinh đều có kết quả khám bình thường. Đã gửi kết quả cho phụ huynh.',
-        });
-      }
-    } catch (error) {
-      message.error('Có lỗi xảy ra khi xử lý kết quả khám');
-    } finally {
-      setLoading(false);
+  setSelectedCampaign(campaign);
+  try {
+    setLoading(true);
+    const [resultsResponse, relationsResponse] = await Promise.all([
+      nurseService.getCampaignResults(campaign._id),
+      nurseService.getStudentParentRelations()
+    ]);
+    if (!resultsResponse.success || !resultsResponse.data) {
+      message.error('Không thể tải kết quả khám');
+      return;
     }
-  };
+    const studentParentMap = new Map();
+    if (relationsResponse.success && relationsResponse.data) {
+      relationsResponse.data.forEach((relation: any) => {
+        const studentId = typeof relation.student === 'object' ? relation.student._id : relation.student;
+        const parentId = typeof relation.parent === 'object' ? relation.parent._id : relation.parent;
+        const parentName = typeof relation.parent === 'object' 
+          ? `${relation.parent.first_name || ''} ${relation.parent.last_name || ''}`.trim()
+          : 'Unknown Parent';
+        studentParentMap.set(studentId, {
+          parentId,
+          parentName,
+          relationship: relation.relationship
+        });
+      });
+    }
+    const abnormalResults = resultsResponse.data.filter((result: CampaignResult) =>
+      result.checkupDetails && result.checkupDetails.requiresConsultation
+    );
+    if (abnormalResults.length === 0) {
+      notification.success({
+        message: 'Thành công',
+        description: 'Không có học sinh nào cần tư vấn. Đã gửi kết quả cho phụ huynh.',
+      });
+      return; // Thoát hàm nếu không có ai cần tư vấn
+    }
+    // Tiếp tục xử lý nếu có học sinh cần tư vấn
+    let existingConsultations: any[] = [];
+    try {
+      const consultationResponse = await nurseService.getConsultationSchedules();
+      if (Array.isArray(consultationResponse)) {
+        existingConsultations = consultationResponse;
+      } else if (consultationResponse && consultationResponse.data) {
+        existingConsultations = consultationResponse.data;
+      } else if (consultationResponse && consultationResponse.success && consultationResponse.data) {
+        existingConsultations = consultationResponse.data;
+      }
+      if (!Array.isArray(existingConsultations)) {
+        existingConsultations = [];
+      }
+    } catch (error) {}
+    const resultIdToStudentId = new Map();
+    abnormalResults.forEach((result: CampaignResult) => {
+      const studentId = typeof result.student === 'object' ? (result.student as any)._id : result.student;
+      resultIdToStudentId.set(result._id, studentId);
+    });
+    const studentsWithConsultations = new Set();
+    existingConsultations.forEach((consultation: any) => {
+      let belongsToCurrentCampaign = false;
+      let campaignResultId = null;
+      let consultationStudentId: string | null = null;
+      if (consultation.student) {
+        if (typeof consultation.student === 'object' && consultation.student._id) {
+          consultationStudentId = consultation.student._id;
+        } else if (typeof consultation.student === 'string') {
+          consultationStudentId = consultation.student;
+        }
+      }
+      if (consultation.campaignResult && typeof consultation.campaignResult === 'object') {
+        campaignResultId = consultation.campaignResult._id;
+        if (consultation.campaignResult.campaign) {
+          let consultationCampaignId = null;
+          if (typeof consultation.campaignResult.campaign === 'object') {
+            consultationCampaignId = consultation.campaignResult.campaign._id;
+          } else if (typeof consultation.campaignResult.campaign === 'string') {
+            consultationCampaignId = consultation.campaignResult.campaign;
+          }
+          if (consultationCampaignId === campaign._id) {
+            belongsToCurrentCampaign = true;
+          }
+        }
+        if (!belongsToCurrentCampaign && campaignResultId && resultIdToStudentId.has(campaignResultId)) {
+          belongsToCurrentCampaign = true;
+        }
+      }
+      if (!belongsToCurrentCampaign && consultation.campaignResult && typeof consultation.campaignResult === 'string') {
+        campaignResultId = consultation.campaignResult;
+        if (resultIdToStudentId.has(campaignResultId)) {
+          belongsToCurrentCampaign = true;
+        }
+      }
+      if (!belongsToCurrentCampaign && consultationStudentId) {
+        const matchingResult = abnormalResults.find((result: CampaignResult) => {
+          const resultStudentId = typeof result.student === 'object' ? (result.student as any)._id : result.student;
+          return resultStudentId === consultationStudentId;
+        });
+        if (matchingResult) {
+          belongsToCurrentCampaign = true;
+        }
+      }
+      if (belongsToCurrentCampaign && consultationStudentId) {
+        studentsWithConsultations.add(consultationStudentId);
+      }
+    });
+    const scheduledResultIds = new Set();
+    existingConsultations.forEach((consultation: any) => {
+      let campaignResultId = null;
+      if (consultation.campaignResult && typeof consultation.campaignResult === 'object') {
+        campaignResultId = consultation.campaignResult._id;
+      } else if (typeof consultation.campaignResult === 'string') {
+        campaignResultId = consultation.campaignResult;
+      }
+      if (campaignResultId) {
+        scheduledResultIds.add(campaignResultId);
+      }
+    });
+    const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResult) => {
+      return !scheduledResultIds.has(result._id);
+    });
+    const existingConsultationsForCampaign = existingConsultations.filter((consultation: any) => {
+      let belongsToCurrentCampaign = false;
+      let campaignResultId = null;
+      if (consultation.campaignResult && typeof consultation.campaignResult === 'object') {
+        campaignResultId = consultation.campaignResult._id;
+        if (consultation.campaignResult.campaign) {
+          let consultationCampaignId = null;
+          if (typeof consultation.campaignResult.campaign === 'object') {
+            consultationCampaignId = consultation.campaignResult.campaign._id;
+          } else if (typeof consultation.campaignResult.campaign === 'string') {
+            consultationCampaignId = consultation.campaignResult.campaign;
+          }
+          if (consultationCampaignId === campaign._id) {
+            belongsToCurrentCampaign = true;
+          }
+        }
+        if (!belongsToCurrentCampaign && campaignResultId && resultIdToStudentId.has(campaignResultId)) {
+          belongsToCurrentCampaign = true;
+        }
+      } else if (consultation.campaignResult && typeof consultation.campaignResult === 'string') {
+        campaignResultId = consultation.campaignResult;
+        if (resultIdToStudentId.has(campaignResultId)) {
+          belongsToCurrentCampaign = true;
+        }
+      }
+      return belongsToCurrentCampaign;
+    });
+    const studentsNeedingConsultation: Array<{ 
+      studentId: string; 
+      studentName: string; 
+      reason: string; 
+      isScheduled: boolean;
+      parentId?: string;
+      parentName?: string;
+      resultId?: string;
+    }> = [];
+    unscheduledAbnormalResults.forEach((result: CampaignResult) => {
+      const studentId = typeof result.student === 'object' ? (result.student as any)._id : result.student;
+      const studentName = typeof result.student === 'object'
+        ? `${(result.student as any).first_name || ''} ${(result.student as any).last_name || ''}`.trim()
+        : 'Unknown Student';
+      const parentInfo = studentParentMap.get(studentId);
+      studentsNeedingConsultation.push({
+        studentId,
+        studentName,
+        reason: result.checkupDetails?.recommendations || 'Cần tư vấn thêm sau khám sức khỏe',
+        isScheduled: false,
+        parentId: parentInfo?.parentId,
+        parentName: parentInfo?.parentName,
+        resultId: result._id
+      });
+    });
+    setConsultationCandidates(studentsNeedingConsultation.map((student, index) => ({
+      id: index,
+      studentId: student.studentId,
+      studentName: student.studentName,
+      reason: student.reason,
+      isScheduled: student.isScheduled,
+      parentId: student.parentId,
+      parentName: student.parentName,
+      resultId: student.resultId
+    })));
+    setConsultationStats({
+      totalAbnormal: studentsNeedingConsultation.length,
+      alreadyScheduled: 0,
+      needsScheduling: studentsNeedingConsultation.length
+    });
+    setIsConsultationModalVisible(true);
+  } catch (error) {
+    message.error('Có lỗi xảy ra khi xử lý kết quả khám');
+  } finally {
+    setLoading(false);
+  }
+};
 
-  // Helper function to reload consultation candidates list
   const reloadConsultationCandidates = async () => {
     if (!selectedCampaign) return;
-
     try {
-      // Get current campaign results and student-parent relations from the API
       const [resultsResponse, relationsResponse] = await Promise.all([
         nurseService.getCampaignResults(selectedCampaign._id),
         nurseService.getStudentParentRelations()
       ]);
-
       if (!resultsResponse.success || !resultsResponse.data) {
         return;
       }
-
-      // Create a map of student ID to parent information
       const studentParentMap = new Map();
       if (relationsResponse.success && relationsResponse.data) {
         relationsResponse.data.forEach((relation: any) => {
@@ -1222,7 +1102,6 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
           const parentName = typeof relation.parent === 'object' 
             ? `${relation.parent.first_name || ''} ${relation.parent.last_name || ''}`.trim()
             : 'Unknown Parent';
-          
           studentParentMap.set(studentId, {
             parentId,
             parentName,
@@ -1230,20 +1109,13 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
           });
         });
       }
-
-      // Filter results that require consultation
       const abnormalResults = resultsResponse.data.filter((result: CampaignResult) =>
         result.checkupDetails && result.checkupDetails.requiresConsultation
       );
-
       if (abnormalResults.length > 0) {
-        // Fetch existing consultation schedules to avoid duplicates
         let existingConsultations: any[] = [];
         try {
           const consultationResponse = await nurseService.getConsultationSchedules();
-
-
-          // Handle different response formats for consultation data (same as calculateConsultationProgress)
           if (Array.isArray(consultationResponse)) {
             existingConsultations = consultationResponse;
           } else if (consultationResponse && consultationResponse.data) {
@@ -1251,30 +1123,20 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
           } else if (consultationResponse && consultationResponse.success && consultationResponse.data) {
             existingConsultations = consultationResponse.data;
           }
-
           if (!Array.isArray(existingConsultations)) {
             existingConsultations = [];
           }
-        } catch (error) {
-          // Silent fail - use empty array as fallback
-        }
-
-        // Create a mapping of campaign result IDs to student IDs for better matching
+        } catch (error) {}
         const resultIdToStudentId = new Map();
         abnormalResults.forEach((result: CampaignResult) => {
           const studentId = typeof result.student === 'object' ? (result.student as any)._id : result.student;
           resultIdToStudentId.set(result._id, studentId);
         });
-
-        // Create a set of students who already have consultation schedules for THIS campaign
         const studentsWithConsultations = new Set();
         existingConsultations.forEach((consultation: any) => {
-          // Use the same robust matching logic as calculateConsultationProgress
           let belongsToCurrentCampaign = false;
           let campaignResultId = null;
           let consultationStudentId: string | null = null;
-
-          // Get consultation student ID
           if (consultation.student) {
             if (typeof consultation.student === 'object' && consultation.student._id) {
               consultationStudentId = consultation.student._id;
@@ -1282,12 +1144,8 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
               consultationStudentId = consultation.student;
             }
           }
-
-          // Method 1: Check via campaignResult object if it exists
           if (consultation.campaignResult && typeof consultation.campaignResult === 'object') {
             campaignResultId = consultation.campaignResult._id;
-
-            // Check if the campaign result belongs to the current campaign via campaign field
             if (consultation.campaignResult.campaign) {
               let consultationCampaignId = null;
               if (typeof consultation.campaignResult.campaign === 'object') {
@@ -1295,67 +1153,48 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
               } else if (typeof consultation.campaignResult.campaign === 'string') {
                 consultationCampaignId = consultation.campaignResult.campaign;
               }
-
               if (consultationCampaignId === selectedCampaign._id) {
                 belongsToCurrentCampaign = true;
               }
             }
-
-            // Also check if the campaignResult ID matches any of our campaign results
             if (!belongsToCurrentCampaign && campaignResultId && resultIdToStudentId.has(campaignResultId)) {
               belongsToCurrentCampaign = true;
             }
           }
-
-          // Method 2: If campaignResult is a string, check if it matches
           if (!belongsToCurrentCampaign && consultation.campaignResult && typeof consultation.campaignResult === 'string') {
             campaignResultId = consultation.campaignResult;
-
-
             if (resultIdToStudentId.has(campaignResultId)) {
               belongsToCurrentCampaign = true;
             }
           }
-
-          // Method 3: Cross-reference student in consultation with students in campaignResult
           if (!belongsToCurrentCampaign && consultationStudentId) {
-            // Check if this student has any abnormal result in current campaign
             const matchingResult = abnormalResults.find((result: CampaignResult) => {
               const resultStudentId = typeof result.student === 'object' ? (result.student as any)._id : result.student;
               return resultStudentId === consultationStudentId;
             });
-
             if (matchingResult) {
               belongsToCurrentCampaign = true;
             }
           }
-
-          // If this consultation belongs to the current campaign, add the student to the set
           if (belongsToCurrentCampaign && consultationStudentId) {
             studentsWithConsultations.add(consultationStudentId);
           }
         });
-
-        // Filter out students who already have consultation schedules for THIS campaign
         const scheduledResultIds = new Set();
-existingConsultations.forEach((consultation: any) => {
-  let campaignResultId = null;
-  if (consultation.campaignResult && typeof consultation.campaignResult === 'object') {
-    campaignResultId = consultation.campaignResult._id;
-  } else if (typeof consultation.campaignResult === 'string') {
-    campaignResultId = consultation.campaignResult;
-  }
-  if (campaignResultId) {
-    scheduledResultIds.add(campaignResultId);
-  }
-});
-
-// Lọc ra các kết quả khám bất thường chưa có lịch tư vấn (theo campaignResult)
-const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResult) => {
-  return !scheduledResultIds.has(result._id);
-});
-
-        // Only include students who need to book a consultation (unscheduled students)
+        existingConsultations.forEach((consultation: any) => {
+          let campaignResultId = null;
+          if (consultation.campaignResult && typeof consultation.campaignResult === 'object') {
+            campaignResultId = consultation.campaignResult._id;
+          } else if (typeof consultation.campaignResult === 'string') {
+            campaignResultId = consultation.campaignResult;
+          }
+          if (campaignResultId) {
+            scheduledResultIds.add(campaignResultId);
+          }
+        });
+        const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResult) => {
+          return !scheduledResultIds.has(result._id);
+        });
         const studentsNeedingConsultation: Array<{ 
           studentId: string; 
           studentName: string; 
@@ -1365,17 +1204,12 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
           parentName?: string;
           resultId?: string;
         }> = [];
-
-        // Only add unscheduled students who need booking
         unscheduledAbnormalResults.forEach((result: CampaignResult) => {
           const studentId = typeof result.student === 'object' ? (result.student as any)._id : result.student;
           const studentName = typeof result.student === 'object'
             ? `${(result.student as any).first_name || ''} ${(result.student as any).last_name || ''}`.trim()
             : 'Unknown Student';
-
-          // Get parent info from our map
           const parentInfo = studentParentMap.get(studentId);
-
           studentsNeedingConsultation.push({
             studentId,
             studentName,
@@ -1386,8 +1220,6 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
             resultId: result._id
           });
         });
-
-        // Update the consultation candidates list
         setConsultationCandidates(studentsNeedingConsultation.map((student, index) => ({
           id: index,
           studentId: student.studentId,
@@ -1398,15 +1230,12 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
           parentName: student.parentName,
           resultId: student.resultId
         })));
-
-        // Update consultation stats
         setConsultationStats({
           totalAbnormal: studentsNeedingConsultation.length,
           alreadyScheduled: 0,
           needsScheduling: studentsNeedingConsultation.length
         });
       } else {
-        // No students need consultation
         setConsultationCandidates([]);
         setConsultationStats({
           totalAbnormal: 0,
@@ -1420,9 +1249,6 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
   };
 
   const submitConsultationSchedule = async (values: any) => {
-   
-
-    // Validation checks
     if (!selectedCampaign) {
       message.error('Không tìm thấy thông tin chiến dịch hoặc học sinh. Vui lòng chọn học sinh trước khi đặt lịch.');
       return;
@@ -1431,42 +1257,28 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
       message.error('Không tìm thấy thông tin chiến dịch hoặc học sinh. Vui lòng chọn học sinh trước khi đặt lịch.');
       return;
     }
-
-    if (!selectedCampaign || !currentConsultationStudent) {
-      message.error('Không tìm thấy thông tin chiến dịch hoặc học sinh. Vui lòng chọn học sinh trước khi đặt lịch.');
-      return;
-    }
     try {
       setLoading(true);
-
-      // Check if the student has parent information
       if (!currentConsultationStudent.parentId) {
         message.error('Học sinh này không có thông tin phụ huynh. Không thể đặt lịch tư vấn.');
         return;
       }
-
-      // Validate form values
       if (!values.scheduledDate) {
         message.error('Vui lòng chọn ngày và giờ tư vấn');
         return;
       }
-
-      // Check for overlapping consultations
       try {
         const shouldCancelBooking = await checkForOverlappingConsultations(values.scheduledDate, values.duration || 30);
         if (shouldCancelBooking) {
-          // User chose to cancel due to overlap - return without showing additional message
           return;
         }
       } catch (error) {
-        // If overlap check fails, show error and stop booking
         message.error({
           content: '❌ Không thể kiểm tra trùng lịch. Vui lòng thử lại hoặc kiểm tra thủ công.',
           duration: 6
         });
         return;
       }
-
       const scheduleData = {
         campaignResult: currentConsultationStudent.resultId,
         student: currentConsultationStudent.studentId,
@@ -1476,18 +1288,13 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
         reason: currentConsultationStudent.reason,
         notes: values.notes || ''
       };
-
-
       const response = await nurseService.createConsultationSchedule(scheduleData);
-
       if (response.success) {
         notification.success({
           message: 'Thành công',
           description: `Đã đặt lịch tư vấn cho học sinh ${currentConsultationStudent.studentName}. Tiến độ đã được cập nhật.`,
           duration: 3
         });
-
-        // Update consultation progress for the current campaign
         if (selectedCampaign) {
           const updatedProgress = await calculateConsultationProgress(selectedCampaign._id);
           setConsultationProgress(prev => ({
@@ -1495,31 +1302,16 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
             [selectedCampaign._id]: updatedProgress
           }));
         }
-
-        // Reload the consultation candidates list to reflect the updated data
         await reloadConsultationCandidates();
-        
-        // Clear current student selection to allow fresh selection from updated list
         setCurrentConsultationStudent(null);
-
-        // Store current student ID before clearing the state
         const currentStudentId = currentConsultationStudent.studentId;
-
-        // Update scheduled students list and handle next steps in the callback
         setScheduledStudents(prevScheduled => {
           const newScheduled = [...prevScheduled, currentStudentId];
-
-          // Handle next steps after state update - use a timeout to allow reloadConsultationCandidates to complete
           setTimeout(() => {
-            // Since we cleared currentConsultationStudent after reload, 
-            // check if there are any students left in the updated consultationCandidates list
             if (consultationCandidates.length > 0) {
-              // Select the first available student from the updated list
               selectStudentForConsultation(consultationCandidates[0]);
             } else {
-              // All students are scheduled, close modal
               setTimeout(async () => {
-                // Refresh consultation progress for the current campaign
                 if (selectedCampaign) {
                   const updatedProgress = await calculateConsultationProgress(selectedCampaign._id);
                   setConsultationProgress(prev => ({
@@ -1527,7 +1319,6 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
                     [selectedCampaign._id]: updatedProgress
                   }));
                 }
-
                 setIsConsultationModalVisible(false);
                 setConsultationCandidates([]);
                 setScheduledStudents([]);
@@ -1535,16 +1326,11 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
                 message.success('Đã đặt lịch tư vấn cho tất cả học sinh cần tư vấn');
               }, 300);
             }
-          }, 500); // Increased timeout to allow reload to complete
-
+          }, 500);
           return newScheduled;
         });
-
-        // Reset form
         consultationForm.resetFields();
-
       } else {
-        // Check if it's a conflict error (409 status) or backend reports conflict
         if ((response as any).conflict || (response.message && response.message.includes('conflict')) || (response.message && response.message.includes('overlap'))) {
           message.error({
             content: '🚫 Thời gian tư vấn bị trùng lặp với lịch khác. Backend đã từ chối yêu cầu đặt lịch.',
@@ -1562,7 +1348,6 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
           });
         }
       }
-
     } catch (error) {
       message.error('Có lỗi xảy ra khi đặt lịch tư vấn');
     } finally {
@@ -1572,7 +1357,6 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
 
   const submitNotification = async (values: any) => {
     try {
-      // Here you would call API to send notifications to parents
       message.success('Đã gửi thông báo thành công đến phụ huynh');
       setIsNotificationModalVisible(false);
       notificationForm.resetFields();
@@ -1586,11 +1370,8 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
       message.error('Không tìm thấy thông tin chiến dịch');
       return;
     }
-
     try {
       setLoading(true);
-
-      // Prepare the result data with the simplified structure
       const resultData = {
         campaign: selectedCampaign._id,
         student: values.studentId,
@@ -1602,12 +1383,8 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
           requiresConsultation: values.requiresConsultation || false,
         }
       };
-
-      // Submit to backend
       const response = await nurseService.submitCampaignResult(resultData);
-
       if (response.success) {
-        // Add to local state for immediate UI update
         const newResult = {
           studentId: values.studentId,
           findings: values.findings,
@@ -1617,17 +1394,12 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
           notes: values.notes,
           examDate: new Date(),
         };
-
         setExamResults([...examResults, newResult]);
         message.success('Đã lưu kết quả khám thành công');
         examForm.resetFields();
         setIsExamResultModalVisible(false);
-
-        // Refresh the results data
         if (selectedCampaign) {
           loadCampaignDetails(selectedCampaign._id);
-
-          // Refresh consultation progress since new exam results might require consultation
           const updatedProgress = await calculateConsultationProgress(selectedCampaign._id);
           setConsultationProgress(prev => ({
             ...prev,
@@ -1644,37 +1416,28 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
     }
   };
 
-  // Helper function to select a student for individual consultation scheduling
   const selectStudentForConsultation = (candidate: any) => {
-
     setCurrentConsultationStudent(candidate);
     consultationForm.resetFields();
     consultationForm.setFieldsValue({
       duration: 30
     });
-  }
+  };
 
-  // Get the next unscheduled student
   const getNextUnscheduledStudent = () => {
     return consultationCandidates.find(c =>
       !scheduledStudents.includes(c.studentId) && (!currentConsultationStudent || c.studentId !== currentConsultationStudent.studentId)
     );
   };
 
-  // Helper function to check for overlapping consultation times via backend
-  // Returns true if booking should be cancelled due to overlap, false if booking should proceed
   const checkForOverlappingConsultations = async (newScheduledDate: moment.Moment, newDuration: number): Promise<boolean> => {
     try {
-      // Call backend API to check for overlaps
       const response = await nurseService.checkConsultationOverlap({
         scheduledDate: newScheduledDate.toISOString(),
         duration: newDuration
       });
-      
       if (response.success && response.data && response.data.hasOverlap) {
         const conflict = response.data.conflictingConsultation;
-        
-        // Extract student name from different possible structures
         let conflictStudentName = 'Không xác định';
         if (conflict?.student) {
           if (typeof conflict.student === 'object' && conflict.student.first_name && conflict.student.last_name) {
@@ -1683,14 +1446,10 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
             conflictStudentName = conflict.student;
           }
         }
-        
-        // Show error message for overlap
         message.error({
           content: `🚫 Trùng lịch tư vấn với học sinh ${conflictStudentName} vào ${moment(conflict?.scheduledDate).format('DD/MM/YYYY HH:mm')}. Vui lòng chọn thời gian khác!`,
           duration: 8
         });
-        
-        // Show informational alert dialog about overlap
         window.alert(
           `⚠️ PHÁT HIỆN TRÙNG LỊCH TƯ VẤN!\n\n` +
           `🔸 Học sinh hiện có: ${conflictStudentName}\n` +
@@ -1699,29 +1458,67 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
           `❌ Không thể đặt lịch trùng với lịch hiện có.\n` +
           `💡 Vui lòng chọn thời gian khác để tránh xung đột!`
         );
-        
-        // Always cancel booking when overlap is detected (no user choice)
         const userChoice = false;
-        
-        // Since we have overlap, always cancel the booking
         message.info({
           content: '✅ Đã hủy đặt lịch do trùng thời gian. Vui lòng chọn thời gian khác.',
           duration: 6
         });
-        
-        return true; // Cancel booking due to overlap
+        return true;
       }
-
-      return false; // No overlaps found - continue booking
+      return false;
     } catch (error) {
-      // If backend check fails, show warning but allow booking
       message.warning({
         content: 'Không thể kiểm tra trùng lịch với máy chủ. Vui lòng kiểm tra thủ công trước khi đặt lịch.',
         duration: 6
       });
-      return false; // Continue booking despite check failure
+      return false;
     }
   };
+
+  // Modal hủy lịch tư vấn
+  const CancelModal = () => (
+    <Modal
+      title="Hủy lịch tư vấn"
+      open={isCancelModalVisible}
+      onCancel={() => {
+        setIsCancelModalVisible(false);
+        cancelForm.resetFields();
+        setSelectedConsultationId(null);
+      }}
+      footer={null}
+      width={400}
+    >
+      <Form
+        form={cancelForm}
+        layout="vertical"
+        onFinish={handleSubmitCancel}
+      >
+        <Form.Item
+          name="cancelReason"
+          label="Lý do hủy"
+          rules={[{ required: true, message: 'Vui lòng nhập lý do hủy' }]}
+        >
+          <Input.TextArea rows={3} placeholder="Nhập lý do hủy lịch tư vấn" />
+        </Form.Item>
+        <Form.Item>
+          <Space>
+            <Button type="primary" htmlType="submit" danger>
+              Xác nhận hủy
+            </Button>
+            <Button
+              onClick={() => {
+                setIsCancelModalVisible(false);
+                cancelForm.resetFields();
+                setSelectedConsultationId(null);
+              }}
+            >
+              Hủy
+            </Button>
+          </Space>
+        </Form.Item>
+      </Form>
+    </Modal>
+  );
 
   return (
     <div className="p-6">
@@ -1755,25 +1552,24 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
         />
       </Card>
 
-      {/* Create/Edit Modal */}
-     <Modal
-  title={editingCampaign ? 'Chỉnh sửa chiến dịch' : 'Tạo chiến dịch mới'}
-  open={isModalVisible}
-  onCancel={() => {
-    setIsModalVisible(false);
-    form.resetFields();
-    setEditingCampaign(null);
-  }}
-  footer={null}
-  width={800}
-  destroyOnClose
-  maskClosable={false}
->
+      <Modal
+        title={editingCampaign ? 'Chỉnh sửa chiến dịch' : 'Tạo chiến dịch mới'}
+        open={isModalVisible}
+        onCancel={() => {
+          setIsModalVisible(false);
+          form.resetFields();
+          setEditingCampaign(null);
+        }}
+        footer={null}
+        width={800}
+        destroyOnClose
+        maskClosable={false}
+      >
         <Form
           form={form}
           layout="vertical"
           onFinish={handleSubmit}
-           validateTrigger="onSubmit"
+          validateTrigger="onSubmit"
         >
           <Row gutter={16}>
             <Col span={12}>
@@ -1793,9 +1589,7 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
                 />
               </Form.Item>
             </Col>
-            
           </Row>
-
           <Form.Item
             name="description"
             label="Mô tả"
@@ -1812,13 +1606,12 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
               maxLength={500}
             />
           </Form.Item>
-
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item
                 name="date_range"
                 label="Thời gian thực hiện"
-                 preserve={false}
+                
                 rules={[
                   { required: true, message: 'Vui lòng chọn thời gian' },
                   {
@@ -1826,8 +1619,8 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
                       if (!value || value.length !== 2) {
                         return Promise.reject(new Error('Vui lòng chọn khoảng thời gian hợp lệ'));
                       }
-                      if (!editingCampaign && value[0].isBefore(moment().startOf('day'))) {
-                        return Promise.reject(new Error('Ngày bắt đầu không thể là ngày trong quá khứ'));
+                      if (value[0].isBefore(dayjs().startOf('day').add(1, 'day'))) {
+                        return Promise.reject(new Error('Ngày bắt đầu phải từ ngày mai trở đi'));
                       }
                       if (value[1].isBefore(value[0])) {
                         return Promise.reject(new Error('Ngày kết thúc phải sau ngày bắt đầu'));
@@ -1837,12 +1630,12 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
                   }
                 ]}
               >
-              <RangePicker
-  style={{ width: '100%' }}
-  disabledDate={(current) => {
-    return current && current < dayjs().startOf('day');
-  }}
-/>
+                <RangePicker
+                  style={{ width: '100%' }}
+                  disabledDate={(current) => {
+                    return current && current < dayjs().startOf('day').add(1, 'day');
+                  }}
+                />
               </Form.Item>
             </Col>
             <Col span={12}>
@@ -1853,56 +1646,82 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
               >
                 <Select placeholder="Chọn trạng thái">
                   <Option value="draft">Bản nháp</Option>
-                  <Option value="active">Đang hoạt động</Option>
-                  <Option value="completed">Hoàn thành</Option>
-                  <Option value="cancelled">Đã hủy</Option>
+                  {editingCampaign ? (
+                    <>
+                      <Option value="active">Đang tiến hành</Option>
+                      <Option value="completed">Hoàn thành</Option>
+                      <Option value="cancelled">Hủy</Option>
+                    </>
+                  ) : (
+                    <Option value="active">Tiến hành</Option>
+                  )}
                 </Select>
               </Form.Item>
             </Col>
           </Row>
-
-          <Form.Item
-            name="target_classes"
-            label={
-              <span>
-                Nhóm đối tượng{' '}
-                <Button
-                  type="link"
-                  size="small"
-                  onClick={() => loadAvailableClasses()}
-                  loading={loadingClasses}
-                  title="Tải lại danh sách lớp"
-                  style={{ padding: 0, height: 'auto' }}
-                >
-                  🔄
-                </Button>
-              </span>
-            }
-            tooltip="Chọn lớp hoặc khối lớp mà chiến dịch sẽ nhắm tới. Danh sách được tạo từ học sinh hiện có trong hệ thống."
-            rules={[
-              { required: true, message: 'Vui lòng chọn nhóm đối tượng' },
-              {
-                validator: (_, value) => {
-                  if (!value || value.length === 0) {
-                    return Promise.reject(new Error('Vui lòng chọn ít nhất một nhóm đối tượng'));
-                  }
-                  return Promise.resolve();
-                }
-              }
-            ]}
-          >
-            <Select
-              mode="multiple"
-              placeholder="Chọn nhóm đối tượng"
-              allowClear
-              showSearch
-              filterOption={(input, option) =>
-                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-              }
-              options={getTargetClassOptions()}
-            />
-          </Form.Item>
-
+         <Form.Item
+  name="target_classes"
+  label={
+    <span>
+      Nhóm đối tượng{' '}
+      <Button
+        type="link"
+        size="small"
+        onClick={() => loadAvailableClasses()}
+        loading={loadingClasses}
+        title="Tải lại danh sách lớp"
+        style={{ padding: 0, height: 'auto' }}
+      >
+        🔄
+      </Button>
+    </span>
+  }
+  tooltip="Chọn lớp hoặc khối lớp mà chiến dịch sẽ nhắm tới. Danh sách được tạo từ học sinh hiện có trong hệ thống."
+  rules={[
+    { required: true, message: 'Vui lòng chọn nhóm đối tượng' },
+    {
+      validator: (_, value) => {
+        if (!value || value.length === 0) {
+          return Promise.reject(new Error('Vui lòng chọn ít nhất một nhóm đối tượng'));
+        }
+        if (value.includes('all_grades') && value.length > 1) {
+          return Promise.reject(new Error('Khi chọn "Tất cả các lớp" thì không cần chọn thêm lớp nào khác'));
+        }
+        return Promise.resolve();
+      }
+    }
+  ]}
+>
+  <Select
+    mode="multiple"
+    placeholder="Chọn nhóm đối tượng"
+    allowClear
+    showSearch
+    filterOption={(input, option) =>
+      (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+    }
+    options={getTargetClassOptions()}
+    dropdownRender={(menu) => (
+      <div>
+        {menu}
+        <Divider style={{ margin: '4px 0' }} />
+        <div style={{ padding: '4px 8px', color: '#999' }}>
+          {hasAllGradesSelected(form.getFieldsValue()) ? (
+            <Text type="secondary">Đã chọn tất cả các lớp - các lựa chọn khác sẽ bị bỏ qua</Text>
+          ) : (
+            <Text type="secondary">Chọn "Tất cả các lớp" để bao gồm tất cả học sinh</Text>
+          )}
+        </div>
+      </div>
+    )}
+    onChange={(value) => {
+      // Nếu chọn "Tất cả các lớp" thì xóa các lựa chọn khác
+      if (value.includes('all_grades')) {
+        form.setFieldsValue({ target_classes: ['all_grades'] });
+      }
+    }}
+  />
+</Form.Item>
           <Form.Item
             name="instructions"
             label="Hướng dẫn thực hiện"
@@ -1914,7 +1733,6 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
               maxLength={300}
             />
           </Form.Item>
-
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item
@@ -1929,52 +1747,54 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
               </Form.Item>
             </Col>
             <Col span={12}>
-             <Form.Item
-  name="consent_deadline"
-  label="Hạn cuối đồng ý"
-  preserve={false}
-  tooltip="Ngày hạn cuối để phụ huynh gửi đồng ý tham gia"
-  dependencies={['requires_consent', 'date_range']}
-  rules={[
-    ({ getFieldValue }) => ({
-      validator(_, value) {
-        const required = getFieldValue('requires_consent');
-        const range = getFieldValue('date_range');
-
-        if (!required) return Promise.resolve();
-
-        if (!value) {
-          return Promise.reject(new Error('Vui lòng chọn hạn cuối đồng ý'));
-        }
-
-        if (!range || range.length !== 2) {
-          return Promise.reject(new Error('Vui lòng chọn thời gian thực hiện trước'));
-        }
-
-        if (value.isBefore(range[0]) || value.isAfter(range[1])) {
-          return Promise.reject(new Error('Hạn cuối đồng ý phải nằm trong thời gian thực hiện'));
-        }
-
-        return Promise.resolve();
-      }
-    })
-  ]}
->
-  <DatePicker
-    style={{ width: '100%' }}
-    placeholder="Chọn hạn cuối đồng ý"
-    disabled={form.getFieldValue('requires_consent') === false}
-    disabledDate={(current) => {
-      const today = dayjs().startOf('day');
-      return current && current < today;
-    }}
-  />
-</Form.Item>
-
-
+              <Form.Item
+                name="consent_deadline"
+                label="Hạn cuối đồng ý"
+                
+                tooltip="Ngày hạn cuối để phụ huynh gửi đồng ý tham gia"
+                dependencies={['requires_consent', 'date_range']}
+                rules={[
+                  ({ getFieldValue }) => ({
+                    validator(_, value) {
+                      const requiresConsent = getFieldValue('requires_consent');
+                      const range = getFieldValue('date_range');
+                      if (!requiresConsent) return Promise.resolve();
+                      if (!value) {
+                        return Promise.reject(new Error('Vui lòng chọn hạn cuối đồng ý'));
+                      }
+                      if (value.isBefore(dayjs().startOf('day'))) {
+                        return Promise.reject(new Error('Hạn cuối đồng ý không được trước ngày hiện tại'));
+                      }
+                      if (!range || range.length !== 2) {
+                        return Promise.reject(new Error('Vui lòng chọn thời gian thực hiện trước'));
+                      }
+                      if (value.isSame(range[0], 'day') || value.isAfter(range[0])) {
+                        return Promise.reject(new Error('Hạn cuối đồng ý phải trước ngày bắt đầu chiến dịch'));
+                      }
+                      return Promise.resolve();
+                    }
+                  })
+                ]}
+              >
+                <DatePicker
+                  style={{ width: '100%' }}
+                  placeholder="Chọn hạn cuối đồng ý"
+                  disabled={form.getFieldValue('requires_consent') === false}
+                  disabledDate={(current) => {
+                    const range = form.getFieldValue('date_range');
+                    if (range && range.length === 2) {
+                      return current && (
+                        current.isBefore(dayjs().startOf('day')) ||
+                        current.isSame(range[0], 'day') ||
+                        current.isAfter(range[0])
+                      );
+                    }
+                    return current && current.isBefore(dayjs().startOf('day'));
+                  }}
+                />
+              </Form.Item>
             </Col>
           </Row>
-
           <Form.Item>
             <Space>
               <Button
@@ -2000,194 +1820,173 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
         </Form>
       </Modal>
 
-      {/* Detail Drawer */}
       <Drawer
-        title="Chi tiết chiến dịch"
-        placement="right"
-        onClose={() => setIsDetailDrawerVisible(false)}
-        open={isDetailDrawerVisible}
-        width={720}
-      >
-        {selectedCampaign && (
-          <Tabs activeKey={activeTab} onChange={setActiveTab}>
-            <TabPane tab="Thông tin chung" key="info">
-              <Descriptions column={1} bordered>
-                <Descriptions.Item label="Tên chiến dịch">
-                  {selectedCampaign.title}
-                </Descriptions.Item>
-                <Descriptions.Item label="Loại">
-                  {getCampaignTypeTag(selectedCampaign.campaign_type)}
-                </Descriptions.Item>
-                <Descriptions.Item label="Trạng thái">
-                  {getStatusTag(selectedCampaign.status)}
-                </Descriptions.Item>
-                <Descriptions.Item label="Thời gian">
-                  {moment(selectedCampaign.start_date).format('DD/MM/YYYY')} - {moment(selectedCampaign.end_date).format('DD/MM/YYYY')}
-                </Descriptions.Item>
-                <Descriptions.Item label="Mô tả">
-                  {selectedCampaign.description}
-                </Descriptions.Item>
-                <Descriptions.Item label="Hướng dẫn">
-                  {selectedCampaign.instructions}
-                </Descriptions.Item>
-                <Descriptions.Item label="Nhóm đối tượng">
-                  {selectedCampaign.target_classes?.map((group: string) => (
-                    <Tag key={group} color="default">{group}</Tag>
-                  ))}
-                </Descriptions.Item>
-              </Descriptions>
-            </TabPane>
-
-            <TabPane tab="Quy trình thực hiện" key="workflow">
-              <Steps direction="vertical" size="small" current={0}>
-                <Step
-                  title="Gửi thông báo"
-                  description="Gửi thông báo khám sức khỏe đến phụ huynh"
-                  icon={<SendOutlined />}
-                />
-                <Step
-                  title="Chuẩn bị danh sách"
-                  description="Lập danh sách học sinh tham gia khám"
-                  icon={<UserOutlined />}
-                />
-                <Step
-                  title="Thực hiện khám"
-                  description="Tiến hành khám và ghi nhận kết quả"
-                  icon={<FileTextOutlined />}
-                />
-                <Step
-                  title="Gửi kết quả & hẹn lịch"
-                  description="Gửi kết quả cho phụ huynh và đặt lịch tư vấn nếu cần"
-                  icon={<CalendarOutlined />}
-                />
-              </Steps>
-            </TabPane>
-
-            <TabPane tab="Đồng ý tham gia" key="consents">
-              <div className="mb-4">
-                <Progress
-                  percent={calculateProgress(selectedCampaign)}
-                  format={(percent) => `${percent}% đã đồng ý`}
-                />
-              </div>
-              {eligibleStudents.length > 0 ? (
-                <List
-                  dataSource={eligibleStudents}
-                  renderItem={(student: any) => {
-                    // Find corresponding consent for this student
-                    const consent = consents.find((c: any) => {
-                      const studentId = typeof c.student === 'object' ? c.student._id : c.student;
-                      return studentId === student._id;
-                    });
-
-                    return (
-                      <List.Item>
-                        <List.Item.Meta
-                          title={
-                            <>
-                              <Tag color="blue" style={{ marginRight: 8 }}>Phụ huynh</Tag>
-                              {consent && typeof consent.answered_by === 'object' && consent.answered_by
-                                ? `${(consent.answered_by as any).first_name || ''} ${(consent.answered_by as any).last_name || ''}`.trim() || 'Chưa phản hồi'
-                                : (typeof consent?.answered_by === 'string' ? consent.answered_by : 'Chưa phản hồi')}
-                            </>
-                          }
-                          description={
-                            <>
-                              <Tag color="green" style={{ marginRight: 8 }}>Học sinh</Tag>
-                              {`${student.first_name || ''} ${student.last_name || ''}`.trim() || 'N/A'}
-                            </>
-                          }
-                        />
-                        <Tag color={
-                          !selectedCampaign?.requires_consent ? 'green' :
-                          consent?.status === 'Approved' ? 'green' : 
-                          consent?.status === 'Declined' ? 'red' : 'orange'
-                        }>
-                          {!selectedCampaign?.requires_consent ? 'Không cần đồng ý' :
-                           consent?.status === 'Approved' ? 'Đã đồng ý' : 
-                           consent?.status === 'Declined' ? 'Đã từ chối' : 'Chờ phản hồi'}
-                        </Tag>
-                      </List.Item>
-                    );
-                  }}
-                />
-              ) : (
-                <Alert
-                  message="Chưa có dữ liệu đồng ý tham gia"
-                  description="Chưa có phụ huynh nào phản hồi về việc tham gia chiến dịch này."
-                  type="info"
-                  showIcon
-                />
-              )}
-            </TabPane>
-
-            <TabPane tab="Kết quả khám" key="results">
-              {results.length > 0 ? (
-                <List
-                  dataSource={results}
-                  renderItem={(result: CampaignResult) => (
-                    <List.Item>
-                      <List.Item.Meta
-                        title={
-                          <>
-                            <Tag color="green" style={{ marginRight: 8 }}>Học sinh</Tag>
-                            {typeof (result as any).student === 'object' && (result as any).student
-                              ? `${(result as any).student.first_name || ''} ${(result as any).student.last_name || ''}`.trim() || 'N/A'
-                              : (result as any).student || result.student || 'N/A'}
-                          </>
-                        }
-                        description={
-                          <div>
-                            <div><strong>Ghi chú:</strong> {result.notes || 'Không có ghi chú'}</div>
-                            <div><strong>Ngày khám:</strong> {moment(result.createdAt).format('DD/MM/YYYY')}</div>
-                            {result.checkupDetails && (
-                              <>
-                                <div style={{ marginTop: 8 }}>
-                                  <strong>Trạng thái:</strong>
-                                  <Tag 
-                                    color={result.checkupDetails.status === 'HEALTHY' ? 'green' :
-                                      result.checkupDetails.status === 'NEEDS_ATTENTION' ? 'orange' : 'red'}
-                                    style={{ marginLeft: 8 }}
-                                  >
-                                    {result.checkupDetails.status === 'HEALTHY' ? 'Khỏe mạnh' :
-                                      result.checkupDetails.status === 'NEEDS_ATTENTION' ? 'Cần chú ý' : 'Nghiêm trọng'}
-                                  </Tag>
-                                </div>
-                                {result.checkupDetails.findings && (
-                                  <div><strong>Kết quả khám:</strong> {result.checkupDetails.findings}</div>
-                                )}
-                                {result.checkupDetails.recommendations && (
-                                  <div><strong>Khuyến nghị:</strong> {result.checkupDetails.recommendations}</div>
-                                )}
-                                {result.checkupDetails.requiresConsultation && (
-                                  <div style={{ marginTop: 8 }}>
-                                    <Tag color="orange" icon={<ExclamationCircleOutlined />}>
-                                      Cần tư vấn
-                                    </Tag>
-                                  </div>
-                                )}
-                              </>
-                            )}
-                          </div>
-                        }
-                      />
-                    </List.Item>
-                  )}
-                />
-              ) : (
-                <Alert
-                  message="Chưa có kết quả khám"
-                  description="Chưa có kết quả khám nào được ghi nhận cho chiến dịch này."
-                  type="info"
-                  showIcon
-                />
-              )}
-            </TabPane>
-          </Tabs>
+  title="Chi tiết chiến dịch"
+  placement="right"
+  onClose={() => setIsDetailDrawerVisible(false)}
+  open={isDetailDrawerVisible}
+  width={720}
+>
+  {selectedCampaign && (
+    <Tabs activeKey={activeTab} onChange={setActiveTab}>
+      <TabPane tab="Thông tin chung" key="info">
+        <Descriptions column={1} bordered>
+          <Descriptions.Item label="Tên chiến dịch">
+            {selectedCampaign.title}
+          </Descriptions.Item>
+          <Descriptions.Item label="Loại">
+            {getCampaignTypeTag(selectedCampaign.campaign_type)}
+          </Descriptions.Item>
+          <Descriptions.Item label="Trạng thái">
+            {getStatusTag(selectedCampaign.status)}
+          </Descriptions.Item>
+          <Descriptions.Item label="Thời gian">
+            {moment(selectedCampaign.start_date).format('DD/MM/YYYY')} - {moment(selectedCampaign.end_date).format('DD/MM/YYYY')}
+          </Descriptions.Item>
+          <Descriptions.Item label="Mô tả">
+            {selectedCampaign.description}
+          </Descriptions.Item>
+          <Descriptions.Item label="Hướng dẫn">
+            {selectedCampaign.instructions}
+          </Descriptions.Item>
+          <Descriptions.Item label="Nhóm đối tượng">
+            {selectedCampaign.target_classes?.includes('all_grades') ? (
+              <Tag color="blue">Tất cả các lớp</Tag>
+            ) : (
+              selectedCampaign.target_classes?.map((group: string) => {
+                const options = getTargetClassOptions();
+                const option = options.find(opt => opt.value === group);
+                return (
+                  <Tag key={group} color="default">
+                    {option ? option.label : group}
+                  </Tag>
+                );
+              })
+            )}
+          </Descriptions.Item>
+        </Descriptions>
+      </TabPane>
+      <TabPane tab="Đồng ý tham gia" key="consents">
+        <div className="mb-4">
+          <Progress
+            percent={calculateProgress(selectedCampaign)}
+            format={(percent) => `${percent}% đã đồng ý`}
+          />
+        </div>
+        {eligibleStudents.length > 0 ? (
+          <List
+            dataSource={eligibleStudents}
+            renderItem={(student: any) => {
+              const consent = consents.find((c: any) => {
+                const studentId = typeof c.student === 'object' ? c.student._id : c.student;
+                return studentId === student._id;
+              });
+              return (
+                <List.Item>
+                  <List.Item.Meta
+                    title={
+                      <>
+                        <Tag color="blue" style={{ marginRight: 8 }}>Phụ huynh</Tag>
+                        {consent && typeof consent.answered_by === 'object' && consent.answered_by
+                          ? `${(consent.answered_by as any).first_name || ''} ${(consent.answered_by as any).last_name || ''}`.trim() || 'Chưa phản hồi'
+                          : (typeof consent?.answered_by === 'string' ? consent.answered_by : 'Chưa phản hồi')}
+                      </>
+                    }
+                    description={
+                      <>
+                        <Tag color="green" style={{ marginRight: 8 }}>Học sinh</Tag>
+                        {`${student.first_name || ''} ${student.last_name || ''}`.trim() || 'N/A'}
+                      </>
+                    }
+                  />
+                  <Tag color={
+                    !selectedCampaign?.requires_consent ? 'green' :
+                    consent?.status === 'Approved' ? 'green' : 
+                    consent?.status === 'Declined' ? 'red' : 'orange'
+                  }>
+                    {!selectedCampaign?.requires_consent ? 'Không cần đồng ý' :
+                     consent?.status === 'Approved' ? 'Đã đồng ý' : 
+                     consent?.status === 'Declined' ? 'Đã từ chối' : 'Chờ phản hồi'}
+                  </Tag>
+                </List.Item>
+              );
+            }}
+          />
+        ) : (
+          <Alert
+            message="Chưa có dữ liệu đồng ý tham gia"
+            description="Chưa có phụ huynh nào phản hồi về việc tham gia chiến dịch này."
+            type="info"
+            showIcon
+          />
         )}
-      </Drawer>
+      </TabPane>
+      <TabPane tab="Kết quả khám" key="results">
+        {results.length > 0 ? (
+          <List
+            dataSource={results}
+            renderItem={(result: CampaignResult) => (
+              <List.Item>
+                <List.Item.Meta
+                  title={
+                    <>
+                      <Tag color="green" style={{ marginRight: 8 }}>Học sinh</Tag>
+                      {typeof (result as any).student === 'object' && (result as any).student
+                        ? `${(result as any).student.first_name || ''} ${(result as any).student.last_name || ''}`.trim() || 'N/A'
+                        : (result as any).student || result.student || 'N/A'}
+                    </>
+                  }
+                  description={
+                    <div>
+                      <div><strong>Ghi chú:</strong> {result.notes || 'Không có ghi chú'}</div>
+                      <div><strong>Ngày khám:</strong> {moment(result.createdAt).format('DD/MM/YYYY')}</div>
+                      {result.checkupDetails && (
+                        <>
+                          <div style={{ marginTop: 8 }}>
+                            <strong>Trạng thái:</strong>
+                            <Tag 
+                              color={result.checkupDetails.status === 'HEALTHY' ? 'green' :
+                                result.checkupDetails.status === 'NEEDS_ATTENTION' ? 'orange' : 'red'}
+                              style={{ marginLeft: 8 }}
+                            >
+                              {result.checkupDetails.status === 'HEALTHY' ? 'Khỏe mạnh' :
+                                result.checkupDetails.status === 'NEEDS_ATTENTION' ? 'Cần chú ý' : 'Nghiêm trọng'}
+                            </Tag>
+                          </div>
+                          {result.checkupDetails.findings && (
+                            <div><strong>Kết quả khám:</strong> {result.checkupDetails.findings}</div>
+                          )}
+                          {result.checkupDetails.recommendations && (
+                            <div><strong>Khuyến nghị:</strong> {result.checkupDetails.recommendations}</div>
+                          )}
+                          {result.checkupDetails.requiresConsultation && (
+                            <div style={{ marginTop: 8 }}>
+                              <Tag color="orange" icon={<ExclamationCircleOutlined />}>
+                                Cần tư vấn
+                              </Tag>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  }
+                />
+              </List.Item>
+            )}
+          />
+        ) : (
+          <Alert
+            message="Chưa có kết quả khám"
+            description="Chưa có kết quả khám nào được ghi nhận cho chiến dịch này."
+            type="info"
+            showIcon
+          />
+        )}
+      </TabPane>
+    </Tabs>
+  )}
+</Drawer>
 
-      {/* Step 1: Send Notification Modal */}
       <Modal
         title="Gửi thông báo khám sức khỏe"
         open={isNotificationModalVisible}
@@ -2207,7 +2006,6 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
           >
             <Input placeholder="Nhập tiêu đề thông báo" />
           </Form.Item>
-
           <Form.Item
             name="content"
             label="Nội dung thông báo"
@@ -2215,7 +2013,6 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
           >
             <TextArea rows={10} placeholder="Nhập nội dung thông báo" />
           </Form.Item>
-
           <Alert
             message="Lưu ý"
             description="Thông báo sẽ được gửi đến tất cả phụ huynh có con trong các lớp mục tiêu."
@@ -2223,7 +2020,6 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
             showIcon
             style={{ marginBottom: 16 }}
           />
-
           <Form.Item>
             <Space>
               <Button type="primary" htmlType="submit" icon={<SendOutlined />}>
@@ -2237,7 +2033,6 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
         </Form>
       </Modal>
 
-      {/* Step 2: Student List Modal */}
       <Modal
         title="Danh sách học sinh tham gia khám"
         open={isStudentListModalVisible}
@@ -2255,7 +2050,6 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
           showIcon
           style={{ marginBottom: 16 }}
         />
-
         <Table
           dataSource={eligibleStudents}
           rowKey="_id"
@@ -2285,21 +2079,18 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
                 if (!selectedCampaign?.requires_consent) {
                   return <Tag color="green">Không cần đồng ý</Tag>;
                 }
-
                 const colorMap = {
                   'approved': 'green',
                   'declined': 'red',
                   'pending': 'orange',
                   'none': 'default'
                 };
-
                 const textMap = {
                   'approved': 'Đã đồng ý',
                   'declined': 'Đã từ chối',
                   'pending': 'Chờ phản hồi',
                   'none': 'Chưa có phản hồi'
                 };
-
                 return (
                   <Tag color={colorMap[status as keyof typeof colorMap]}>
                     {textMap[status as keyof typeof textMap]}
@@ -2323,7 +2114,6 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
             const total = pageData.length;
             const confirmed = pageData.filter(record => record.confirmed).length;
             const pending = total - confirmed;
-
             return (
               <Table.Summary fixed>
                 <Table.Summary.Row>
@@ -2346,7 +2136,6 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
         />
       </Modal>
 
-      {/* Step 3: Record Exam Results Modal */}
       <Modal
         title="Ghi nhận kết quả khám sức khỏe"
         open={isExamResultModalVisible}
@@ -2379,21 +2168,20 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
                 </Col>
                 <Col span={12}>
                   <Form.Item
-  name="examDate"
-  label="Ngày khám"
-  rules={[{ required: true, message: 'Vui lòng chọn ngày khám' }]}
-  initialValue={dayjs()}
->
-  <DatePicker
-    style={{ width: '100%' }}
-    disabledDate={(current) => {
-      return current && current < dayjs().startOf('day');
-    }}
-  />
-</Form.Item>
+                    name="examDate"
+                    label="Ngày khám"
+                    rules={[{ required: true, message: 'Vui lòng chọn ngày khám' }]}
+                    initialValue={dayjs()}
+                  >
+                    <DatePicker
+                      style={{ width: '100%' }}
+                      disabledDate={(current) => {
+                        return current && current < dayjs().startOf('day');
+                      }}
+                    />
+                  </Form.Item>
                 </Col>
               </Row>
-
               <Form.Item
                 name="findings"
                 label="Kết quả khám"
@@ -2614,7 +2402,7 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
         >
           <Row gutter={16}>
             <Col span={12}>
-              import dayjs from 'dayjs';
+              
 
 <Form.Item
   name="scheduledDate"
@@ -2684,27 +2472,16 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
           <Form.Item>
             <Space>
               <Button
-                type="primary"
-                htmlType="submit"
-                icon={<CalendarOutlined />}
-                loading={loading}
-                disabled={!currentConsultationStudent?.parentId}
-              >
-                Đặt lịch cho {currentConsultationStudent?.studentName || 'học sinh'}
-              </Button>
+  type="primary"
+  htmlType="submit"
+  icon={<CalendarOutlined />}
+  loading={loading}
+  disabled={!currentConsultationStudent?.parentId}
+>
+  Đặt lịch
+</Button>
 
-              {/* Auto-select next student */}
-              {(() => {
-                const nextStudent = getNextUnscheduledStudent();
-                return nextStudent && (
-                  <Button
-                    onClick={() => selectStudentForConsultation(nextStudent)}
-                    disabled={loading}
-                  >
-                    Chuyển sang học sinh tiếp theo
-                  </Button>
-                );
-              })()}
+              
             </Space>
           </Form.Item>
 
@@ -2749,27 +2526,52 @@ const unscheduledAbnormalResults = abnormalResults.filter((result: CampaignResul
           `${moment(d).format('DD/MM/YYYY HH:mm')} - ${moment(d).add(r.duration || 30, 'minutes').format('HH:mm')}`,
       },
       {
-  title: 'Phụ huynh',
-  dataIndex: ['attending_parent', 'first_name'],
-  render: (_, r) => {
-    if (r.attending_parent && typeof r.attending_parent === 'object') {
-      return `${r.attending_parent.first_name || ''} ${r.attending_parent.last_name || ''}`.trim() || 'N/A';
-    }
-    if (typeof r.attending_parent === 'string') {
-      return r.attending_parent; // Hiển thị ID nếu không có object
-    }
-    return 'N/A';
-  }
-},
+        title: 'Phụ huynh',
+        dataIndex: ['attending_parent', 'first_name'],
+        render: (_, r) => {
+          if (r.attending_parent && typeof r.attending_parent === 'object') {
+            return `${r.attending_parent.first_name || ''} ${r.attending_parent.last_name || ''}`.trim() || 'N/A';
+          }
+          if (typeof r.attending_parent === 'string') {
+            return r.attending_parent; // Hiển thị ID nếu không có object
+          }
+          return 'N/A';
+        },
+      },
       {
         title: 'Ghi chú',
         dataIndex: 'notes',
       },
+     {
+  title: 'Thao tác',
+  key: 'actions',
+  render: (_, record) => (
+    <Space>
+      {record.status === 'Scheduled' && (
+        <Button
+          size="small"
+          danger
+          onClick={() => handleCancelConsultation(record._id)}
+          icon={<CloseOutlined />}
+        >
+          Hủy
+        </Button>
+      )}
+      {record.status === 'Cancelled' && (
+        <Tag color="red">Đã hủy</Tag>
+      )}
+    </Space>
+  ),
+}
+
     ]}
     pagination={false}
     locale={{ emptyText: 'Chưa có lịch tư vấn nào cho chiến dịch này.' }}
   />
 </Modal>
+
+{/* Thêm modal hủy */}
+      <CancelModal />
     </div>
   );
 };
