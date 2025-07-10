@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Row,
-  Col,
   Card,
   Button,
   Table,
@@ -10,18 +8,11 @@ import {
   Avatar,
   message,
   Modal,
-  Statistic,
   Space,
-  List,
   Descriptions,
-  Alert,
 } from 'antd';
 import {
-  CalendarOutlined,
   UserOutlined,
-  ClockCircleOutlined,
-  CheckCircleOutlined,
-  ExclamationCircleOutlined,
   EyeOutlined,
   PhoneOutlined,
   VideoCameraOutlined
@@ -360,158 +351,36 @@ const ParentConsultations: React.FC = () => {
         </div>
       </div>
 
-      {/* Statistics Cards */}
-      <Row gutter={[16, 16]}>
-        <Col xs={12} sm={6}>
-          <Card>
-            <Statistic
-              title="Tổng yêu cầu"
-              value={consultations.length}
-              valueStyle={{ color: '#3f8600' }}
-              prefix={<CalendarOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} sm={6}>
-          <Card>
-            <Statistic
-              title="Chờ xác nhận"
-              value={consultations.filter(c => c.status.toLowerCase() === 'requested').length}
-              valueStyle={{ color: '#722ed1' }}
-              prefix={<ClockCircleOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} sm={6}>
-          <Card>
-            <Statistic
-              title="Đã lên lịch"
-              value={consultations.filter(c => c.status.toLowerCase() === 'scheduled').length}
-              valueStyle={{ color: '#1890ff' }}
-              prefix={<ClockCircleOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} sm={6}>
-          <Card>
-            <Statistic
-              title="Đã hoàn thành"
-              value={consultations.filter(c => c.status.toLowerCase() === 'completed').length}
-              valueStyle={{ color: '#52c41a' }}
-              prefix={<CheckCircleOutlined />}
-            />
-          </Card>
-        </Col>
-      </Row>
-
-      {/* Main Content */}
-      <Row gutter={[16, 16]}>
-        <Col xs={24} lg={16}>
-          <Card title="Danh sách lịch tư vấn">
-            <Table
-              columns={columns}
-              dataSource={consultations}
-              rowKey="_id"
-              loading={loading}
-              scroll={{ x: 1100 }}
-              size="middle"
-              pagination={{
-                total: consultations.length,
-                pageSize: 10,
-                showSizeChanger: true,
-                showQuickJumper: true,
-                showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} lịch hẹn`
-              }}
-            />
-          </Card>
-        </Col>
-
-        <Col xs={24} lg={8}>
-          <Space direction="vertical" style={{ width: '100%' }} size="large">
-            {/* Information Card */}
-            <Card title="Thông tin liên hệ" style={{ backgroundColor: '#f6f8ff' }}>
-              <div style={{ textAlign: 'center', padding: '16px' }}>
-                <Text strong style={{ fontSize: '16px', color: '#1890ff' }}>
-                  Cần tư vấn sức khỏe cho con em?
-                </Text>
-                <div style={{ marginTop: '12px', marginBottom: '16px' }}>
-                  <Text>
-                    Vui lòng liên hệ trực tiếp với phòng y tế nhà trường để đặt lịch tư vấn
-                  </Text>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <PhoneOutlined style={{ color: '#1890ff' }} />
-                    <Text strong>Hotline: 028-xxxx-xxxx</Text>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <Text type="secondary" style={{ fontSize: '12px' }}>
-                      Thời gian làm việc: 7:30 - 16:30
-                    </Text>
-                    <Text type="secondary" style={{ fontSize: '12px' }}>
-                      Thứ 2 - Thứ 6
-                    </Text>
-                  </div>
-                </div>
-              </div>
-            </Card>
-
-            <Card title="Lịch hẹn sắp tới">
-              <List
-                dataSource={consultations.filter(c => 
-                  c.status.toLowerCase() === 'scheduled' && 
-                  c.scheduledDate &&
-                  moment(c.scheduledDate).isAfter(moment())
-                ).slice(0, 5)}
-                renderItem={(consultation) => {
-                  const student = getStudentFromConsultation(consultation);
-                  const staff = getMedicalStaffFromConsultation(consultation);
-                  return (
-                    <List.Item
-                      actions={[
-                        <Button type="link" size="small" onClick={() => handleViewDetail(consultation)}>
-                          Xem
-                        </Button>
-                      ]}
-                    >
-                      <List.Item.Meta
-                        avatar={
-                          <Avatar 
-                            icon={getConsultationTypeIcon('in_person')} 
-                            style={{ backgroundColor: '#1890ff' }}
-                          />
-                        }
-                        title={consultation.reason}
-                        description={
-                          <div>
-                            <div><strong>Học sinh:</strong> {student ? `${student.first_name} ${student.last_name}` : 'N/A'}</div>
-                            <div><strong>Bác sĩ:</strong> {staff ? `${staff.first_name} ${staff.last_name}` : 'Chờ phân công'}</div>
-                            <div><strong>Thời gian:</strong> {consultation.scheduledDate ? 
-                              `${moment(consultation.scheduledDate).format('DD/MM/YYYY')} lúc ${moment(consultation.scheduledDate).format('HH:mm')}` : 
-                              'Chưa xác định'
-                            }</div>
-                          </div>
-                        }
-                      />
-                    </List.Item>
-                  );
-                }}
-              />
-            </Card>
-
-            <Card title="Cần tái khám" style={{ marginTop: '16px' }}>
-              <Alert
-                message="Tính năng tái khám"
-                description="Tính năng theo dõi tái khám sẽ được cập nhật trong phiên bản tiếp theo."
-                type="info"
-                showIcon
-              />
-            </Card>
-
-            
-          </Space>
-        </Col>
-      </Row>
+      {/* Main Content - Full Width Table */}
+      <Card title="Danh sách lịch tư vấn">
+        <style>
+          {`
+            .ant-table-tbody > tr:hover > td,
+            .ant-table-tbody > tr:hover {
+              background-color: #ffffff !important;
+            }
+            .ant-table-tbody > tr > td {
+              background-color: #ffffff !important;
+            }
+          `}
+        </style>
+        <Table
+          columns={columns}
+          dataSource={consultations}
+          rowKey="_id"
+          loading={loading}
+          scroll={{ x: 1100 }}
+          size="middle"
+          className="no-hover-table"
+          pagination={{
+            total: consultations.length,
+            pageSize: 10,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} lịch hẹn`
+          }}
+        />
+      </Card>
 
       {renderConsultationDetail()}
     </div>

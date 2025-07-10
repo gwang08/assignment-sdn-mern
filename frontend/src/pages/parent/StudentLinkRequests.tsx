@@ -14,7 +14,6 @@ import {
   Select,
   Switch,
   Statistic,
-  List,
   Avatar,
   Descriptions,
   Divider,
@@ -411,63 +410,33 @@ const StudentLinkRequests: React.FC = () => {
         </Col>
       </Row>
 
-      {/* Main Content */}
-      <Row gutter={[16, 16]}>
-        <Col xs={24} lg={16}>
-          <Card title="Danh sách yêu cầu liên kết">
-            <Table
-              columns={columns}
-              dataSource={linkRequests}
-              rowKey="_id"
-              loading={loading}
-              size="middle"
-              pagination={{
-                pageSize: 10,
-                showSizeChanger: true,
-                showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} yêu cầu`
-              }}
-            />
-          </Card>
-        </Col>
-
-        <Col xs={24} lg={8}>
-          <Card title="Yêu cầu cần xử lý">
-            <List
-              dataSource={linkRequests.filter(r => r.status === 'pending').slice(0, 5)}
-              renderItem={(request) => (
-                <List.Item
-                  actions={[
-                    <Button 
-                      type="primary" 
-                      size="small"
-                      onClick={() => {
-                        setSelectedRequest(request);
-                        setIsDetailModalVisible(true);
-                      }}
-                    >
-                      Xem
-                    </Button>
-                  ]}
-                >
-                  <List.Item.Meta
-                    avatar={<Avatar icon={<UserOutlined />} style={{ backgroundColor: '#fa8c16' }} />}
-                    title={`${request.student.first_name} ${request.student.last_name}`}
-                    description={
-                      <div>
-                        <div>Lớp: {request.student.class_name}</div>
-                        <Tag color="orange">Chờ duyệt</Tag>
-                      </div>
-                    }
-                  />
-                </List.Item>
-              )}
-            />
-            {linkRequests.filter(r => r.status === 'pending').length === 0 && (
-              <Text type="secondary">Không có yêu cầu nào đang chờ xử lý</Text>
-            )}
-          </Card>
-        </Col>
-      </Row>
+      {/* Main Content - Full Width Table */}
+      <Card title="Danh sách yêu cầu liên kết">
+        <style>
+          {`
+            .ant-table-tbody > tr:hover > td,
+            .ant-table-tbody > tr:hover {
+              background-color: #ffffff !important;
+            }
+            .ant-table-tbody > tr > td {
+              background-color: #ffffff !important;
+            }
+          `}
+        </style>
+        <Table
+          columns={columns}
+          dataSource={linkRequests}
+          rowKey="_id"
+          loading={loading}
+          size="middle"
+          scroll={{ x: 800 }}
+          pagination={{
+            pageSize: 10,
+            showSizeChanger: true,
+            showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} yêu cầu`
+          }}
+        />
+      </Card>
 
       {/* Create Request Modal */}
       <Modal

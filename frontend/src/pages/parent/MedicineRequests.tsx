@@ -15,15 +15,10 @@ import {
   Select,
   DatePicker,
   Statistic,
-  Space,
-
-  List,
-  Popconfirm
 } from 'antd';
 import {
   MedicineBoxOutlined,
   PlusOutlined,
-  EditOutlined,
   DeleteOutlined,
   EyeOutlined,
   CheckCircleOutlined,
@@ -184,26 +179,7 @@ const ParentMedicineRequests: React.FC = () => {
     setMedicines(newMedicines);
   };
 
-  const handleDeleteRequest = async (requestId: string) => {
-    try {
-      // Note: Currently there's no delete API for medicine requests in parent endpoints
-      // Parent cannot delete requests once submitted
-      message.info('Không thể xóa yêu cầu đã gửi. Vui lòng liên hệ y tế trường nếu cần hủy.');
-    } catch (error) {
-      message.error('Có lỗi xảy ra khi xóa yêu cầu thuốc');
-    }
-  };
-
-  const handleEditRequest = (request: MedicineRequest) => {
-    setEditingRequest(request);
-    form.setFieldsValue({
-      ...request,
-      start_date: moment(request.start_date),
-      end_date: moment(request.end_date)
-    });
-    setIsModalVisible(true);
-  };
-
+ 
   const handleViewDetail = (request: MedicineRequest) => {
     setSelectedRequest(request);
     setIsDetailModalVisible(true);
@@ -303,45 +279,16 @@ const ParentMedicineRequests: React.FC = () => {
     {
       title: 'Hành động',
       key: 'action',
-      width: 200,
+      width: 120,
       render: (_: any, record: MedicineRequest) => (
-        <Space size="small" wrap>
-          <Button
-            type="primary"
-            icon={<EyeOutlined />}
-            size="small"
-            onClick={() => handleViewDetail(record)}
-          >
-            Chi tiết
-          </Button>
-          {(!record.status || record.status === 'pending') && (
-            <>
-              <Button
-                type="default"
-                icon={<EditOutlined />}
-                size="small"
-                onClick={() => handleEditRequest(record)}
-              >
-                Sửa
-              </Button>
-              <Popconfirm
-                title="Bạn có chắc muốn xóa yêu cầu này?"
-                onConfirm={() => handleDeleteRequest(record._id)}
-                okText="Có"
-                cancelText="Không"
-              >
-                <Button
-                  type="default"
-                  danger
-                  icon={<DeleteOutlined />}
-                  size="small"
-                >
-                  Xóa
-                </Button>
-              </Popconfirm>
-            </>
-          )}
-        </Space>
+        <Button
+          type="primary"
+          icon={<EyeOutlined />}
+          size="small"
+          onClick={() => handleViewDetail(record)}
+        >
+          Chi tiết
+        </Button>
       )
     }
   ];
@@ -523,68 +470,35 @@ const ParentMedicineRequests: React.FC = () => {
         </Col>
       </Row>
 
-      {/* Recent Requests Summary */}
-      <Row gutter={[16, 16]}>
-        <Col xs={24} lg={16}>
-          <Card title="Danh sách yêu cầu">
-            <Table
-              columns={columns}
-              dataSource={requests}
-              rowKey="_id"
-              loading={loading}
-              scroll={{ x: 1000 }}
-              size="middle"
-              pagination={{
-                total: requests.length,
-                pageSize: 10,
-                showSizeChanger: true,
-                showQuickJumper: true,
-                showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} yêu cầu`
-              }}
-            />
-          </Card>
-        </Col>
-
-        <Col xs={24} lg={8}>
-          <Card title="Yêu cầu gần đây">
-            <List
-              dataSource={requests.slice(0, 5)}
-              renderItem={(request) => {
-                const status = request.status || 'pending';
-                const medicineName = request.medicine_name || 
-                  (request.medicines && request.medicines.length > 0 ? request.medicines[0].name : 'N/A');
-                return (
-                  <List.Item
-                    actions={[
-                      <Button type="link" size="small" onClick={() => handleViewDetail(request)}>
-                        Xem
-                      </Button>
-                    ]}
-                  >
-                    <List.Item.Meta
-                      avatar={
-                        <Avatar 
-                          icon={getStatusIcon(status)} 
-                          style={{ backgroundColor: getStatusColor(status) }}
-                        />
-                      }
-                      title={medicineName}
-                      description={
-                        <div>
-                          <div>{getStudentName(request)}</div>
-                          <Tag color={getStatusColor(status)}>
-                            {getStatusText(status)}
-                          </Tag>
-                        </div>
-                      }
-                    />
-                  </List.Item>
-                );
-              }}
-            />
-          </Card>
-        </Col>
-      </Row>
+      {/* Main Content - Full Width Table */}
+      <Card title="Danh sách yêu cầu">
+        <style>
+          {`
+            .ant-table-tbody > tr:hover > td,
+            .ant-table-tbody > tr:hover {
+              background-color: #ffffff !important;
+            }
+            .ant-table-tbody > tr > td {
+              background-color: #ffffff !important;
+            }
+          `}
+        </style>
+        <Table
+          columns={columns}
+          dataSource={requests}
+          rowKey="_id"
+          loading={loading}
+          scroll={{ x: 1000 }}
+          size="middle"
+          pagination={{
+            total: requests.length,
+            pageSize: 10,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total, range) => `${range[0]}-${range[1]} của ${total} yêu cầu`
+          }}
+        />
+      </Card>
 
       {/* Create/Edit Request Modal */}
       <Modal
