@@ -363,6 +363,56 @@ router.post(
  *       404:
  *         description: Medical event not found
  */
+/**
+ * @swagger
+ * /nurse/consultation/{consultationId}/cancel:
+ *   put:
+ *     summary: Cancel a consultation schedule
+ *     tags: [Nurse]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: consultationId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: ID of the consultation schedule
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - cancelReason
+ *             properties:
+ *               cancelReason:
+ *                 type: string
+ *                 description: Reason for canceling the consultation
+ *     responses:
+ *       200:
+ *         description: Consultation schedule canceled successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/ConsultationSchedule'
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: Invalid input or consultation not cancellable
+ *       404:
+ *         description: Consultation not found
+ *       500:
+ *         description: Server error
+ */
+router.put("/consultation/:consultationId/cancel", NurseController.cancelConsultationSchedule);
+
 router.put(
   "/medical-events/:eventId/notify-parent",
   NurseController.updateParentNotification
@@ -382,6 +432,7 @@ router.get("/campaigns/:campaignId/results", authenticateMedicalStaff, NurseCont
 router.post("/campaign-results", authenticateMedicalStaff, NurseController.submitCampaignResult);
 router.get("/consultation-schedules", NurseController.getConsultationSchedules);
 router.post("/consultation-schedules/check-overlap", authenticateMedicalStaff, NurseController.checkConsultationOverlap);
+
 
 /* Vaccination Management Routes */
 router.get("/vaccination-campaigns", NurseController.getVaccinationCampaigns);
