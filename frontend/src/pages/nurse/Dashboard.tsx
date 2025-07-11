@@ -12,6 +12,20 @@ import nurseService from "../../services/api/nurseService";
 
 const { Title } = Typography;
 
+const EVENT_STATUS_MAP: Record<string, { text: string; color: string }> = {
+  Open: { text: "Mở", color: "orange" },
+  "In Progress": { text: "Đang xử lý", color: "blue" },
+  Resolved: { text: "Đã giải quyết", color: "green" },
+  "Referred to Hospital": { text: "Chuyển bệnh viện", color: "red" },
+};
+
+const REQUEST_STATUS_MAP: Record<string, { text: string; color: string }> = {
+  pending: { text: "Chờ duyệt", color: "orange" },
+  approved: { text: "Duyệt", color: "green" },
+  rejected: { text: "Từ chối", color: "red" },
+  completed: { text: "Hoàn thành", color: "blue"}
+};
+
 const NurseDashboard = () => {
   const [data, setData] = useState<any>(null);
 
@@ -98,21 +112,11 @@ const NurseDashboard = () => {
       key: "status",
       align: "center" as "center",
       render: (status: string) => {
-        let color = "";
-        switch (status) {
-          case "Resolved":
-            color = "green";
-            break;
-          case "In Progress":
-            color = "blue";
-            break;
-          case "Open":
-            color = "orange";
-            break;
-          default:
-            color = "default";
-        }
-        return <Tag color={color}>{status}</Tag>;
+        const statusData = EVENT_STATUS_MAP[status] || {
+          text: status,
+          color: "default",
+        };
+        return <Tag color={statusData.color}>{statusData.text}</Tag>;
       },
     },
   ];
@@ -135,21 +139,11 @@ const NurseDashboard = () => {
       key: "status",
       align: "center" as "center",
       render: (status: string) => {
-        let color = "";
-        switch (status) {
-          case "pending":
-            color = "orange";
-            break;
-          case "approved":
-            color = "green";
-            break;
-          case "rejected":
-            color = "red";
-            break;
-          default:
-            color = "default";
-        }
-        return <Tag color={color}>{status.toUpperCase()}</Tag>;
+        const statusData = REQUEST_STATUS_MAP[status] || {
+          text: status,
+          color: "default",
+        };
+        return <Tag color={statusData.color}>{statusData.text}</Tag>;
       },
     },
   ];

@@ -139,7 +139,24 @@ const MedicineRequestsPage: React.FC = () => {
     loadRequests(formattedValues);
   };
 
-  const getStatusTag = (status?: string) => {
+  const isExpired = (record: MedicineRequest) => {
+    return (
+      record.status === "pending" &&
+      moment().isAfter(moment(record.endDate).endOf("day"))
+    );
+  };
+
+  const getStatusTag = (status?: string, record?: MedicineRequest) => {
+    const expired = record && isExpired(record);
+
+    if (expired) {
+      return (
+        <Tag color="red" icon={<ExclamationCircleOutlined />}>
+          Quá hạn
+        </Tag>
+      );
+    }
+
     const statusConfig = {
       pending: {
         color: "orange",
@@ -162,13 +179,13 @@ const MedicineRequestsPage: React.FC = () => {
         icon: <CheckCircleOutlined />,
       },
     };
-    const config = statusConfig[
-      (status || "pending") as keyof typeof statusConfig
-    ] || {
+
+    const config = statusConfig[status as keyof typeof statusConfig] || {
       color: "default",
       text: status || "Không xác định",
       icon: <ExclamationCircleOutlined />,
     };
+
     return (
       <Tag color={config.color} icon={config.icon}>
         {config.text}
@@ -243,7 +260,8 @@ const MedicineRequestsPage: React.FC = () => {
       dataIndex: "status",
       key: "status",
       align: "center",
-      render: (status: string) => getStatusTag(status),
+      render: (_: string, record: MedicineRequest) =>
+        getStatusTag(record.status, record),
     },
     {
       title: "Thao tác",
@@ -261,7 +279,9 @@ const MedicineRequestsPage: React.FC = () => {
               type="primary"
               onClick={() => handleProcessRequest(record)}
               title="Xử lý yêu cầu"
-              disabled={(record.status as string) === "approved"}
+              disabled={
+                record.status === "approved" || isExpired(record)
+              }
             >
               Xử lý
             </Button>
@@ -515,14 +535,15 @@ const MedicineRequestsPage: React.FC = () => {
                 <ul style={{ paddingLeft: 20 }}>
                   {selectedRequest.medicines.map((med, idx) => (
                     <li key={idx}>
-                      Thuốc: <strong>{med.name}</strong> — Liều lượng ({med.dosage}) —{" "}
-                      Tần suất ({med.frequency}) —{" "}
-                      Ghi chú ({med.notes && (
+                      Thuốc: <strong>{med.name}</strong> — Liều lượng (
+                      {med.dosage}) — Tần suất ({med.frequency}) — Ghi chú (
+                      {med.notes && (
                         <>
                           {" "}
                           <em>{med.notes}</em>
                         </>
-                      )})
+                      )}
+                      )
                     </li>
                   ))}
                 </ul>
