@@ -515,14 +515,14 @@ const MedicineRequestsPage: React.FC = () => {
                 <ul style={{ paddingLeft: 20 }}>
                   {selectedRequest.medicines.map((med, idx) => (
                     <li key={idx}>
-                      <strong>{med.name}</strong>: {med.dosage} —{" "}
-                      {med.frequency}
-                      {med.notes && (
+                      Thuốc: <strong>{med.name}</strong> — Liều lượng ({med.dosage}) —{" "}
+                      Tần suất ({med.frequency}) —{" "}
+                      Ghi chú ({med.notes && (
                         <>
                           {" "}
-                          — <em>{med.notes}</em>
+                          <em>{med.notes}</em>
                         </>
-                      )}
+                      )})
                     </li>
                   ))}
                 </ul>
