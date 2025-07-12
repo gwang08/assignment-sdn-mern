@@ -166,8 +166,8 @@ const filterStudents = (students: any[]) => {
       return false;
     }
 
-    // Lọc theo lớp (xử lý mảng)
-    if (filterValues.className.length > 0 && !filterValues.className.includes(student.class_name)) {
+    // Lọc theo lớp (xử lý mảng và tùy chọn 'all')
+    if (filterValues.className.length > 0 && !filterValues.className.includes('all') && !filterValues.className.includes(student.class_name)) {
       return false;
     }
 
@@ -1776,19 +1776,28 @@ const filterStudents = (students: any[]) => {
           <Input placeholder="Nhập tên học sinh" allowClear />
         </Form.Item>
       </Col>
-      <Col span={6}>
-        <Form.Item name="className" label="Lớp học">
-          <Select 
-            mode="multiple" // Cho phép chọn nhiều lớp
-            placeholder="Chọn các lớp" 
-            allowClear
-            options={availableClasses.map((className) => ({
-              label: className,
-              value: className,
-            }))}
-          />
-        </Form.Item>
-      </Col>
+     <Col span={6}>
+  <Form.Item name="className" label="Lớp học">
+    <Select 
+      mode="multiple"
+      placeholder="Chọn các lớp"
+      allowClear
+      options={[
+        { label: 'Tất cả các lớp', value: 'all' }, // Thêm tùy chọn này
+        ...availableClasses.map((className) => ({
+          label: className,
+          value: className,
+        }))
+      ]}
+      onChange={(value) => {
+        // Xử lý khi chọn "Tất cả các lớp"
+        if (value.includes('all')) {
+          filterForm.setFieldsValue({ className: availableClasses });
+        }
+      }}
+    />
+  </Form.Item>
+</Col>
       <Col span={6}>
         <Form.Item name="consentStatus" label="Trạng thái đồng ý">
           <Select 
@@ -1851,150 +1860,147 @@ const filterStudents = (students: any[]) => {
   )}
 </Modal>
 
-        <Modal
-          title="Ghi nhận kết quả tiêm chủng"
-          open={isRecordModalVisible}
-          onCancel={() => setIsRecordModalVisible(false)}
-          footer={null}
-          width={600}
+       <Modal
+  title="Ghi nhận kết quả tiêm chủng"
+  open={isRecordModalVisible}
+  onCancel={() => setIsRecordModalVisible(false)}
+  footer={null}
+  width={600}
+>
+  <Form form={recordForm} layout="vertical" onFinish={handleRecordVaccination}>
+    <Alert
+      message={`Học sinh: ${currentStudent?.first_name} ${currentStudent?.last_name} - Lớp: ${currentStudent?.class_name}`}
+      type="info"
+      showIcon
+      className="mb-4"
+    />
+
+    <Row gutter={16}>
+      <Col span={12}>
+        <Form.Item
+          name="vaccinated_at"
+          label="Thời gian tiêm"
+          rules={[{ required: true, message: 'Vui lòng chọn thời gian' }]}
         >
-          <Form form={recordForm} layout="vertical" onFinish={handleRecordVaccination}>
-            <Alert
-              message={`Học sinh: ${currentStudent?.first_name} ${currentStudent?.last_name} - Lớp: ${currentStudent?.class_name}`}
-              type="info"
-              showIcon
-              className="mb-4"
-            />
+          <DatePicker
+            style={{ width: '100%' }}
+            disabledDate={(current) => current && current < moment().startOf('day')}
+          />
+        </Form.Item>
+      </Col>
+      <Col span={12}>
+        <Form.Item
+          name="administered_by"
+          label="Người tiêm"
+          rules={[{ required: true, message: 'Vui lòng chọn người tiêm' }]}
+        >
+          <Select placeholder="Chọn bác sĩ/y tá" showSearch optionFilterProp="children">
+            {medicalStaff.map((staff) => (
+              <Option key={staff._id} value={`${staff.last_name} ${staff.first_name}`}>
+                <Space>
+                  <span>{` ${staff.last_name} ${staff.first_name}`}</span>
+                  <Tag color={staff.staff_role === 'Doctor' ? 'blue' : staff.staff_role === 'Nurse' ? 'green' : 'orange'}>
+                    {staff.staff_role === 'Doctor' ? 'Bác sĩ' : staff.staff_role === 'Nurse' ? 'Y tá' : staff.staff_role}
+                  </Tag>
+                </Space>
+              </Option>
+            ))}
+          </Select>
+        </Form.Item>
+      </Col>
+    </Row>
 
-            <Row gutter={16}>
-              <Col span={12}>
-                <Form.Item
-                  name="vaccinated_at"
-                  label="Thời gian tiêm"
-                  rules={[{ required: true, message: 'Vui lòng chọn thời gian' }]}
-                  
-                >
-                  <DatePicker
-                    style={{ width: '100%' }}
-                    disabledDate={(current) => current && current < moment().startOf('day')}
-                  />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item
-                  name="administered_by"
-                  label="Người tiêm"
-                  rules={[{ required: true, message: 'Vui lòng chọn người tiêm' }]}
-                >
-                  <Select placeholder="Chọn bác sĩ/y tá" showSearch optionFilterProp="children">
-                    {medicalStaff.map((staff) => (
-                      <Option key={staff._id} value={`${staff.last_name} ${staff.first_name}`}>
-                        <Space>
-                          <span>{` ${staff.last_name} ${staff.first_name}`}</span>
-                          <Tag color={staff.staff_role === 'Doctor' ? 'blue' : staff.staff_role === 'Nurse' ? 'green' : 'orange'}>
-                            {staff.staff_role === 'Doctor' ? 'Bác sĩ' : staff.staff_role === 'Nurse' ? 'Y tá' : staff.staff_role}
-                          </Tag>
-                        </Space>
-                      </Option>
-                    ))}
-                  </Select>
-                </Form.Item>
-              </Col>
-            </Row>
+    <Row gutter={16}>
+      <Col span={8}>
+        <Form.Item
+          name="vaccine_brand"
+          label="Tên vaccine"
+          rules={[{ required: true, message: 'Vui lòng nhập tên vaccine' }]}
+          initialValue={selectedCampaign?.vaccineDetails?.brand}
+        >
+          <Input disabled />
+        </Form.Item>
+      </Col>
+      <Col span={8}>
+        <Form.Item
+          name="batch_number"
+          label="Số lô"
+          rules={[{ required: true, message: 'Vui lòng nhập số lô' }]}
+          initialValue={selectedCampaign?.vaccineDetails?.batchNumber}
+        >
+          <Input disabled />
+        </Form.Item>
+      </Col>
+      <Col span={8}>
+        <Form.Item
+          name="dose_number"
+          label="Mũi số"
+          rules={[{ required: true, message: 'Vui lòng nhập mũi số' }]}
+          initialValue={1}
+        >
+          <Select disabled>
+            <Option value={1}>Mũi 1</Option>
+            <Option value={2}>Mũi 2</Option>
+            <Option value={3}>Mũi 3</Option>
+            <Option value={4}>Mũi nhắc lại</Option>
+          </Select>
+        </Form.Item>
+      </Col>
+    </Row>
 
-            <Row gutter={16}>
-              <Col span={8}>
-                <Form.Item
-                  name="vaccine_brand"
-                  label="Tên vaccine"
-                  rules={[{ required: true, message: 'Vui lòng nhập tên vaccine' }]}
-                  initialValue={selectedCampaign?.vaccineDetails?.brand}
-                >
-                  <Input />
-                </Form.Item>
-              </Col>
-              <Col span={8}>
-                <Form.Item
-                  name="batch_number"
-                  label="Số lô"
-                  rules={[{ required: true, message: 'Vui lòng nhập số lô' }]}
-                  initialValue={selectedCampaign?.vaccineDetails?.batchNumber}
-                >
-                  <Input />
-                </Form.Item>
-              </Col>
-              <Col span={8}>
-                <Form.Item
-                  name="dose_number"
-                  label="Mũi số"
-                  rules={[{ required: true, message: 'Vui lòng nhập mũi số' }]}
-                  initialValue={1}
-                >
-                  <Select>
-                    <Option value={1}>Mũi 1</Option>
-                    <Option value={2}>Mũi 2</Option>
-                    <Option value={3}>Mũi 3</Option>
-                    <Option value={4}>Mũi nhắc lại</Option>
-                  </Select>
-                </Form.Item>
-              </Col>
-            </Row>
+    <Form.Item
+      name="expiry_date"
+      label="Hạn sử dụng vaccine"
+      rules={[{ required: true, message: 'Vui lòng chọn hạn sử dụng' }]}
+    >
+      <DatePicker
+        style={{ width: '100%' }}
+        disabledDate={(current) => current && current < moment().startOf('day')}
+      />
+    </Form.Item>
 
-            <Form.Item
-              name="expiry_date"
-              label="Hạn sử dụng vaccine"
-              rules={[{ required: true, message: 'Vui lòng chọn hạn sử dụng' }]}
-            >
-              <DatePicker
-                style={{ width: '100%' }}
-                disabledDate={(current) => current && current < moment().startOf('day')}
-              />
-            </Form.Item>
+    <Form.Item
+      name="side_effects"
+      label="Tác dụng phụ (nếu có)"
+    >
+      <Select mode="multiple" placeholder="Chọn tác dụng phụ">
+        <Option value="pain">Đau tại chỗ tiêm</Option>
+        <Option value="swelling">Sưng tại chỗ tiêm</Option>
+        <Option value="fever">Sốt nhẹ</Option>
+        <Option value="headache">Đau đầu</Option>
+        <Option value="fatigue">Mệt mỏi</Option>
+        <Option value="other">Khác</Option>
+      </Select>
+    </Form.Item>
 
-            <Form.Item
-              name="side_effects"
-              label="Tác dụng phụ (nếu có)"
-            >
-              <Select mode="multiple" placeholder="Chọn tác dụng phụ">
-                <Option value="pain">Đau tại chỗ tiêm</Option>
-                <Option value="swelling">Sưng tại chỗ tiêm</Option>
-                <Option value="fever">Sốt nhẹ</Option>
-                <Option value="headache">Đau đầu</Option>
-                <Option value="fatigue">Mệt mỏi</Option>
-                <Option value="other">Khác</Option>
-              </Select>
-            </Form.Item>
+    <Form.Item
+      name="follow_up_required"
+      valuePropName="checked"
+    >
+      <Checkbox>
+        Cần theo dõi sau tiêm
+      </Checkbox>
+    </Form.Item>
 
-            <Form.Item
-              name="follow_up_required"
-              valuePropName="checked"
-            >
-              <Checkbox>
-                Cần theo dõi sau tiêm
-              </Checkbox>
-            </Form.Item>
+    <Form.Item
+      name="notes"
+      label="Ghi chú"
+    >
+      <TextArea rows={3} placeholder="Ghi chú thêm..." />
+    </Form.Item>
 
-            
-
-            <Form.Item
-              name="notes"
-              label="Ghi chú"
-            >
-              <TextArea rows={3} placeholder="Ghi chú thêm..." />
-            </Form.Item>
-
-            <Form.Item>
-              <Space>
-                <Button type="primary" htmlType="submit">
-                  Lưu kết quả
-                </Button>
-                <Button onClick={() => setIsRecordModalVisible(false)}>
-                  Hủy
-                </Button>
-              </Space>
-            </Form.Item>
-          </Form>
-        </Modal>
+    <Form.Item>
+      <Space>
+        <Button type="primary" htmlType="submit">
+          Lưu kết quả
+        </Button>
+        <Button onClick={() => setIsRecordModalVisible(false)}>
+          Hủy
+        </Button>
+      </Space>
+    </Form.Item>
+  </Form>
+</Modal>
 
         <Modal
           title="Theo dõi sau tiêm"
