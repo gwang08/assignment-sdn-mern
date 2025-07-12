@@ -308,16 +308,18 @@ const hasAllGradesSelected = (values: any) => {
 
 
   const handleCreateCampaign = () => {
-    setEditingCampaign(null);
-    form.resetFields();
-    setIsModalVisible(true);
+  console.log('⚠️ Create campaign: reset form');
+  form.resetFields();
+  setEditingCampaign(null);
+  setIsModalVisible(true);
     setTimeout(() => {
+  console.log('🔥 setFieldsValue from edit campaign', campaigns);
       form.setFieldsValue({
         campaign_type: 'health_check',
         status: 'draft',
         requires_consent: true,
         target_classes: [],
-        date_range: [moment().add(1, 'day'), moment().add(7, 'days')]
+        date_range: [dayjs().add(1, 'day'), dayjs().add(7, 'days')]
       });
     }, 0);
   };
@@ -487,32 +489,7 @@ const hasAllGradesSelected = (values: any) => {
     );
   },
 },
-    {
-      title: 'Tiến độ tư vấn',
-      key: 'consultation_progress',
-      render: (_, record: Campaign) => {
-        const progress = consultationProgress[record._id];
-        if (!progress) {
-          return <Text type="secondary">Đang tải...</Text>;
-        }
-        if (progress.total === 0) {
-          return <Text type="secondary">Không cần tư vấn</Text>;
-        }
-        return (
-          <div style={{ minWidth: '120px' }}>
-            <div style={{ marginBottom: '4px' }}>
-              <Text>{progress.completed}/{progress.total}</Text>
-            </div>
-            <Progress
-              percent={progress.percentage}
-              size="small"
-              showInfo={false}
-              strokeColor={progress.percentage === 100 ? '#52c41a' : '#1890ff'}
-            />
-          </div>
-        );
-      },
-    },
+    
     {
   title: 'Thao tác',
   key: 'actions',
@@ -1249,111 +1226,102 @@ Y tế trường học`
   };
 
   const submitConsultationSchedule = async (values: any) => {
-    if (!selectedCampaign) {
-      message.error('Không tìm thấy thông tin chiến dịch hoặc học sinh. Vui lòng chọn học sinh trước khi đặt lịch.');
+  if (!selectedCampaign) {
+    message.error('Không tìm thấy thông tin chiến dịch hoặc học sinh. Vui lòng chọn học sinh trước khi đặt lịch.');
+    return;
+  }
+  if (!currentConsultationStudent) {
+    message.error('Không tìm thấy thông tin học sinh. Vui lòng chọn học sinh trước khi đặt lịch.');
+    return;
+  }
+  try {
+    setLoading(true);
+    console.log('[DEBUG] currentConsultationStudent:', currentConsultationStudent);
+    console.log('[DEBUG] values:', values);
+
+    if (!currentConsultationStudent.parentId) {
+      message.error('Học sinh này không có thông tin phụ huynh. Không thể đặt lịch tư vấn.');
       return;
     }
-    if (!currentConsultationStudent) {
-      message.error('Không tìm thấy thông tin chiến dịch hoặc học sinh. Vui lòng chọn học sinh trước khi đặt lịch.');
+    if (!values.scheduledDate) {
+      message.error('Vui lòng chọn ngày và giờ tư vấn');
       return;
     }
     try {
-      setLoading(true);
-      if (!currentConsultationStudent.parentId) {
-        message.error('Học sinh này không có thông tin phụ huynh. Không thể đặt lịch tư vấn.');
+      const shouldCancelBooking = await checkForOverlappingConsultations(values.scheduledDate, values.duration || 30);
+      if (shouldCancelBooking) {
         return;
-      }
-      if (!values.scheduledDate) {
-        message.error('Vui lòng chọn ngày và giờ tư vấn');
-        return;
-      }
-      try {
-        const shouldCancelBooking = await checkForOverlappingConsultations(values.scheduledDate, values.duration || 30);
-        if (shouldCancelBooking) {
-          return;
-        }
-      } catch (error) {
-        message.error({
-          content: '❌ Không thể kiểm tra trùng lịch. Vui lòng thử lại hoặc kiểm tra thủ công.',
-          duration: 6
-        });
-        return;
-      }
-      const scheduleData = {
-        campaignResult: currentConsultationStudent.resultId,
-        student: currentConsultationStudent.studentId,
-        attending_parent: currentConsultationStudent.parentId,
-        scheduledDate: values.scheduledDate.toISOString(),
-        duration: values.duration || 30,
-        reason: currentConsultationStudent.reason,
-        notes: values.notes || ''
-      };
-      const response = await nurseService.createConsultationSchedule(scheduleData);
-      if (response.success) {
-        notification.success({
-          message: 'Thành công',
-          description: `Đã đặt lịch tư vấn cho học sinh ${currentConsultationStudent.studentName}. Tiến độ đã được cập nhật.`,
-          duration: 3
-        });
-        if (selectedCampaign) {
-          const updatedProgress = await calculateConsultationProgress(selectedCampaign._id);
-          setConsultationProgress(prev => ({
-            ...prev,
-            [selectedCampaign._id]: updatedProgress
-          }));
-        }
-        await reloadConsultationCandidates();
-        setCurrentConsultationStudent(null);
-        const currentStudentId = currentConsultationStudent.studentId;
-        setScheduledStudents(prevScheduled => {
-          const newScheduled = [...prevScheduled, currentStudentId];
-          setTimeout(() => {
-            if (consultationCandidates.length > 0) {
-              selectStudentForConsultation(consultationCandidates[0]);
-            } else {
-              setTimeout(async () => {
-                if (selectedCampaign) {
-                  const updatedProgress = await calculateConsultationProgress(selectedCampaign._id);
-                  setConsultationProgress(prev => ({
-                    ...prev,
-                    [selectedCampaign._id]: updatedProgress
-                  }));
-                }
-                setIsConsultationModalVisible(false);
-                setConsultationCandidates([]);
-                setScheduledStudents([]);
-                setConsultationStats({ totalAbnormal: 0, alreadyScheduled: 0, needsScheduling: 0 });
-                message.success('Đã đặt lịch tư vấn cho tất cả học sinh cần tư vấn');
-              }, 300);
-            }
-          }, 500);
-          return newScheduled;
-        });
-        consultationForm.resetFields();
-      } else {
-        if ((response as any).conflict || (response.message && response.message.includes('conflict')) || (response.message && response.message.includes('overlap'))) {
-          message.error({
-            content: '🚫 Thời gian tư vấn bị trùng lặp với lịch khác. Backend đã từ chối yêu cầu đặt lịch.',
-            duration: 6
-          });
-        } else if (response.message && response.message.includes('validation')) {
-          message.error({
-            content: '❌ Dữ liệu không hợp lệ. Vui lòng kiểm tra lại thông tin đặt lịch.',
-            duration: 4
-          });
-        } else {
-          message.error({
-            content: response.message || '❌ Có lỗi xảy ra khi đặt lịch tư vấn. Vui lòng thử lại.',
-            duration: 4
-          });
-        }
       }
     } catch (error) {
-      message.error('Có lỗi xảy ra khi đặt lịch tư vấn');
-    } finally {
-      setLoading(false);
+      message.error({
+        content: '❌ Không thể kiểm tra trùng lịch. Vui lòng thử lại hoặc kiểm tra thủ công.',
+        duration: 6
+      });
+      return;
     }
-  };
+    const scheduleData = {
+      campaignResult: currentConsultationStudent.resultId,
+      student: currentConsultationStudent.studentId,
+      attending_parent: currentConsultationStudent.parentId,
+      scheduledDate: values.scheduledDate.toISOString(),
+      duration: values.duration || 30,
+      reason: currentConsultationStudent.reason,
+      notes: values.notes || ''
+    };
+    console.log('[DEBUG] scheduleData gửi API:', scheduleData); // Log dữ liệu gửi đi
+    const response = await nurseService.createConsultationSchedule(scheduleData);
+    if (response.success) {
+  // Hiển thị thông báo thành công
+  message.success('Đặt lịch tư vấn thành công!');
+
+  // Reset form
+  consultationForm.resetFields();
+
+  // Cập nhật danh sách học sinh cần đặt lịch (ẩn học sinh vừa đặt)
+  const updatedCandidates = consultationCandidates.filter(
+    c => c.studentId !== currentConsultationStudent.studentId
+  );
+  setConsultationCandidates(updatedCandidates);
+
+  // Cập nhật danh sách học sinh đã đặt lịch
+  setScheduledStudents(prev => [...prev, currentConsultationStudent.studentId]);
+
+  // Cập nhật thống kê
+  setConsultationStats(prev => ({
+    ...prev,
+    needsScheduling: prev.needsScheduling - 1,
+    alreadyScheduled: prev.alreadyScheduled + 1
+  }));
+
+  // Nếu không còn học sinh nào, đóng modal
+  if (updatedCandidates.length === 0) {
+    setIsConsultationModalVisible(false);
+    setCurrentConsultationStudent(null);
+    setConsultationCandidates([]);
+    setScheduledStudents([]);
+    setConsultationStats({ totalAbnormal: 0, alreadyScheduled: 0, needsScheduling: 0 });
+    message.success('Đã hoàn tất đặt lịch cho tất cả học sinh cần tư vấn!');
+  } 
+  else {
+    // Chọn học sinh tiếp theo
+    const nextStudent = getNextUnscheduledStudent();
+    if (nextStudent) {
+      setCurrentConsultationStudent(nextStudent);
+      consultationForm.setFieldsValue({
+        duration: 30
+      });
+    }
+  }
+} else {
+  message.error(response.message || 'Có lỗi xảy ra khi đặt lịch tư vấn');
+}
+  } catch (error) {
+    console.error('[ERROR] submitConsultationSchedule:', error); // Log lỗi chi tiết
+    message.error('Có lỗi xảy ra khi đặt lịch tư vấn');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const submitNotification = async (values: any) => {
     try {
