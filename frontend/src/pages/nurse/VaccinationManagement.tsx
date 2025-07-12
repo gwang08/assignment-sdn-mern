@@ -50,6 +50,7 @@ import React, { useState, useEffect } from 'react';
   import apiService from '../../services/api';
   import { Campaign, CampaignConsent, CampaignResult, HealthProfile } from '../../types';
   import dayjs from 'dayjs';
+  import { Collapse } from 'antd';
 
   const { Title, Text } = Typography;
   const { TextArea } = Input;
@@ -57,6 +58,7 @@ import React, { useState, useEffect } from 'react';
   const { RangePicker } = DatePicker;
   const { TabPane } = Tabs;
   const { Step } = Steps;
+  const { Panel } = Collapse;
 
   interface VaccinationRecord {
     _id: string;
@@ -74,6 +76,8 @@ import React, { useState, useEffect } from 'react';
       status: string;
       follow_up_required: boolean;
       side_effects: string[];
+      follow_up_notes?: string; // Thêm thuộc tính này
+    last_follow_up?: string;
     };
     administered_by: string;
     side_effects: string[];
@@ -110,6 +114,7 @@ import React, { useState, useEffect } from 'react';
     const [availableClasses, setAvailableClasses] = useState<string[]>([]);
     const [loadingClasses, setLoadingClasses] = useState(false);
     
+    
     // Modals
     const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
     const [isEditModalVisible, setIsEditModalVisible] = useState(false);
@@ -123,6 +128,97 @@ import React, { useState, useEffect } from 'react';
     const [editForm] = Form.useForm();
     const [recordForm] = Form.useForm();
     const [followUpForm] = Form.useForm();
+    const [filterForm] = Form.useForm();
+    const [filterValues, setFilterValues] = useState({
+  searchName: '',
+  className: [] as string[], // Sử dụng mảng cho className
+  consentStatus: [] as string[], // Sử dụng mảng cho consentStatus
+  vaccinationStatus: '',
+  followUpRequired: '',
+});
+
+const handleFilter = (values: any) => {
+  setFilterValues({
+    searchName: values.searchName || '',
+    className: values.className || [], // Lưu mảng giá trị
+    consentStatus: values.consentStatus || [], // Lưu mảng giá trị
+    vaccinationStatus: values.vaccinationStatus || '',
+    followUpRequired: values.followUpRequired || '',
+  });
+};
+
+const handleResetFilter = () => {
+  filterForm.resetFields();
+  setFilterValues({
+    searchName: '',
+   className: [] as string[], // Sử dụng mảng cho className
+  consentStatus: [] as string[], // Sử dụng mảng cho consentStatus
+    vaccinationStatus: '',
+    followUpRequired: '',
+  });
+};
+
+const filterStudents = (students: any[]) => {
+  return students.filter((student) => {
+    // Lọc theo tên
+    const fullName = `${student.first_name} ${student.last_name}`.toLowerCase();
+    if (filterValues.searchName && !fullName.includes(filterValues.searchName.toLowerCase())) {
+      return false;
+    }
+
+    // Lọc theo lớp (xử lý mảng)
+    if (filterValues.className.length > 0 && !filterValues.className.includes(student.class_name)) {
+      return false;
+    }
+
+    // Lọc theo trạng thái đồng ý (xử lý mảng)
+    if (filterValues.consentStatus.length > 0) {
+      const consent = consentData.find((c: any) => {
+        const studentId = typeof c.student === 'object' ? c.student._id : c.student;
+        return studentId === student._id;
+      });
+      const consentStatus = consent ? consent.status : 'no_response';
+      if (!filterValues.consentStatus.includes(consentStatus)) {
+        return false;
+      }
+    }
+
+    // Lọc theo trạng thái tiêm chủng
+    if (filterValues.vaccinationStatus) {
+      const isVaccinated = vaccinationList?.vaccinated_students.find((v) => {
+        const studentId = v.student?._id || v.student;
+        return studentId === student._id;
+      });
+      if (filterValues.vaccinationStatus === 'vaccinated' && !isVaccinated) {
+        return false;
+      }
+      if (filterValues.vaccinationStatus === 'not_vaccinated' && isVaccinated) {
+        return false;
+      }
+    }
+
+    // Lọc theo cần theo dõi
+    if (filterValues.followUpRequired) {
+      const vaccinationRecord = vaccinationList?.vaccinated_students.find((v) => {
+        const studentId = v.student?._id || v.student;
+        return studentId === student._id;
+      });
+      const followUpRequired = vaccinationRecord?.vaccination_details?.follow_up_required || vaccinationRecord?.follow_up_required;
+      const hasFollowUpNotes = vaccinationRecord?.vaccination_details?.follow_up_notes;
+      const lastFollowUp = vaccinationRecord?.vaccination_details?.last_follow_up;
+      const isFollowUpCompleted = hasFollowUpNotes && lastFollowUp;
+
+      if (filterValues.followUpRequired === 'yes' && (!followUpRequired || isFollowUpCompleted)) {
+        return false;
+      }
+      if (filterValues.followUpRequired === 'no' && followUpRequired && !isFollowUpCompleted) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+};
     
     // Current operations
     const [currentStudent, setCurrentStudent] = useState<any>(null);
@@ -167,7 +263,7 @@ import React, { useState, useEffect } from 'react';
                             selectedVaccinationRecord.follow_up_date;
         
         followUpForm.setFieldsValue({
-          follow_up_date: followUpDate ? moment(followUpDate) : moment(),
+          follow_up_date: followUpDate ? dayjs(followUpDate) : dayjs(),
           status: 'normal'
         });
       }
@@ -467,7 +563,7 @@ import React, { useState, useEffect } from 'react';
       setIsRecordModalVisible(true);
       
       recordForm.setFieldsValue({
-        vaccinated_at: moment(),
+        vaccinated_at: dayjs(),
         vaccine_brand: selectedCampaign?.vaccineDetails?.brand,
         batch_number: selectedCampaign?.vaccineDetails?.batchNumber,
         dose_number: 1,
@@ -687,7 +783,7 @@ import React, { useState, useEffect } from 'react';
             type="primary"
             size="small"
           >
-            Chuẩn bị danh sách
+            Ghi nhận
           </Button>
           <Button
             icon={<EyeOutlined />}
@@ -811,46 +907,7 @@ import React, { useState, useEffect } from 'react';
           }
         }
       },
-      {
-        title: 'Chi tiết tiêm',
-        key: 'vaccination_details',
-        render: (_, record: any) => {
-          const vaccinationRecord = vaccinationList?.vaccinated_students.find(
-            v => {
-              const studentId = v.student?._id || v.student;
-              const recordId = record._id;
-              return studentId === recordId;
-            }
-          );
-          
-          console.log('Vaccination Record Match:', {
-            studentId: record._id,
-            vaccinationRecord,
-            allVaccinatedStudents: vaccinationList?.vaccinated_students
-          });
-          
-          if (vaccinationRecord && vaccinationRecord.vaccination_details) {
-            const vaccineDetails = (vaccinationRecord as any).vaccination_details?.vaccine_details;
-            const administeredBy = (vaccinationRecord as any).vaccination_details?.administered_by;
-            
-            return (
-              <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                <Text style={{ fontSize: '11px' }}>
-                  <strong>Vaccine:</strong> {vaccineDetails?.brand || 'N/A'}
-                </Text>
-                <Text style={{ fontSize: '11px' }}>
-                  <strong>Mũi số:</strong> {vaccineDetails?.dose_number || 'N/A'}
-                </Text>
-                <Text style={{ fontSize: '11px' }}>
-                  <strong>Người tiêm:</strong> {administeredBy || 'N/A'}
-                </Text>
-              </Space>
-            );
-          } else {
-            return <Text type="secondary">-</Text>;
-          }
-        }
-      },
+      
       {
         title: 'Thao tác',
         key: 'actions',
@@ -1106,35 +1163,42 @@ import React, { useState, useEffect } from 'react';
                   </Card>
 
                   <Card title="Thống kê theo lớp học">
-                    {allVaccinationData.length > 0 ? (
-                      <div>
-                        {(() => {
-                          const classSummary: any = {};
-                          
-                          allVaccinationData.forEach(({ data }) => {
-                            if (data.eligible_students && data.vaccination_results) {
-                              data.eligible_students.forEach((student: any) => {
-                                const className = student.class_name || 'N/A';
-                                if (!classSummary[className]) {
-                                  classSummary[className] = { eligible: 0, vaccinated: 0 };
-                                }
-                                classSummary[className].eligible++;
-                                
-                                const isVaccinated = data.vaccination_results.find((v: any) => {
-                                  const studentId = v.student?._id || v.student;
-                                  return studentId === student._id;
-                                });
-                                
-                                if (isVaccinated) {
-                                  classSummary[className].vaccinated++;
-                                }
-                              });
+                  {allVaccinationData.length > 0 ? (
+                    <Collapse accordion defaultActiveKey={allVaccinationData[0]?.campaign._id}>
+                      {allVaccinationData.map(({ campaign, data }) => {
+                        // Tính toán thống kê theo lớp cho chiến dịch hiện tại
+                        const classSummary: { [key: string]: { eligible: number; vaccinated: number } } = {};
+                        if (data.eligible_students && data.vaccination_results) {
+                          data.eligible_students.forEach((student: { _id: string; class_name: string }) => {
+                            const className = student.class_name || 'N/A';
+                            if (!classSummary[className]) {
+                              classSummary[className] = { eligible: 0, vaccinated: 0 };
+                            }
+                            classSummary[className].eligible++;
+                            const isVaccinated = data.vaccination_results.find((v: any) => {
+                              const studentId = v.student?._id || v.student;
+                              return studentId === student._id;
+                            });
+                            if (isVaccinated) {
+                              classSummary[className].vaccinated++;
                             }
                           });
+                        }
 
-                          return (
+                        return (
+                          <Panel
+                            header={
+                              <Space>
+                                <Text strong>{campaign.title}</Text>
+                                <Tag color={getStatusColor(campaign.status)}>
+                                  {getStatusText(campaign.status)}
+                                </Tag>
+                              </Space>
+                            }
+                            key={campaign._id}
+                          >
                             <Row gutter={[16, 16]}>
-                              {Object.entries(classSummary).map(([className, stats]: [string, any]) => {
+                              {Object.entries(classSummary).map(([className, stats]) => {
                                 const percentage = stats.eligible > 0 ? Math.round((stats.vaccinated / stats.eligible) * 100) : 0;
                                 return (
                                   <Col key={className} xs={24} sm={12} md={8} lg={6}>
@@ -1143,9 +1207,9 @@ import React, { useState, useEffect } from 'react';
                                         title={`Lớp ${className}`}
                                         value={percentage}
                                         suffix="%"
-                                        valueStyle={{ 
+                                        valueStyle={{
                                           color: percentage >= 80 ? '#52c41a' : percentage >= 60 ? '#faad14' : '#ff4d4f',
-                                          fontSize: '16px'
+                                          fontSize: '16px',
                                         }}
                                       />
                                       <Text type="secondary" style={{ fontSize: '12px' }}>
@@ -1156,19 +1220,20 @@ import React, { useState, useEffect } from 'react';
                                 );
                               })}
                             </Row>
-                          );
-                        })()}
-                      </div>
-                    ) : (
-                      <div className="text-center py-4">
-                        <Text type="secondary">Chưa có dữ liệu</Text>
-                      </div>
-                    )}
-                  </Card>
-                </div>
-              );
-            })()}
-          </TabPane>
+                          </Panel>
+                        );
+                      })}
+                    </Collapse>
+                  ) : (
+                    <div className="text-center py-4">
+                      <Text type="secondary">Chưa có dữ liệu</Text>
+                    </div>
+                  )}
+                </Card>
+              </div>
+            );
+          })()}
+        </TabPane>
 
           {selectedCampaign && (
             <TabPane tab="Chi tiết chiến dịch" key="details">
@@ -1630,87 +1695,161 @@ import React, { useState, useEffect } from 'react';
         </Modal>
 
         <Modal
-          title={`Danh sách tiêm chủng - ${selectedCampaign?.title}`}
-          open={isListModalVisible}
-          onCancel={() => {
-            setIsListModalVisible(false);
-            setConsentData([]);
-          }}
-          footer={null}
-          width={1000}
-        >
-          {vaccinationList && (
-            <div>
-              {selectedCampaign?.consent_deadline && moment().isAfter(moment(selectedCampaign.consent_deadline)) && (
-                <Alert
-                  message="Hạn đồng ý của phụ huynh đã qua"
-                  description="Không thể thực hiện thêm hành động liên quan đến đồng ý của phụ huynh cho chiến dịch này."
-                  type="warning"
-                  showIcon
-                  className="mb-4"
-                />
-              )}
-              <Row gutter={16} className="mb-4">
-                <Col span={6}>
-                  <Card>
-                    <Statistic
-                      title="Tổng số HS"
-                      value={vaccinationList.eligible_students.length}
-                      prefix={<TeamOutlined />}
-                    />
-                  </Card>
-                </Col>
-                <Col span={6}>
-                  <Card>
-                    <Statistic
-                      title="Đã đồng ý"
-                      value={vaccinationList.consent_summary.approved}
-                      prefix={<CheckCircleOutlined />}
-                      valueStyle={{ color: '#52c41a' }}
-                    />
-                  </Card>
-                </Col>
-                <Col span={6}>
-                  <Card>
-                    <Statistic
-                      title="Đã tiêm"
-                      value={vaccinationList.vaccinated_students.length}
-                      prefix={<SafetyOutlined />}
-                      valueStyle={{ color: '#1890ff' }}
-                    />
-                  </Card>
-                </Col>
-                <Col span={6}>
-                  <Card>
-                    <Statistic
-                      title="Chưa tiêm"
-                      value={vaccinationList.pending_students.length}
-                      prefix={<ClockCircleOutlined />}
-                      valueStyle={{ color: '#faad14' }}
-                    />
-                  </Card>
-                </Col>
-              </Row>
+  title={`Danh sách tiêm chủng - ${selectedCampaign?.title}`}
+  open={isListModalVisible}
+  onCancel={() => {
+    setIsListModalVisible(false);
+    setConsentData([]);
+    filterForm.resetFields();
+    setFilterValues({
+      searchName: '',
+      className: [] as string[], // Sử dụng mảng cho className
+  consentStatus: [] as string[],
+      vaccinationStatus: '',
+      followUpRequired: '',
+    });
+  }}
+  footer={null}
+  width={1200} // Tăng chiều rộng để chứa form lọc
+>
+  {vaccinationList && (
+    <div>
+      {selectedCampaign?.consent_deadline && moment().isAfter(moment(selectedCampaign.consent_deadline)) && (
+        <Alert
+          message="Hạn đồng ý của phụ huynh đã qua"
+          description="Không thể thực hiện thêm hành động liên quan đến đồng ý của phụ huynh cho chiến dịch này."
+          type="warning"
+          showIcon
+          className="mb-4"
+        />
+      )}
+      <Row gutter={16} className="mb-4">
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="Tổng số HS"
+              value={vaccinationList.eligible_students.length}
+              prefix={<TeamOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="Đã đồng ý"
+              value={vaccinationList.consent_summary.approved}
+              prefix={<CheckCircleOutlined />}
+              valueStyle={{ color: '#52c41a' }}
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="Đã tiêm"
+              value={vaccinationList.vaccinated_students.length}
+              prefix={<SafetyOutlined />}
+              valueStyle={{ color: '#1890ff' }}
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="Chưa tiêm"
+              value={vaccinationList.pending_students.length}
+              prefix={<ClockCircleOutlined />}
+              valueStyle={{ color: '#faad14' }}
+            />
+          </Card>
+        </Col>
+      </Row>
 
-              <Progress
-                percent={Math.round((vaccinationList.vaccinated_students.length / vaccinationList.eligible_students.length) * 100)}
-                format={(percent) => `${percent}% hoàn thành`}
-                className="mb-4"
-              />
+      
 
-              <Table
-                columns={studentColumns}
-                dataSource={vaccinationList.eligible_students}
-                rowKey="_id"
-                pagination={{
-                  pageSize: 10,
-                  showSizeChanger: true,
-                  showTotal: (total) => `Tổng ${total} học sinh`,
-                }}
-              />
-            </div>
-          )}
-        </Modal>
+      {/* Form lọc */}
+      <Card title="Lọc danh sách học sinh" className="mb-4">
+  <Form form={filterForm} layout="vertical" onFinish={handleFilter}>
+    <Row gutter={16}>
+      <Col span={6}>
+        <Form.Item name="searchName" label="Tên học sinh">
+          <Input placeholder="Nhập tên học sinh" allowClear />
+        </Form.Item>
+      </Col>
+      <Col span={6}>
+        <Form.Item name="className" label="Lớp học">
+          <Select 
+            mode="multiple" // Cho phép chọn nhiều lớp
+            placeholder="Chọn các lớp" 
+            allowClear
+            options={availableClasses.map((className) => ({
+              label: className,
+              value: className,
+            }))}
+          />
+        </Form.Item>
+      </Col>
+      <Col span={6}>
+        <Form.Item name="consentStatus" label="Trạng thái đồng ý">
+          <Select 
+            mode="multiple" // Cho phép chọn nhiều trạng thái
+            placeholder="Chọn các trạng thái" 
+            allowClear
+          >
+            <Option value="Approved">Đã đồng ý</Option>
+            <Option value="Declined">Từ chối</Option>
+            <Option value="Pending">Chờ phản hồi</Option>
+            <Option value="no_response">Chưa có phản hồi</Option>
+          </Select>
+        </Form.Item>
+      </Col>
+      <Col span={6}>
+        <Form.Item name="vaccinationStatus" label="Trạng thái tiêm">
+          <Select placeholder="Chọn trạng thái" allowClear>
+            <Option value="vaccinated">Đã tiêm</Option>
+            <Option value="not_vaccinated">Chưa tiêm</Option>
+          </Select>
+        </Form.Item>
+      </Col>
+    </Row>
+    <Row gutter={16}>
+      <Col span={6}>
+        <Form.Item name="followUpRequired" label="Cần theo dõi">
+          <Select placeholder="Chọn trạng thái" allowClear>
+            <Option value="yes">Có</Option>
+            <Option value="no">Không</Option>
+          </Select>
+        </Form.Item>
+      </Col>
+      <Col span={18}>
+        <Form.Item>
+          <Space>
+            <Button type="primary" htmlType="submit">
+              Lọc
+            </Button>
+            <Button onClick={handleResetFilter}>
+              Xóa bộ lọc
+            </Button>
+          </Space>
+        </Form.Item>
+      </Col>
+    </Row>
+  </Form>
+</Card>
+
+      <Table
+        columns={studentColumns}
+        dataSource={filterStudents(vaccinationList.eligible_students)}
+        rowKey="_id"
+        pagination={{
+          pageSize: 10,
+          showSizeChanger: true,
+          showTotal: (total) => `Tổng ${total} học sinh`,
+        }}
+      />
+    </div>
+  )}
+</Modal>
 
         <Modal
           title="Ghi nhận kết quả tiêm chủng"
@@ -1733,7 +1872,7 @@ import React, { useState, useEffect } from 'react';
                   name="vaccinated_at"
                   label="Thời gian tiêm"
                   rules={[{ required: true, message: 'Vui lòng chọn thời gian' }]}
-                  initialValue={moment()}
+                  
                 >
                   <DatePicker
                     style={{ width: '100%' }}
@@ -1835,16 +1974,7 @@ import React, { useState, useEffect } from 'react';
               </Checkbox>
             </Form.Item>
 
-            <Form.Item
-              name="follow_up_date"
-              label="Ngày theo dõi"
-              dependencies={['follow_up_required']}
-            >
-              <DatePicker
-                style={{ width: '100%' }}
-                disabledDate={(current) => current && current < moment().startOf('day')}
-              />
-            </Form.Item>
+            
 
             <Form.Item
               name="notes"
@@ -1882,11 +2012,11 @@ import React, { useState, useEffect } from 'react';
             layout="vertical" 
             onFinish={handleFollowUp}
             initialValues={{
-              follow_up_date: selectedVaccinationRecord ? 
-                moment((selectedVaccinationRecord as any).vaccination_details?.follow_up_date || selectedVaccinationRecord.follow_up_date) : 
-                moment(),
-              status: 'normal'
-            }}
+  follow_up_date: selectedVaccinationRecord ? 
+    dayjs((selectedVaccinationRecord as any).vaccination_details?.follow_up_date || selectedVaccinationRecord.follow_up_date) : 
+    dayjs(),
+  status: 'normal'
+}}
           >
             <Alert
               message={`Học sinh: ${currentStudent?.first_name} ${currentStudent?.last_name} - Lớp: ${currentStudent?.class_name}`}
@@ -1899,23 +2029,37 @@ import React, { useState, useEffect } from 'react';
               <Alert
                 message={`Ngày tiêm chủng: ${moment(
                   (selectedVaccinationRecord as any).vaccination_details?.vaccinated_at || selectedVaccinationRecord.vaccinated_at
-                ).format('DD/MM/YYYY HH:mm')}`}
+                ).format('DD/MM/YYYY')}`}
                 type="info"
                 showIcon
                 className="mb-4"
               />
             )}
 
-            <Form.Item
-              name="follow_up_date"
-              label="Ngày theo dõi"
-              rules={[{ required: true, message: 'Vui lòng chọn ngày theo dõi' }]}
-            >
-              <DatePicker
-                style={{ width: '100%' }}
-                disabledDate={(current) => current && current < moment().startOf('day')}
-              />
-            </Form.Item>
+          
+
+<Form.Item
+  name="follow_up_date"
+  label="Ngày theo dõi"
+  dependencies={['follow_up_required']}
+  rules={[
+    ({ getFieldValue }) => ({
+      validator(_, value) {
+        const followUpRequired = getFieldValue('follow_up_required');
+        if (followUpRequired && !value) {
+          return Promise.reject(new Error('Vui lòng chọn ngày theo dõi'));
+        }
+        return Promise.resolve();
+      },
+    }),
+  ]}
+>
+  <DatePicker
+    style={{ width: '100%' }}
+    disabledDate={(current) => current && current < dayjs().startOf('day')}
+  />
+</Form.Item>
+
 
             <Form.Item
               name="status"
@@ -1985,7 +2129,7 @@ import React, { useState, useEffect } from 'react';
 
               <Descriptions column={2} bordered>
                 <Descriptions.Item label="Thời gian tiêm" span={2}>
-                  {moment(selectedVaccinationRecord.vaccination_details?.vaccinated_at || selectedVaccinationRecord.vaccinated_at).format('DD/MM/YYYY HH:mm')}
+                  {moment(selectedVaccinationRecord.vaccination_details?.vaccinated_at || selectedVaccinationRecord.vaccinated_at).format('DD/MM/YYYY')}
                 </Descriptions.Item>
                 
                 <Descriptions.Item label="Tên vaccine">
@@ -2045,7 +2189,7 @@ import React, { useState, useEffect } from 'react';
                 
                 {(((selectedVaccinationRecord as any).vaccination_details?.follow_up_date || selectedVaccinationRecord.follow_up_date)) && (
                   <Descriptions.Item label="Ngày theo dõi" span={2}>
-                    {moment((selectedVaccinationRecord as any).vaccination_details?.follow_up_date || selectedVaccinationRecord.follow_up_date).format('DD/MM/YYYY')}
+                   {dayjs((selectedVaccinationRecord as any).vaccination_details?.follow_up_date || selectedVaccinationRecord.follow_up_date).format('DD/MM/YYYY')}
                   </Descriptions.Item>
                 )}
                 
