@@ -11,7 +11,7 @@ import {
   message,
   Modal,
   Form,
- 
+  Select,
   Statistic,
   Tabs,
   List,
@@ -27,9 +27,10 @@ import {
   UserOutlined,
   MedicineBoxOutlined,
   FileTextOutlined,
+  HistoryOutlined,
 } from '@ant-design/icons';
 import moment from 'moment';
-import { Campaign, Student, CampaignConsent } from '../../types';
+import { Campaign, Student, CampaignConsent, ConsultationSchedule } from '../../types';
 import apiService from '../../services/api';
 
 const { Title, Text } = Typography;
@@ -47,10 +48,18 @@ const ParentCampaigns: React.FC = () => {
   const [selectedConsent, setSelectedConsent] = useState<CampaignConsent | null>(null);
   const [consentForm] = Form.useForm();
   const [refreshKey, setRefreshKey] = useState(0);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [campaignTypeFilter, setCampaignTypeFilter] = useState<string>('all');
+  const [isResultModalVisible, setIsResultModalVisible] = useState(false);
+  const [selectedStudentResults, setSelectedStudentResults] = useState<any[]>([]);
+  const [selectedStudentName, setSelectedStudentName] = useState<string>('');
+  const [selectedStudentConsultations, setSelectedStudentConsultations] = useState<any[]>([]);
   // Add vaccination results state to track vaccinated students
   const [vaccinationResults, setVaccinationResults] = useState<any[]>([]);
   // Add examination results state to track examined students
   const [examinationResults, setExaminationResults] = useState<any[]>([]);
+  // Add consultation schedules state
+  const [consultationSchedules, setConsultationSchedules] = useState<ConsultationSchedule[]>([]);
 
   useEffect(() => {
     loadData();
@@ -120,6 +129,16 @@ const ParentCampaigns: React.FC = () => {
         }
         setVaccinationResults(allResults);
         setExaminationResults(allExaminationResults);
+      }
+
+      // Load consultation schedules
+      try {
+        const consultationResponse = await apiService.getParentConsultationSchedules();
+        if (consultationResponse.success && consultationResponse.data) {
+          setConsultationSchedules(consultationResponse.data);
+        }
+      } catch (error) {
+        console.warn('No consultation schedules found');
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -201,7 +220,7 @@ const ParentCampaigns: React.FC = () => {
       active: 'green',
       upcoming: 'blue',
       draft: 'blue',
-      completed: 'gray',
+      completed: 'blue',
       cancelled: 'red'
     };
     return colors[status as keyof typeof colors] || 'default';
@@ -232,8 +251,6 @@ const ParentCampaigns: React.FC = () => {
     const typeText = {
       vaccination: 'Tiêm chủng',
       health_check: 'Kiểm tra sức khỏe',
-      screening: 'Tầm soát',
-      other: 'Khác'
     };
     return typeText[type as keyof typeof typeText] || type;
   };
@@ -306,7 +323,19 @@ const ParentCampaigns: React.FC = () => {
 
   const getMyStudentCampaigns = () => {
     // Filter out draft campaigns as they shouldn't be visible to parents
-    return campaigns.filter(campaign => campaign.status !== 'draft');
+    let filteredCampaigns = campaigns.filter(campaign => campaign.status !== 'draft');
+    
+    // Apply status filter
+    if (statusFilter !== 'all') {
+      filteredCampaigns = filteredCampaigns.filter(campaign => campaign.status === statusFilter);
+    }
+    
+    // Apply campaign type filter
+    if (campaignTypeFilter !== 'all') {
+      filteredCampaigns = filteredCampaigns.filter(campaign => campaign.campaign_type === campaignTypeFilter);
+    }
+    
+    return filteredCampaigns;
   };
 
 
@@ -350,7 +379,7 @@ const ParentCampaigns: React.FC = () => {
               color="geekblue" 
               style={{ fontSize: '11px', padding: '0 4px', height: '18px', lineHeight: '18px', margin: '1px' }}
             >
-              {cls === 'all_grades' ? 'Toàn trường' : cls}
+              {cls === 'all_grades' ? 'Toàn trường' : cls.includes('grade_') ? cls.replace('grade_', 'Lớp ') : cls}
             </Tag>
           ))}
         </div>
@@ -439,7 +468,7 @@ const ParentCampaigns: React.FC = () => {
               <Descriptions.Item label="Lớp tham gia" span={2}>
                 {(selectedCampaign.target_classes || ['Toàn trường']).map(cls => (
                   <Tag key={cls} color="geekblue">
-                    {cls === 'all_grades' ? 'Toàn trường' : cls}
+                    {cls === 'all_grades' ? 'Toàn trường' : cls.includes('grade_') ? cls.replace('grade_', 'Lớp ') : cls}
                   </Tag>
                 ))}
               </Descriptions.Item>
@@ -473,27 +502,40 @@ const ParentCampaigns: React.FC = () => {
                 
                 return (
                   <List.Item
-                    actions={
-                      selectedCampaign.requires_consent && ['draft', 'active'].includes(selectedCampaign.status) ? [
+                    actions={[
+                      // Show results button for completed campaigns or when student has results
+                      (selectedCampaign.status === 'completed' || isVaccinated || isExamined) && (
+                        <Button
+                          key="results"
+                          type="default"
+                          size="small"
+                          icon={<HistoryOutlined />}
+                          onClick={() => handleShowResults(student, selectedCampaign._id)}
+                        >
+                          Kết quả
+                        </Button>
+                      ),
+                      // Consent actions for active campaigns
+                      ...(selectedCampaign.requires_consent && ['draft', 'active'].includes(selectedCampaign.status) ? [
                         isVaccinated ? (
-                          <Tag color="blue" style={{ fontSize: '12px' }}>
+                          <Tag key="vaccinated" color="blue" style={{ fontSize: '12px' }}>
                             Đã tiêm chủng
                           </Tag>
                         ) : isExamined ? (
-                          <Tag color="cyan" style={{ fontSize: '12px' }}>
+                          <Tag key="examined" color="cyan" style={{ fontSize: '12px' }}>
                             Đã khám sức khỏe
                           </Tag>
                         ) : (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
+                          <div key="consent" style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
                             <div>
                               {consent ? (
-                                <Tag 
-                                  color={consent.status === 'Approved' ? 'green' : 
-                                         consent.status === 'Declined' ? 'red' : 'orange'}
+                                <Tag
+                                  color={consent.status === 'Approved' ? 'green' :
+                                    consent.status === 'Declined' ? 'red' : 'orange'}
                                   style={{ fontSize: '12px' }}
                                 >
-                                  {consent.status === 'Approved' ? 'Đã đồng ý' : 
-                                   consent.status === 'Declined' ? 'Đã từ chối' : 'Chờ phản hồi'}
+                                  {consent.status === 'Approved' ? 'Đã đồng ý' :
+                                    consent.status === 'Declined' ? 'Đã từ chối' : 'Chờ phản hồi'}
                                 </Tag>
                               ) : (
                                 <Tag color="orange" style={{ fontSize: '12px' }}>
@@ -501,17 +543,19 @@ const ParentCampaigns: React.FC = () => {
                                 </Tag>
                               )}
                             </div>
-                            <Button 
-                              type="primary" 
-                              size="small"
-                              onClick={() => handleConsentAction(selectedCampaign._id, student._id)}
-                            >
-                              {consent ? 'Cập nhật phản hồi' : 'Đồng ý tham gia'}
-                            </Button>
+                            {consent?.status === 'Pending' && (
+                              <Button
+                                type="primary"
+                                size="small"
+                                onClick={() => handleConsentAction(selectedCampaign._id, student._id)}
+                              >
+                                {consent ? 'Cập nhật phản hồi' : 'Đồng ý tham gia'}
+                              </Button>
+                        )}
                           </div>
                         )
-                      ] : []
-                    }
+                      ] : [])
+                    ].filter(Boolean)}
                   >
                     <List.Item.Meta
                       avatar={<Avatar icon={<UserOutlined />} />}
@@ -610,6 +654,45 @@ const ParentCampaigns: React.FC = () => {
     });
   };
 
+  // Helper function to get related consultations for a student
+  const getStudentConsultations = (studentId: string) => {
+    return consultationSchedules.filter(consultation => {
+      const consultationStudentId = typeof consultation.student === 'string' ? 
+        consultation.student : consultation.student?._id;
+      return consultationStudentId === studentId;
+    });
+  };
+
+  // Function to handle showing campaign results for a student
+  const handleShowResults = (student: any, campaignId: string) => {
+    const campaign = campaigns.find(c => c._id === campaignId);
+    if (!campaign) return;
+    
+    // Filter results based on campaign type
+    let studentResults = [];
+    if (campaign.campaign_type === 'vaccination') {
+      studentResults = vaccinationResults.filter(result => {
+        const resultCampaignId = typeof result.campaign === 'string' ? result.campaign : result.campaign?._id;
+        const resultStudentId = typeof result.student === 'string' ? result.student : result.student?._id;
+        return resultCampaignId === campaignId && resultStudentId === student._id && result.vaccination_details;
+      });
+    } else if (campaign.campaign_type === 'health_check') {
+      studentResults = examinationResults.filter(result => {
+        const resultCampaignId = typeof result.campaign === 'string' ? result.campaign : result.campaign?._id;
+        const resultStudentId = typeof result.student === 'string' ? result.student : result.student?._id;
+        return resultCampaignId === campaignId && resultStudentId === student._id && result.checkupDetails;
+      });
+    }
+    
+    // Add consultation data to results
+    const studentConsultations = getStudentConsultations(student._id);
+    
+    setSelectedStudentResults(studentResults);
+    setSelectedStudentConsultations(studentConsultations);
+    setSelectedStudentName(`${student.first_name} ${student.last_name}`);
+    setIsResultModalVisible(true);
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -664,7 +747,40 @@ const ParentCampaigns: React.FC = () => {
       </Row>
 
       {/* Main Content - Full Width Table */}
-      <Card title="Danh sách chiến dịch">
+      <Card 
+        title="Danh sách chiến dịch"
+        extra={
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span>Lọc theo trạng thái:</span>
+              <Select
+                value={statusFilter}
+                onChange={setStatusFilter}
+                style={{ width: 150 }}
+                size="small"
+              >
+                <Select.Option value="all">Tất cả</Select.Option>
+                <Select.Option value="active">Đang diễn ra</Select.Option>
+                <Select.Option value="completed">Đã hoàn thành</Select.Option>
+                <Select.Option value="cancelled">Đã hủy</Select.Option>
+              </Select>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span>Loại chiến dịch:</span>
+              <Select
+                value={campaignTypeFilter}
+                onChange={setCampaignTypeFilter}
+                style={{ width: 150 }}
+                size="small"
+              >
+                <Select.Option value="all">Tất cả</Select.Option>
+                <Select.Option value="vaccination">Tiêm chủng</Select.Option>
+                <Select.Option value="health_check">Kiểm tra sức khỏe</Select.Option>
+              </Select>
+            </div>
+          </div>
+        }
+      >
         <style>
           {`
             .ant-table-tbody > tr:hover > td,
@@ -734,6 +850,220 @@ const ParentCampaigns: React.FC = () => {
               </Button>
             </div>
           </Form>
+        )}
+      </Modal>
+
+      {/* Campaign Results Modal */}
+      <Modal
+        title={`Kết quả chiến dịch - ${selectedStudentName}`}
+        open={isResultModalVisible}
+        onCancel={() => {
+          setIsResultModalVisible(false);
+          setSelectedStudentResults([]);
+          setSelectedStudentConsultations([]);
+          setSelectedStudentName('');
+        }}
+        footer={null}
+        width={800}
+        zIndex={1100}
+      >
+        {selectedStudentResults.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {selectedStudentResults.map((result, index) => {
+              const campaign = campaigns.find(c => {
+                const campaignId = typeof result.campaign === 'string' ? result.campaign : result.campaign?._id;
+                return c._id === campaignId;
+              });
+              
+              return (
+                <Card key={index} size="small">
+                  <Descriptions bordered size="small">
+                    <Descriptions.Item label="Ngày tạo" span={3}>
+                      {moment(result.createdAt).format('DD/MM/YYYY HH:mm')}
+                    </Descriptions.Item>
+                    
+                    {/* Vaccination Campaign Results */}
+                    {campaign?.campaign_type === 'vaccination' && result.vaccination_details && (
+                      <>
+                        <Descriptions.Item label="Loại chiến dịch" span={3}>
+                          <Tag color="blue">Tiêm chủng</Tag>
+                        </Descriptions.Item>
+                        
+                        <Descriptions.Item label="Ngày tiêm">
+                          {result.vaccination_details.vaccinated_at ? 
+                            moment(result.vaccination_details.vaccinated_at).format('DD/MM/YYYY') : 'N/A'}
+                        </Descriptions.Item>
+                        <Descriptions.Item label="Người tiêm">
+                          {result.vaccination_details.administered_by || 'N/A'}
+                        </Descriptions.Item>
+                        <Descriptions.Item label="Trạng thái">
+                          <Tag color={
+                            result.vaccination_details.status === 'completed' ? 'green' :
+                            result.vaccination_details.status === 'severe_reaction' ? 'red' : 'orange'
+                          }>
+                            {result.vaccination_details.status === 'completed' ? 'Hoàn thành' :
+                             result.vaccination_details.status === 'normal' ? 'Bình thường' :
+                             result.vaccination_details.status === 'mild_reaction' ? 'Phản ứng nhẹ' :
+                             result.vaccination_details.status === 'moderate_reaction' ? 'Phản ứng vừa' :
+                             result.vaccination_details.status === 'severe_reaction' ? 'Phản ứng nặng' :
+                             result.vaccination_details.status}
+                          </Tag>
+                        </Descriptions.Item>
+                        
+                        {result.vaccination_details.vaccine_details && (
+                          <>
+                            <Descriptions.Item label="Loại vaccine">
+                              {result.vaccination_details.vaccine_details.brand || 'N/A'}
+                            </Descriptions.Item>
+                            <Descriptions.Item label="Số lô">
+                              {result.vaccination_details.vaccine_details.batch_number || 'N/A'}
+                            </Descriptions.Item>
+                            <Descriptions.Item label="Liều số">
+                              {result.vaccination_details.vaccine_details.dose_number || 'N/A'}
+                            </Descriptions.Item>
+                          </>
+                        )}
+                        
+                        {result.vaccination_details.side_effects && result.vaccination_details.side_effects.length > 0 && (
+                          <Descriptions.Item label="Tác dụng phụ" span={3}>
+                            {result.vaccination_details.side_effects.map((effect: string) => (
+                              <Tag key={effect} color="orange" style={{ margin: '2px' }}>
+                                {effect === 'pain' ? 'Đau' :
+                                 effect === 'swelling' ? 'Sưng' :
+                                 effect === 'fever' ? 'Sốt' :
+                                 effect === 'headache' ? 'Đau đầu' :
+                                 effect === 'fatigue' ? 'Mệt mỏi' :
+                                 effect === 'nausea' ? 'Buồn nôn' :
+                                 effect === 'dizziness' ? 'Chóng mặt' : effect}
+                              </Tag>
+                            ))}
+                          </Descriptions.Item>
+                        )}
+                        
+                        {result.vaccination_details.follow_up_required && (
+                          <Descriptions.Item label="Cần theo dõi" span={3}>
+                            <Tag color="orange">Có</Tag>
+                            {result.vaccination_details.follow_up_notes && (
+                              <div style={{ marginTop: '8px', padding: '8px', backgroundColor: '#fff7e6', borderRadius: '4px' }}>
+                                {result.vaccination_details.follow_up_notes}
+                              </div>
+                            )}
+                          </Descriptions.Item>
+                        )}
+                      </>
+                    )}
+                    
+                    {/* Health Check Campaign Results */}
+                    {campaign?.campaign_type === 'health_check' && result.checkupDetails && (
+                      <>
+                        <Descriptions.Item label="Loại chiến dịch" span={3}>
+                          <Tag color="cyan">Kiểm tra sức khỏe</Tag>
+                        </Descriptions.Item>
+                        
+                        <Descriptions.Item label="Trạng thái sức khỏe" span={3}>
+                          <Tag color={
+                            result.checkupDetails.status === 'HEALTHY' ? 'green' :
+                            result.checkupDetails.status === 'NEEDS_ATTENTION' ? 'orange' : 'red'
+                          }>
+                            {result.checkupDetails.status === 'HEALTHY' ? 'Khỏe mạnh' :
+                             result.checkupDetails.status === 'NEEDS_ATTENTION' ? 'Cần chú ý' :
+                             result.checkupDetails.status === 'CRITICAL' ? 'Nghiêm trọng' :
+                             result.checkupDetails.status}
+                          </Tag>
+                        </Descriptions.Item>
+                        
+                        {result.checkupDetails.findings && (
+                          <Descriptions.Item label="Kết quả khám" span={3}>
+                            <div style={{ padding: '8px', backgroundColor: '#f6f6f6', borderRadius: '4px' }}>
+                              {result.checkupDetails.findings}
+                            </div>
+                          </Descriptions.Item>
+                        )}
+                        
+                        {result.checkupDetails.recommendations && (
+                          <Descriptions.Item label="Khuyến nghị" span={3}>
+                            <div style={{ padding: '8px', backgroundColor: '#e6f4ff', borderRadius: '4px' }}>
+                              {result.checkupDetails.recommendations}
+                            </div>
+                          </Descriptions.Item>
+                        )}
+                        
+                        {result.checkupDetails.requiresConsultation && (
+                          <Descriptions.Item label="Cần tư vấn" span={3}>
+                            <Tag color="orange">Có</Tag>
+                          </Descriptions.Item>
+                        )}
+                      </>
+                    )}
+                    
+                    {result.notes && (
+                      <Descriptions.Item label="Ghi chú" span={3}>
+                        <div style={{ padding: '8px', backgroundColor: '#f9f9f9', borderRadius: '4px' }}>
+                          {result.notes}
+                        </div>
+                      </Descriptions.Item>
+                    )}
+                  </Descriptions>
+                </Card>
+              );
+            })}
+
+            {/* Related Consultations - Simple Display */}
+            {selectedStudentConsultations.length > 0 && (
+              <Card title="Lịch tư vấn liên quan" size="small" style={{ marginTop: '16px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {selectedStudentConsultations.map((consultation, index) => {
+                    const staff = typeof consultation.medicalStaff === 'object' && consultation.medicalStaff ?
+                      consultation.medicalStaff : null;
+                    
+                    return (
+                      <div key={index} style={{ 
+                        padding: '12px', 
+                        backgroundColor: '#f8f9fa', 
+                        borderRadius: '6px',
+                        border: '1px solid #e9ecef'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                          <Tag color={
+                            consultation.status === 'Completed' ? 'green' :
+                            consultation.status === 'Scheduled' ? 'blue' :
+                            consultation.status === 'Cancelled' ? 'red' : 'orange'
+                          } style={{ fontSize: '11px' }}>
+                            {consultation.status === 'Completed' ? 'Đã hoàn thành' :
+                             consultation.status === 'Scheduled' ? 'Đã lên lịch' :
+                             consultation.status === 'Cancelled' ? 'Đã hủy' :
+                             consultation.status === 'Requested' ? 'Chờ xác nhận' : consultation.status}
+                          </Tag>
+                        </div>
+                        
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '13px', color: '#666' }}>
+                          {consultation.scheduledDate && (
+                            <div>
+                              <strong>Thời gian:</strong> {moment(consultation.scheduledDate).format('DD/MM/YYYY HH:mm')}
+                            </div>
+                          )}
+                          {staff && (
+                            <div>
+                              <strong>Bác sĩ/ Y tá:</strong> {staff.first_name} {staff.last_name}
+                              {staff.phone_number && (
+                                <span style={{ marginLeft: '8px', color: '#1890ff' }}>
+                                  📞 {staff.phone_number}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Card>
+            )}
+          </div>
+        ) : (
+          <div style={{ textAlign: 'center', padding: '40px' }}>
+            <Text type="secondary">Chưa có kết quả cho chiến dịch này</Text>
+          </div>
         )}
       </Modal>
     </div>
