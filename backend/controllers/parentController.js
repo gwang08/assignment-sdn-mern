@@ -338,9 +338,9 @@ exports.getCampaigns = async (req, res) => {
     });
     const classNames = activeStudents.map((s) => s.class_name);
 
-    console.log('Parent campaigns debug:');
-    console.log('Student IDs:', studentIds);
-    console.log('Class Names:', classNames);
+    console.log("Parent campaigns debug:");
+    console.log("Student IDs:", studentIds);
+    console.log("Class Names:", classNames);
 
     // Find campaigns that target these classes or students specifically
     // Show campaigns that either:
@@ -349,7 +349,7 @@ exports.getCampaigns = async (req, res) => {
     // 3. Target all classes (empty array, "All", null, or undefined)
     const campaigns = await Campaign.find({
       $and: [
-        { status: { $in: ['active', 'draft'] } }, // Show active and draft campaigns
+        { status: { $ne: "draft" } }, // Show active and draft campaigns
         {
           $or: [
             { target_classes: { $in: classNames } },
@@ -358,15 +358,19 @@ exports.getCampaigns = async (req, res) => {
             { target_classes: { $exists: false } }, // Handle case where target_classes doesn't exist
             { target_classes: null }, // Handle case where target_classes is null
             // If target_classes contains "all_grades" or similar
-            { target_classes: { $regex: /^(all|grade_)/i } }
-          ]
-        }
-      ]
+            { target_classes: { $regex: /^(all|grade_)/i } },
+          ],
+        },
+      ],
     }).sort({ date: 1 });
 
-    console.log('Found campaigns count:', campaigns.length);
-    campaigns.forEach(c => {
-      console.log(`Campaign: ${c.title}, Status: ${c.status}, Target Classes: ${JSON.stringify(c.target_classes)}`);
+    console.log("Found campaigns count:", campaigns.length);
+    campaigns.forEach((c) => {
+      console.log(
+        `Campaign: ${c.title}, Status: ${
+          c.status
+        }, Target Classes: ${JSON.stringify(c.target_classes)}`
+      );
     });
 
     // Get consent status for each campaign
@@ -550,7 +554,10 @@ exports.requestStudentLink = async (req, res) => {
     }
 
     // Find student by student_id
-    const student = await User.findOne({ student_id: studentId, role: "student" });
+    const student = await User.findOne({
+      student_id: studentId,
+      role: "student",
+    });
 
     if (!student) {
       return res.status(404).json({
