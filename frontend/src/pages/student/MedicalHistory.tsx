@@ -46,8 +46,6 @@ const StudentMedicalHistory: React.FC = () => {
   const [medicalEvents, setMedicalEvents] = useState<MedicalEvent[]>([]);
   const [activeTab, setActiveTab] = useState("overview");
 
- 
-
   const loadMedicalHistory = useCallback(async () => {
     try {
       setLoading(true);
