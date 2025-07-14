@@ -226,34 +226,16 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  const validateBirthDate = (minAge: number) => {
-    return (_: any, value: moment.Moment) => {
-      if (!value) return Promise.resolve();
+  const validateBirthDate = (_: any, value: moment.Moment) => {
+    if (!value) return Promise.resolve(); 
 
-      const today = moment();
-      const birthDate = value.clone();
+    const now = moment(); 
+    if (value.isAfter(now)) {
+      return Promise.reject("Ngày sinh không được vượt quá ngày hiện tại");
+    }
 
-      // Tính tuổi thật dựa trên ngày tháng năm
-      let age = today.year() - birthDate.year();
-      if (
-        today.month() < birthDate.month() ||
-        (today.month() === birthDate.month() && today.date() < birthDate.date())
-      ) {
-        age--;
-      }
-
-      if (birthDate.isAfter(today)) {
-        return Promise.reject("Ngày sinh không được vượt quá ngày hiện tại");
-      }
-
-      if (age < minAge) {
-        return Promise.reject(`Tuổi phải từ ${minAge} trở lên`);
-      }
-
-      return Promise.resolve();
-    };
+    return Promise.resolve(); 
   };
-
 
   // const getRoleTag = (role: string) => {
   //   const roleConfig = {
@@ -567,7 +549,7 @@ const AdminDashboard: React.FC = () => {
                 label="Ngày sinh"
                 rules={[
                   { required: true, message: "Vui lòng chọn ngày sinh" },
-                  { validator: validateBirthDate(18) },
+                  { validator: validateBirthDate },
                 ]}
               >
                 <DatePicker
@@ -719,7 +701,7 @@ const AdminDashboard: React.FC = () => {
                 label="Ngày sinh"
                 rules={[
                   { required: true, message: "Vui lòng chọn ngày sinh" },
-                  { validator: validateBirthDate(22) },
+                  { validator: validateBirthDate },
                 ]}
               >
                 <DatePicker
