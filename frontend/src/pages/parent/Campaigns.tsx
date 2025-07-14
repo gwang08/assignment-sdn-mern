@@ -335,6 +335,28 @@ const ParentCampaigns: React.FC = () => {
       filteredCampaigns = filteredCampaigns.filter(campaign => campaign.campaign_type === campaignTypeFilter);
     }
     
+    // Sort by status priority (active first, completed second, cancelled last) then by start date ascending
+    filteredCampaigns.sort((a, b) => {
+      // Define status priority order
+      const statusPriority = {
+        'active': 1,
+        'completed': 2,
+        'cancelled': 3,
+        'upcoming': 4 // fallback for any other status
+      };
+      
+      const aPriority = statusPriority[a.status as keyof typeof statusPriority] || 4;
+      const bPriority = statusPriority[b.status as keyof typeof statusPriority] || 4;
+      
+      // First sort by status priority
+      if (aPriority !== bPriority) {
+        return aPriority - bPriority;
+      }
+      
+      // If same status, sort by start date ascending (earliest first)
+      return new Date(a.start_date).getTime() - new Date(b.start_date).getTime();
+    });
+    
     return filteredCampaigns;
   };
 
@@ -654,22 +676,13 @@ const ParentCampaigns: React.FC = () => {
     });
   };
 
-  // Helper function to get related consultations for a student
-  const getStudentConsultations = (studentId: string) => {
-    return consultationSchedules.filter(consultation => {
-      const consultationStudentId = typeof consultation.student === 'string' ? 
-        consultation.student : consultation.student?._id;
-      return consultationStudentId === studentId;
-    });
-  };
-
   // Function to handle showing campaign results for a student
   const handleShowResults = (student: any, campaignId: string) => {
     const campaign = campaigns.find(c => c._id === campaignId);
     if (!campaign) return;
     
     // Filter results based on campaign type
-    let studentResults = [];
+    let studentResults: any[] = [];
     if (campaign.campaign_type === 'vaccination') {
       studentResults = vaccinationResults.filter(result => {
         const resultCampaignId = typeof result.campaign === 'string' ? result.campaign : result.campaign?._id;
@@ -684,8 +697,24 @@ const ParentCampaigns: React.FC = () => {
       });
     }
     
-    // Add consultation data to results
-    const studentConsultations = getStudentConsultations(student._id);
+    // Add consultation data to results - filter by student and related campaign results
+    const studentConsultations = consultationSchedules.filter(consultation => {
+      const consultationStudentId = typeof consultation.student === 'string' ? 
+        consultation.student : consultation.student?._id;
+      
+      // Check if this consultation is for the current student
+      if (consultationStudentId !== student._id) {
+        return false;
+      }
+      
+      // Check if the consultation's campaignResult belongs to the current campaign
+      const campaignResultId = typeof consultation.campaignResult === 'string' ? 
+        consultation.campaignResult : consultation.campaignResult?._id;
+      
+      // Find if any of the student's campaign results for this campaign match the consultation's campaignResult
+      const relatedResult = studentResults.find(result => result._id === campaignResultId);
+      return !!relatedResult;
+    });
     
     setSelectedStudentResults(studentResults);
     setSelectedStudentConsultations(studentConsultations);
@@ -898,7 +927,7 @@ const ParentCampaigns: React.FC = () => {
                         </Descriptions.Item>
                         <Descriptions.Item label="Trạng thái">
                           <Tag color={
-                            result.vaccination_details.status === 'completed' ? 'green' :
+                            result.vaccination_details.status === 'completed' || 'normal' ? 'green' :
                             result.vaccination_details.status === 'severe_reaction' ? 'red' : 'orange'
                           }>
                             {result.vaccination_details.status === 'completed' ? 'Hoàn thành' :
