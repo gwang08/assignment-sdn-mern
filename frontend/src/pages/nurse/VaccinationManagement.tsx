@@ -113,7 +113,7 @@ import React, { useState, useEffect } from 'react';
     const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
     const [availableClasses, setAvailableClasses] = useState<string[]>([]);
     const [loadingClasses, setLoadingClasses] = useState(false);
-    
+    const [isDrawerVisible, setIsDrawerVisible] = useState(false);
     
     // Modals
     const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
@@ -786,15 +786,15 @@ const filterStudents = (students: any[]) => {
             Ghi nhận
           </Button>
           <Button
-            icon={<EyeOutlined />}
-            onClick={() => {
-              setSelectedCampaign(record);
-              setActiveTab('details');
-            }}
-            size="small"
-          >
-            Chi tiết
-          </Button>
+  icon={<EyeOutlined />}
+  onClick={() => {
+    setSelectedCampaign(record);
+    setIsDrawerVisible(true);
+  }}
+  size="small"
+>
+  Chi tiết
+</Button>
           <Button
             icon={<EditOutlined />}
             onClick={() => handleEditCampaign(record)}
@@ -1235,39 +1235,53 @@ const filterStudents = (students: any[]) => {
           })()}
         </TabPane>
 
-          {selectedCampaign && (
-            <TabPane tab="Chi tiết chiến dịch" key="details">
-              <Card>
-                <Descriptions column={2} bordered>
-                  <Descriptions.Item label="Tên chiến dịch" span={2}>
-                    {selectedCampaign.title}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Loại chiến dịch">
-                    {selectedCampaign.campaign_type === 'vaccination' ? 'Tiêm chủng' : selectedCampaign.campaign_type}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Loại vaccine">
-                    {selectedCampaign.vaccineDetails?.brand}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Liều lượng">
-                    {selectedCampaign.vaccineDetails?.dosage}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Thời gian bắt đầu">
-                    {moment(selectedCampaign.start_date).format('DD/MM/YYYY')}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Thời gian kết thúc">
-                    {moment(selectedCampaign.end_date).format('DD/MM/YYYY')}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Mô tả" span={2}>
-                    {selectedCampaign.description}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Hướng dẫn" span={2}>
-                    {selectedCampaign.instructions}
-                  </Descriptions.Item>
-                </Descriptions>
-              </Card>
-            </TabPane>
-          )}
+         
+
         </Tabs>
+
+        <Drawer
+  title="Chi tiết chiến dịch"
+  placement="right"
+  width={720}
+  onClose={() => {
+    setSelectedCampaign(null);
+    setIsDrawerVisible(false);
+  }}
+  open={isDrawerVisible}
+>
+  {selectedCampaign && (
+    <Tabs defaultActiveKey="general">
+      <Tabs.TabPane tab="Thông tin chung" key="general">
+        <Descriptions column={1} bordered>
+          <Descriptions.Item label="Tên chiến dịch">
+            {selectedCampaign.title}
+          </Descriptions.Item>
+          <Descriptions.Item label="Loại chiến dịch">
+            {selectedCampaign.campaign_type === 'vaccination' ? 'Tiêm chủng' : 'Khám sức khỏe'}
+          </Descriptions.Item>
+          <Descriptions.Item label="Loại vaccine">
+            {selectedCampaign.vaccineDetails?.brand || 'Không có'}
+          </Descriptions.Item>
+          <Descriptions.Item label="Liều lượng">
+            {selectedCampaign.vaccineDetails?.dosage || 'Không có'}
+          </Descriptions.Item>
+          <Descriptions.Item label="Thời gian">
+            {`${moment(selectedCampaign.start_date).format('DD/MM/YYYY')} - ${moment(selectedCampaign.end_date).format('DD/MM/YYYY')}`}
+          </Descriptions.Item>
+          <Descriptions.Item label="Mô tả">
+            {selectedCampaign.description || 'Không có'}
+          </Descriptions.Item>
+          <Descriptions.Item label="Hướng dẫn">
+            {selectedCampaign.instructions || 'Không có'}
+          </Descriptions.Item>
+          
+        </Descriptions>
+      </Tabs.TabPane>
+
+      
+    </Tabs>
+  )}
+</Drawer>
 
         <Modal
           title="Tạo chiến dịch tiêm chủng mới"
@@ -1448,13 +1462,12 @@ const filterStudents = (students: any[]) => {
 </Col>
             </Row>
 
-            <Form.Item
-              name="instructions"
-              label="Hướng dẫn"
-              rules={[{ required: true, message: 'Vui lòng nhập hướng dẫn' }]}
-            >
-              <TextArea rows={2} placeholder="Hướng dẫn chuẩn bị trước khi tiêm..." />
-            </Form.Item>
+          <Form.Item
+  name="instructions"
+  label="Hướng dẫn"
+>
+  <TextArea rows={2} placeholder="Hướng dẫn chuẩn bị trước khi tiêm..." />
+</Form.Item>
 
             
 
@@ -1646,12 +1659,11 @@ const filterStudents = (students: any[]) => {
             </Row>
 
             <Form.Item
-              name="instructions"
-              label="Hướng dẫn"
-              rules={[{ required: true, message: 'Vui lòng nhập hướng dẫn' }]}
-            >
-              <TextArea rows={2} placeholder="Hướng dẫn chuẩn bị trước khi tiêm..." showCount maxLength={300} />
-            </Form.Item>
+  name="instructions"
+  label="Hướng dẫn"
+>
+  <TextArea rows={2} placeholder="Hướng dẫn chuẩn bị trước khi tiêm..." />
+</Form.Item>
 
             <Form.Item
               name="status"
@@ -1830,18 +1842,19 @@ const filterStudents = (students: any[]) => {
           </Select>
         </Form.Item>
       </Col>
-      <Col span={18}>
-        <Form.Item>
-          <Space>
-            <Button type="primary" htmlType="submit">
-              Lọc
-            </Button>
-            <Button onClick={handleResetFilter}>
-              Xóa bộ lọc
-            </Button>
-          </Space>
-        </Form.Item>
-      </Col>
+      <Col span={6}>
+  <Form.Item label=" " colon={false}>
+    <Space>
+      <Button type="primary" htmlType="submit">
+        Lọc
+      </Button>
+      <Button onClick={handleResetFilter}>
+        Xóa bộ lọc
+      </Button>
+    </Space>
+  </Form.Item>
+</Col>
+
     </Row>
   </Form>
 </Card>
