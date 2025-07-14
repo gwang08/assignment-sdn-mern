@@ -1059,6 +1059,7 @@ Y tế trường học`
   } finally {
     setLoading(false);
   }
+  
 };
 
   const reloadConsultationCandidates = async () => {
@@ -1834,61 +1835,7 @@ Y tế trường học`
           </Descriptions.Item>
         </Descriptions>
       </TabPane>
-      <TabPane tab="Đồng ý tham gia" key="consents">
-        <div className="mb-4">
-          <Progress
-            percent={calculateProgress(selectedCampaign)}
-            format={(percent) => `${percent}% đã đồng ý`}
-          />
-        </div>
-        {eligibleStudents.length > 0 ? (
-          <List
-            dataSource={eligibleStudents}
-            renderItem={(student: any) => {
-              const consent = consents.find((c: any) => {
-                const studentId = typeof c.student === 'object' ? c.student._id : c.student;
-                return studentId === student._id;
-              });
-              return (
-                <List.Item>
-                  <List.Item.Meta
-                    title={
-                      <>
-                        <Tag color="blue" style={{ marginRight: 8 }}>Phụ huynh</Tag>
-                        {consent && typeof consent.answered_by === 'object' && consent.answered_by
-                          ? `${(consent.answered_by as any).first_name || ''} ${(consent.answered_by as any).last_name || ''}`.trim() || 'Chưa phản hồi'
-                          : (typeof consent?.answered_by === 'string' ? consent.answered_by : 'Chưa phản hồi')}
-                      </>
-                    }
-                    description={
-                      <>
-                        <Tag color="green" style={{ marginRight: 8 }}>Học sinh</Tag>
-                        {`${student.first_name || ''} ${student.last_name || ''}`.trim() || 'N/A'}
-                      </>
-                    }
-                  />
-                  <Tag color={
-                    !selectedCampaign?.requires_consent ? 'green' :
-                    consent?.status === 'Approved' ? 'green' : 
-                    consent?.status === 'Declined' ? 'red' : 'orange'
-                  }>
-                    {!selectedCampaign?.requires_consent ? 'Không cần đồng ý' :
-                     consent?.status === 'Approved' ? 'Đã đồng ý' : 
-                     consent?.status === 'Declined' ? 'Đã từ chối' : 'Chờ phản hồi'}
-                  </Tag>
-                </List.Item>
-              );
-            }}
-          />
-        ) : (
-          <Alert
-            message="Chưa có dữ liệu đồng ý tham gia"
-            description="Chưa có phụ huynh nào phản hồi về việc tham gia chiến dịch này."
-            type="info"
-            showIcon
-          />
-        )}
-      </TabPane>
+     
       <TabPane tab="Kết quả khám" key="results">
         {results.length > 0 ? (
           <List
