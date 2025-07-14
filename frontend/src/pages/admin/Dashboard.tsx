@@ -226,7 +226,6 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  // Thay thế hàm cũ bằng hàm mới
   const validateBirthDate = (_: any, value: moment.Moment) => {
     if (!value) return Promise.resolve(); 
 
