@@ -1853,6 +1853,53 @@ if (consultation.status !== CONSULTATION_STATUS.SCHEDULED) {
     });
   }
 }
+
+static async completeConsultationSchedule(req, res, next) {
+  try {
+    const { consultationId } = req.params;
+
+    const consultation = await ConsultationSchedule.findById(consultationId);
+    if (!consultation) {
+      return res.status(404).json({
+        success: false,
+        error: "Lịch tư vấn không tồn tại",
+      });
+    }
+
+    if (consultation.status !== CONSULTATION_STATUS.SCHEDULED) {
+      return res.status(400).json({
+        success: false,
+        error: `Chỉ có thể hoàn thành lịch ở trạng thái Scheduled (hiện tại là ${consultation.status})`,
+      });
+    }
+
+    consultation.status = CONSULTATION_STATUS.COMPLETED;
+    await consultation.save();
+
+    try {
+      await consultation
+        .populate('campaignResult')
+        .populate('student', 'first_name last_name class_name')
+        .populate('attending_parent', 'first_name last_name')
+        .populate('medicalStaff', 'first_name last_name');
+    } catch (populateError) {
+      console.error("❌ Lỗi populate:", populateError);
+    }
+
+    res.json({
+      success: true,
+      data: consultation,
+      message: "Lịch tư vấn đã được hoàn thành thành công",
+    });
+  } catch (error) {
+    console.error("Error completing consultation schedule:", error);
+    res.status(500).json({
+      success: false,
+      error: "Không thể hoàn thành lịch tư vấn",
+    });
+  }
+}
+
 }
 
 module.exports = NurseController;

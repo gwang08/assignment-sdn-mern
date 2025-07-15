@@ -53,6 +53,8 @@ class ApiService {
   getConsultationSchedules = nurseService.getConsultationSchedules.bind(nurseService);
   createConsultationSchedule = nurseService.createConsultationSchedule.bind(nurseService);
   getDashboardStats = nurseService.getDashboardStats.bind(nurseService);
+  cancelConsultationSchedule = nurseService.cancelConsultationSchedule.bind(nurseService); 
+completeConsultationSchedule = nurseService.completeConsultationSchedule.bind(nurseService);
   
   // Vaccination management methods
   getVaccinationCampaigns = nurseService.getVaccinationCampaigns.bind(nurseService);

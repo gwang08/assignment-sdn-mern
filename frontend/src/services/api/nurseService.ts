@@ -198,6 +198,8 @@ class NurseService extends BaseApiClient {
     return response.data;
   }
 
+
+
   // Thêm phương thức mới để hủy lịch tư vấn
   async cancelConsultationSchedule(
     consultationId: string,
@@ -207,6 +209,14 @@ class NurseService extends BaseApiClient {
       await this.api.put(`/nurse/consultation/${consultationId}/cancel`, data);
     return response.data;
   }
+
+  async completeConsultationSchedule(
+  consultationId: string
+): Promise<ApiResponse<ConsultationSchedule>> {
+  const response: AxiosResponse<ApiResponse<ConsultationSchedule>> =
+    await this.api.put(`/nurse/consultation/${consultationId}/complete`);
+  return response.data;
+}
 
   // Dashboard
   async getDashboardStats(): Promise<ApiResponse<DashboardStats>> {
