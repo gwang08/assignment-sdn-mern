@@ -18,6 +18,8 @@ import {
   Descriptions,
   Divider,
 } from 'antd';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import {
   UserAddOutlined,
   EyeOutlined,
@@ -93,14 +95,28 @@ const StudentLinkRequests: React.FC = () => {
       const response = await apiService.requestStudentLink(requestData);
 
       if (response.success) {
-        message.success('Yêu cầu liên kết đã được gửi thành công');
+        toast.success('Yêu cầu liên kết đã được gửi thành công!', {
+          position: "top-right",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
         setIsRequestModalVisible(false);
         requestForm.resetFields();
         loadData(); // Reload to show new request
       }
     } catch (error) {
       console.error('Error creating request:', error);
-      message.error('Có lỗi xảy ra khi gửi yêu cầu');
+      toast.error('Có lỗi xảy ra khi gửi yêu cầu. Vui lòng thử lại!', {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
     }
   };
 
@@ -516,6 +532,20 @@ const StudentLinkRequests: React.FC = () => {
 
       {/* Request Detail Modal */}
       {renderRequestDetail()}
+
+      {/* Toast Container */}
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+      />
     </div>
   );
 };
