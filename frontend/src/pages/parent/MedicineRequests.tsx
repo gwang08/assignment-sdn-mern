@@ -16,6 +16,8 @@ import {
   DatePicker,
   Statistic,
 } from 'antd';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import {
   MedicineBoxOutlined,
   PlusOutlined,
@@ -127,14 +129,28 @@ const ParentMedicineRequests: React.FC = () => {
       };
 
       if (requestData.medicines.length === 0) {
-        message.error('Vui lòng điền thông tin ít nhất một loại thuốc');
+        toast.error('Vui lòng điền thông tin ít nhất một loại thuốc', {
+          position: "top-right",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
         return;
       }
 
       const response = await apiService.createMedicineRequestForStudent(values.student_id, requestData);
       
       if (response.success) {
-        message.success('Gửi yêu cầu thuốc thành công');
+        toast.success('Gửi yêu cầu thuốc thành công!', {
+          position: "top-right",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
         setIsModalVisible(false);
         setMedicines([{ name: '', dosage: '', frequency: '', notes: '' }]);
         form.resetFields();
@@ -142,7 +158,14 @@ const ParentMedicineRequests: React.FC = () => {
       }
     } catch (error) {
       console.error('Error creating medicine request:', error);
-      message.error('Có lỗi xảy ra khi gửi yêu cầu thuốc');
+      toast.error('Có lỗi xảy ra khi gửi yêu cầu thuốc. Vui lòng thử lại!', {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
     }
   };
 
@@ -152,13 +175,27 @@ const ParentMedicineRequests: React.FC = () => {
     try {
       // Note: Currently there's no update API for medicine requests in parent endpoints
       // Parent can only create new requests, not update existing ones
-      message.info('Không thể chỉnh sửa yêu cầu đã gửi. Vui lòng tạo yêu cầu mới nếu cần.');
+      toast.info('Không thể chỉnh sửa yêu cầu đã gửi. Vui lòng tạo yêu cầu mới nếu cần.', {
+        position: "top-right",
+        autoClose: 4000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
       setIsModalVisible(false);
       setEditingRequest(null);
       setMedicines([{ name: '', dosage: '', frequency: '', notes: '' }]);
       form.resetFields();
     } catch (error) {
-      message.error('Có lỗi xảy ra khi cập nhật yêu cầu thuốc');
+      toast.error('Có lỗi xảy ra khi cập nhật yêu cầu thuốc. Vui lòng thử lại!', {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
     }
   };
 
@@ -619,18 +656,57 @@ const ParentMedicineRequests: React.FC = () => {
               <Form.Item
                 name="start_date"
                 label="Ngày bắt đầu"
-                rules={[{ required: true, message: 'Vui lòng chọn ngày bắt đầu' }]}
+                rules={[
+                  { required: true, message: 'Vui lòng chọn ngày bắt đầu' },
+                  {
+                    validator: (_, value) => {
+                      if (!value) return Promise.resolve();
+                      if (value.isBefore(moment(), 'day')) {
+                        return Promise.reject(new Error('Ngày bắt đầu không được trong quá khứ'));
+                      }
+                      return Promise.resolve();
+                    }
+                  }
+                ]}
               >
-                <DatePicker style={{ width: '100%' }} />
+                <DatePicker 
+                  style={{ width: '100%' }}
+                  disabledDate={(current) => current && current < moment().startOf('day')}
+                  onChange={() => {
+                    // Clear end date validation when start date changes
+                    form.validateFields(['end_date']);
+                  }}
+                />
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item
                 name="end_date"
                 label="Ngày kết thúc"
-                rules={[{ required: true, message: 'Vui lòng chọn ngày kết thúc' }]}
+                rules={[
+                  { required: true, message: 'Vui lòng chọn ngày kết thúc' },
+                  {
+                    validator: (_, value) => {
+                      if (!value) return Promise.resolve();
+                      const startDate = form.getFieldValue('start_date');
+                      if (startDate && value.isBefore(startDate, 'day')) {
+                        return Promise.reject(new Error('Ngày kết thúc không được trước ngày bắt đầu'));
+                      }
+                      return Promise.resolve();
+                    }
+                  }
+                ]}
               >
-                <DatePicker style={{ width: '100%' }} />
+                <DatePicker 
+                  style={{ width: '100%' }}
+                  disabledDate={(current) => {
+                    const startDate = form.getFieldValue('start_date');
+                    if (startDate) {
+                      return current && (current < moment().startOf('day') || current < startDate.startOf('day'));
+                    }
+                    return current && current < moment().startOf('day');
+                  }}
+                />
               </Form.Item>
             </Col>
           </Row>
@@ -647,6 +723,20 @@ const ParentMedicineRequests: React.FC = () => {
       </Modal>
 
       {renderRequestDetail()}
+
+      {/* Toast Container */}
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+      />
     </div>
   );
 };

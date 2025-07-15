@@ -18,6 +18,8 @@ import {
   Radio,
   Descriptions,
 } from 'antd';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import {
   CalendarOutlined,
   HeartOutlined,
@@ -166,7 +168,14 @@ const ParentCampaigns: React.FC = () => {
       );
 
       if (response.success) {
-        message.success('Cập nhật đồng ý thành công');
+        toast.success('Cập nhật phản hồi thành công!', {
+          position: "top-right",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
         
         // Immediately update the consents state with the new data
         if (response.data) {
@@ -203,11 +212,25 @@ const ParentCampaigns: React.FC = () => {
           await loadData();
         }, 500);
       } else {
-        message.error(response.message || 'Có lỗi xảy ra khi cập nhật đồng ý');
+        toast.error(response.message || 'Có lỗi xảy ra khi cập nhật đồng ý', {
+          position: "top-right",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
       }
     } catch (error) {
       console.error('Error updating consent:', error);
-      message.error('Có lỗi xảy ra khi cập nhật đồng ý');
+      toast.error('Có lỗi xảy ra khi cập nhật đồng ý. Vui lòng thử lại!', {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
     }
   };
 
@@ -268,9 +291,16 @@ const ParentCampaigns: React.FC = () => {
     if (campaign) {
       // Only allow consent updates for campaigns with draft status
       if (!['draft', 'active'].includes(campaign.status)) {
-  message.warning('Chỉ có thể cập nhật đồng ý cho các chiến dịch đang diễn ra hoặc bản nháp');
-  return;
-}
+        toast.warning('Chỉ có thể cập nhật đồng ý cho các chiến dịch đang diễn ra hoặc bản nháp', {
+          position: "top-right",
+          autoClose: 4000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
+        return;
+      }
 
       // Check if there's already a consent record for this campaign and student
       const existingConsent = consents.find(c => {
@@ -1095,6 +1125,20 @@ const ParentCampaigns: React.FC = () => {
           </div>
         )}
       </Modal>
+
+      {/* Toast Container */}
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+      />
     </div>
   );
 };
