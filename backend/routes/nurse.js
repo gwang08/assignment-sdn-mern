@@ -413,6 +413,44 @@ router.post(
  */
 router.put("/consultation/:consultationId/cancel", NurseController.cancelConsultationSchedule);
 
+/**
+ * @swagger
+ * /nurse/consultation/{consultationId}/complete:
+ *   put:
+ *     summary: Complete a consultation schedule
+ *     tags: [Nurse]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: consultationId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: ID of the consultation schedule
+ *     responses:
+ *       200:
+ *         description: Consultation schedule completed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/ConsultationSchedule'
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: Invalid input or consultation not completable
+ *       404:
+ *         description: Consultation not found
+ *       500:
+ *         description: Server error
+ */
+router.put("/consultation/:consultationId/complete", NurseController.completeConsultationSchedule);
+
 router.put(
   "/medical-events/:eventId/notify-parent",
   NurseController.updateParentNotification

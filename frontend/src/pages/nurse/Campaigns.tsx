@@ -248,6 +248,52 @@ const hasAllGradesSelected = (values: any) => {
     setIsCancelModalVisible(true);
   };
 
+  const handleCompleteConsultation = async (consultationId: string) => {
+  try {
+    const response = await nurseService.completeConsultationSchedule(consultationId);
+    if (response.success) {
+      notification.success({
+        message: 'Thành công',
+        description: 'Đã hoàn thành lịch tư vấn.',
+      });
+      // Làm mới danh sách lịch tư vấn
+      if (selectedCampaign) {
+        const res = await nurseService.getConsultationSchedules();
+        let data = Array.isArray(res) ? res : res?.data || [];
+        data = data.filter((item: any) => {
+          if (
+            item.campaignResult &&
+            typeof item.campaignResult === 'object' &&
+            item.campaignResult.campaign
+          ) {
+            return (
+              (typeof item.campaignResult.campaign === 'object'
+                ? item.campaignResult.campaign._id
+                : item.campaignResult.campaign) === selectedCampaign._id
+            );
+          }
+          return false;
+        });
+        data = data.map((item: any) => ({
+          ...item,
+          status: item.status || 'Scheduled',
+        }));
+        setConsultationSchedules(data);
+      }
+    } else {
+      notification.error({
+        message: 'Lỗi',
+        description: response.message || 'Có lỗi xảy ra khi hoàn thành lịch tư vấn.',
+      });
+    }
+  } catch (error) {
+    notification.error({
+      message: 'Lỗi hệ thống',
+      description: 'Có lỗi xảy ra khi kết nối với máy chủ.',
+    });
+  }
+};
+
   const handleSubmitCancel = async (values: { cancelReason: string }) => {
   if (!selectedConsultationId) return;
 
@@ -2457,20 +2503,33 @@ Y tế trường học`
         title: 'Ghi chú',
         dataIndex: 'notes',
       },
-     {
+    {
   title: 'Thao tác',
   key: 'actions',
   render: (_, record) => (
     <Space>
       {record.status === 'Scheduled' && (
-        <Button
-          size="small"
-          danger
-          onClick={() => handleCancelConsultation(record._id)}
-          icon={<CloseOutlined />}
-        >
-          Hủy
-        </Button>
+        <>
+          <Button
+            size="small"
+            type="primary"
+            onClick={() => handleCompleteConsultation(record._id)}
+            icon={<CheckCircleOutlined />}
+          >
+            Hoàn thành
+          </Button>
+          <Button
+            size="small"
+            danger
+            onClick={() => handleCancelConsultation(record._id)}
+            icon={<CloseOutlined />}
+          >
+            Hủy
+          </Button>
+        </>
+      )}
+      {record.status === 'Completed' && (
+        <Tag color="green">Hoàn thành</Tag>
       )}
       {record.status === 'Cancelled' && (
         <Tag color="red">Đã hủy</Tag>
@@ -2478,7 +2537,6 @@ Y tế trường học`
     </Space>
   ),
 }
-
     ]}
     pagination={false}
     locale={{ emptyText: 'Chưa có lịch tư vấn nào cho chiến dịch này.' }}
